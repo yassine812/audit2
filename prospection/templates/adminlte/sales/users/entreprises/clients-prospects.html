@@ -1,0 +1,848 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+<button class="btn btn-primary" 
+    id="openFilterBtn" 
+    style="
+        position: fixed;
+        right: 20px;
+        top: 40%;
+        z-index: 999;
+    ">
+    <i class="fas fa-filter"></i> Filtres
+</button>
+
+<div class="custom-sidebar" id="filterSidebar">
+    <div class="sidebar-header">
+        <button class="close-btn" id="closeFilterBtn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">        
+        <form method="GET" id="filterForm">
+            
+            
+            <!-- Filtre société (admin) -->
+            {% if is_superuser or is_RO %}
+            <div class="form-group">
+                <label>Filiale</label>
+                <select name="societe" class="form-control form-control-sm">
+                    <option value="">Toutes les filiales</option>
+                    {% for societe in societes %}
+                        <option value="{{ societe.id }}" {% if societe_filter == societe.id|stringformat:"s" %}selected{% endif %}>{{ societe.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <!-- Tri par date -->
+            <div class="form-group">
+                <label>Trier par date</label>
+                <select name="sort_by_date" class="form-control form-control-sm">
+                    <option value="">Par défaut</option>
+                    <option value="asc" {% if sort_by_date == "asc" %}selected{% endif %}>Plus ancien d'abord</option>
+                    <option value="desc" {% if sort_by_date == "desc" %}selected{% endif %}>Plus récent d'abord</option>
+                </select>
+            </div>
+            
+            <!-- Recherche -->
+            <div class="form-group">
+                <label>Recherche</label>
+                <input type="text" name="search" class="form-control form-control-sm" 
+                       placeholder="Rechercher par nom, email, téléphone ou compte" value="{{ search_query|default_if_none:'' }}" autocomplete="off">
+            </div>
+            
+            <input type="hidden" name="page" value="{{ request.GET.page }}">
+            
+            <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap: 4px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Appliquer
+                </button>
+                <a href="{% url 'prospection:gestion_entreprises' %}" class="btn btn-default">
+                    <i class="fas fa-sync-alt"></i> Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion Clients</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">Clients</li>
+                </ol>
+            </div>
+        </div>        
+
+        {% if is_responsable or is_superuser or is_RO %}
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addClientModal">
+                    <i class="fas fa-user-check"></i> Ajouter un client
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="col-md-6 mb-4">
+    <div class="card card-success shadow-sm h-100 collapsed-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <h3 class="card-title mb-0">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    Taux de conversion Prospects → Clients
+                </h3>
+            </div>
+            <div class="d-flex align-items-center">
+                <div class="form-group mb-0 mr-2" style="min-width: 120px;">
+                    <div class="input-group input-group-sm">
+                        <div class="input-group-prepend">
+                            <label class="input-group-text bg-white border-right-0" for="yearFilter">
+                                <i class="fas fa-calendar-alt text-muted"></i>
+                            </label>
+                        </div>
+                        <select class="form-control form-control-sm border-left-0" id="yearFilter">
+                            {% for year in years %}
+                                <option value="{{ year }}" {% if forloop.first %}selected{% endif %}>{{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse" data-toggle="tooltip" title="Réduire/Agrandir">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="p-3">
+                <div class="chart-container" style="position: relative; height: 280px; width: 100%;">
+                    <canvas id="barChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-white border-top-0 pt-0">
+            <small class="text-muted d-flex justify-content-end align-items-center">
+                <i class="fas fa-info-circle mr-1"></i>
+                Cliquez sur les barres pour plus de détails
+            </small>
+        </div>
+    </div>
+</div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header justify-content-between align-items-center">
+                        <div class="card-tools float-right" style="text-align:center">
+                            <small style="font-size: 90%;">
+                                {{ entreprises.start_index }} - {{ entreprises.end_index }} sur {{ entreprises.paginator.count }}
+                            </small>
+                            <ul class="pagination pagination-sm justify-content-center mb-0" style="margin-top:0">
+                                <li class="page-item {% if not entreprises.has_previous %}disabled{% endif %}">
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1">&laquo;</a>
+                                </li>
+                                {% for i in entreprises.paginator.page_range %}
+                                    <li class="page-item {% if entreprises.number == i %}active{% endif %}">
+                                        <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ i }}">{{ i }}</a>
+                                    </li>
+                                {% endfor %}
+                                <li class="page-item {% if not entreprises.has_next %}disabled{% endif %}">
+                                    <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ entreprises.paginator.num_pages }}">&raquo;</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <table id="clients" class="table table-bordered table-hover mt-4">
+                            <thead>
+                                <tr>                                    
+                                    <th>Numéro de compte</th>
+                                    <th>Nom</th>
+                                    <th>Adresse</th>
+                                    <th>Email</th>
+                                    <th>Téléphone</th>
+                                    <th>Secteur d'activité</th>
+                                    <th>Date</th> 
+                                    {% if is_superuser or is_RO %}
+                                    <th>Filiale</th>
+                                    {% endif %}
+                                    <th>Statut</th>
+                                    <th>Date de conversion</th>
+                                    {% if is_responsable or is_superuser or is_RO %}
+                                    <th>Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entreprise in entreprises %}
+                                {% if entreprise.is_CLT %}
+                                <tr>
+                                    <td>{{ entreprise.num_compte }}</td>
+                                    <td>{{ entreprise.nom }}</td>
+                                    <td>{{ entreprise.adresse|default:"-" }}</td>
+                                    <td>{{ entreprise.email|default:"-" }}</td>
+                                    <td>{{ entreprise.telephone|default:"-" }}</td>
+                                    <td>{{ entreprise.secteur_activite|default:"-" }}</td>
+                                    <td>{{ entreprise.date|date:"d/m/Y" }}</td>
+                                    {% if is_superuser or is_RO %}
+                                    <td>{% if entreprise.societe %}{{ entreprise.societe.nom }}{% else %}-{% endif %}</td>
+                                    {% endif %}
+                                    <td>
+                                        {% if entreprise.is_Prospect %}
+                                            <span class="badge badge-secondary">Ancien prospect</span>
+                                        {% endif %}
+                                        <span class="badge badge-success">Client</span>
+                                    </td>
+                                    <td>
+                                        {% if entreprise.date_conversion %}
+                                            {{ entreprise.date_conversion|date:"d/m/Y" }} 
+                                        {% else %}
+                                            - 
+                                        {% endif %}
+                                    </td>
+                                    {% if is_superuser or is_responsable or is_RO %}
+                                    <td>
+                                        <button type="button" style="margin-bottom: 3px;" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editModal{{ entreprise.id }}" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" style="margin-bottom: 3px;" class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#deleteModal{{ entreprise.id }}" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Ajout Prospect -->
+<div class="modal fade" id="addProspectModal" tabindex="-1" role="dialog" aria-labelledby="addProspectModalLabel" aria-hidden="true"> 
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="addProspectModalLabel">Ajouter un prospect</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'prospection:add_entreprise' 'prospect' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                                <input type="text" name="nom" class="form-control" id="id_nom" required placeholder="Entrez le nom du prospect">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                                <input type="text" name="adresse" class="form-control" id="id_adresse" required placeholder="Entrez l'adresse">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" required placeholder="Ex: Informatique, BTP...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone">Téléphone <span class="text-danger">*</span></label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone" required placeholder="Entrez le numéro de téléphone">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" id="id_email" required placeholder="Entrez l'adresse e-mail">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_date">Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" id="id_date" required>
+                                <small class="text-danger" id="date-error" style="display: none;">La date est obligatoire</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% if is_superuser or is_RO %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="id_societe">Filiale <span class="text-danger">*</span></label>
+                                <select name="societe" class="form-control" id="id_societe" required>
+                                    <option value="">Sélectionner une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-danger" id="societe-error" style="display: none;">La filiale est obligatoire</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for entreprise in entreprises %}
+{% if entreprise.is_CLT %}
+<!-- Modal d'édition -->
+<div class="modal fade" id="editModal{{ entreprise.id }}" tabindex="-1" role="dialog" aria-labelledby="editModalLabel{{ entreprise.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="editModalLabel{{ entreprise.id }}">Modifier client</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                {% if entreprise.id %}
+                    <form id="edit-form-{{ entreprise.id }}" method="post" action="{% url 'prospection:edit_entreprise' entreprise.id 'client' %}">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_nom_{{ entreprise.id }}">Nom <span class="text-danger">*</span></label>
+                                    <input type="text" name="nom" class="form-control" id="id_nom_{{ entreprise.id }}" value="{{ entreprise.nom }}" placeholder="Saisissez le nom" required autocomplete="organization">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_adresse_{{ entreprise.id }}">Adresse <span class="text-danger">*</span></label>
+                                    <input type="text" name="adresse" class="form-control" id="id_adresse_{{ entreprise.id }}" value="{{ entreprise.adresse }}" placeholder="Saisissez l'adresse" required autocomplete="street-address">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_secteur_activite_{{ entreprise.id }}">Secteur d'activité <span class="text-danger">*</span></label>
+                                    <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite_{{ entreprise.id }}" value="{{ entreprise.secteur_activite }}" placeholder="Ex. : Informatique, BTP..." required autocomplete="organization-title">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_telephone_{{ entreprise.id }}">Téléphone <span class="text-danger">*</span></label>
+                                    <input type="text" name="telephone" class="form-control" id="id_telephone_{{ entreprise.id }}" value="{{ entreprise.telephone }}" placeholder="Saisissez le numéro de téléphone" required inputmode="tel" autocomplete="tel">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_email_{{ entreprise.id }}">Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="email" class="form-control" id="id_email_{{ entreprise.id }}" value="{{ entreprise.email }}" placeholder="Ex. : nom@exemple.com" required autocomplete="email">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_date_{{ entreprise.id }}">Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="date" class="form-control" id="id_date_{{ entreprise.id }}" value="{{ entreprise.date|date:'Y-m-d' }}" required>
+                                    <small class="text-danger" id="date-edit-{{ entreprise.id }}-error" style="display: none;">La date est obligatoire</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="id_num_compte_{{ entreprise.id }}">Numéro de compte <span class="text-danger">*</span></label>
+                                    <input type="text" name="num_compte" class="form-control" id="id_num_compte_{{ entreprise.id }}" value="{{ entreprise.num_compte }}" placeholder="Saisissez le numéro de compte du client" required>
+                                    <small class="text-danger" id="num_compte-edit-{{ entreprise.id }}-error" style="display: none;">Le numéro de compte est obligatoire</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                            <button type="submit" class="btn btn-info">Enregistrer</button>
+                        </div>
+                    </form>
+                {% else %}
+                    <div class="alert alert-danger">
+                        ID entreprise invalide. Impossible de modifier cet enregistrement.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Ajout Client -->
+<div class="modal fade" id="addClientModal" tabindex="-1" role="dialog" aria-labelledby="addClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="addClientModalLabel">Ajouter un client</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'prospection:add_entreprise' 'client' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                                <input type="text" name="nom" class="form-control" id="id_nom" placeholder="Saisissez le nom du client" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                                <input type="text" name="adresse" class="form-control" id="id_adresse" placeholder="Saisissez l'adresse" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" placeholder="Ex. : Informatique, BTP, Santé..." required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone">Téléphone <span class="text-danger">*</span></label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone" placeholder="Saisissez le numéro de téléphone" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" id="id_email" placeholder="Ex. : nom@exemple.com" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_date">Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" id="id_date" required>
+                                <small class="text-danger" id="date-error" style="display: none;">La date est obligatoire</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_num_compte">Numéro de compte <span class="text-danger">*</span></label>
+                                <input type="text" name="num_compte" class="form-control" id="id_num_compte" placeholder="Saisissez le numéro de compte du client" required>
+                                <small class="text-danger" id="num_compte-error" style="display: none;">Le numéro de compte est obligatoire</small>
+                            </div>
+                        </div>
+                        {% if is_superuser or is_RO %}
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_societe">Filiale <span class="text-danger">*</span></label>
+                                <select name="societe" class="form-control" id="id_societe" required>
+                                    <option value="">Sélectionner une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-danger" id="societe-error" style="display: none;">La filiale est obligatoire</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for entreprise in entreprises %}
+{% if entreprise.is_CLT %}
+<!-- Modal de suppression -->
+<div class="modal fade" id="deleteModal{{ entreprise.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteModalLabel{{ entreprise.id }}" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title" id="deleteModalLabel{{ entreprise.id }}">Supprimer client</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer "{{ entreprise.nom }}" ?</p>
+            </div>
+            <div class="modal-footer">
+                {% if entreprise.id %}
+                    <form method="post" action="{% url 'prospection:delete_entreprise' entreprise.id 'client' %}">
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                {% else %}
+                    <div class="alert alert-danger">
+                        ID entreprise invalide. Impossible de supprimer cet enregistrement.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{# conversion modal removed: clients-only page #}
+<div class="control-sidebar-bg"></div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+// Initialisation du graphique après le chargement du DOM
+$(document).ready(function() {
+    // Récupérer les données depuis la variable Django
+    let chartData = [];
+    try {
+        // Utiliser safe pour éviter l'échappement HTML
+        const chartDataJson = '{{ chart_data|safe }}';
+        chartData = JSON.parse(chartDataJson);
+    } catch (e) {
+        console.error('Erreur lors du parsing des données:', e);
+        return; // Sortir si les données sont invalides
+    }
+    
+    // Créer un objet pour stocker les données par année
+    const dataByYear = {};
+    const years = new Set();
+    
+    // Organiser les données par année
+    chartData.forEach(item => {
+        if (item && item.year && item.month !== undefined && item.count !== undefined) {
+            const year = parseInt(item.year);
+            const month = parseInt(item.month) - 1; // Les mois sont 0-indexés dans JavaScript
+            
+            if (!dataByYear[year]) {
+                dataByYear[year] = Array(12).fill(0);
+                years.add(year);
+            }
+            dataByYear[year][month] = parseInt(item.count);
+        }
+    });
+    
+    // Trier les années par ordre décroissant
+    const sortedYears = Array.from(years).sort((a, b) => b - a);
+    
+    // Déclarer la variable globale pour stocker l'instance du graphique
+    let barChart = null;
+    
+    // Mettre à jour le graphique en fonction de l'année sélectionnée
+    function updateChart(selectedYear) {
+        
+        const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+        const data = dataByYear[selectedYear] || Array(12).fill(0);
+        
+        // Récupérer le contexte du canvas
+        const ctx = document.getElementById('barChart').getContext('2d');
+        
+        // Détruire l'instance précédente si elle existe
+        if (barChart) {
+            barChart.destroy();
+        }
+        
+        // Créer un nouveau graphique
+        barChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: 'Nombre de conversions',
+                    data: data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Nombre de conversions'
+                        },
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mois'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: `Taux de conversion Prospects → Clients (${selectedYear})`,
+                        font: {
+                            size: 16
+                        }
+                    },
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+    
+    // Initialiser le sélecteur d'année
+    const yearSelect = document.getElementById('yearFilter');
+    if (yearSelect) {
+        // Mettre à jour le graphique lors du changement d'année
+        yearSelect.addEventListener('change', function() {
+            updateChart(parseInt(this.value));
+        });
+        
+        // Initialiser avec la première année disponible
+        if (sortedYears.length > 0) {
+            updateChart(sortedYears[0]);
+        }
+    } else {
+        console.error('Élément yearFilter non trouvé dans le DOM');
+    }
+    
+    // Initialiser le tableau DataTables
+    var table = $('#clients').DataTable({
+        "paging": false,
+        "searching": false,
+        "ordering": false,
+        "info": false,
+        "autoWidth": false,
+        "responsive": true,
+        "columnDefs": [
+            { "className": "dt-center", "targets": "_all" }
+        ],
+        "language": {
+            "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucune entreprise trouvée.</div>"
+        }
+    });
+});
+
+
+
+    //sidebar filtre
+    const sidebar = document.getElementById('filterSidebar');
+    const openBtn = document.getElementById('openFilterBtn');
+    const closeBtn = document.getElementById('closeFilterBtn');
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+    function openSidebar() {
+        sidebar.classList.add('open');
+        backdrop.style.display = 'block';
+    }
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        backdrop.style.display = 'none';
+    }
+    openBtn.addEventListener('click', openSidebar);
+    closeBtn.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+
+    // Validation des formulaires d'ajout et de modification
+    document.addEventListener('DOMContentLoaded', function() {
+        // Fonction pour afficher un message d'erreur
+        function showError(inputId, message) {
+            const errorElement = document.getElementById(`${inputId}-error`);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+            }
+        }
+
+        // Fonction pour masquer un message d'erreur
+        function hideError(inputId) {
+            const errorElement = document.getElementById(`${inputId}-error`);
+            if (errorElement) {
+                errorElement.style.display = 'none';
+            }
+        }
+
+        // Validation du formulaire d'ajout de client
+        const addClientForm = document.querySelector('#addClientModal form');
+        if (addClientForm) {
+            addClientForm.addEventListener('submit', function(event) {
+                let isValid = true;
+                
+                // Vérification du numéro de compte (uniquement pour les clients)
+                const numCompte = document.getElementById('id_num_compte');
+                if (numCompte && !numCompte.value.trim()) {
+                    showError('num_compte', 'Le numéro de compte est obligatoire');
+                    isValid = false;
+                } else {
+                    hideError('num_compte');
+                }
+
+                // Vérification de la date
+                const dateInput = addClientForm.querySelector('input[type="date"]');
+                if (dateInput) {
+                    if (!dateInput.value) {
+                        showError('date', 'La date est obligatoire');
+                        isValid = false;
+                    } else {
+                        hideError('date');
+                    }
+                }
+
+                // Vérification de la filiale (si visible)
+                const societe = document.getElementById('id_societe');
+                if (societe && societe.offsetParent !== null && !societe.value) {
+                    showError('societe', 'La filiale est obligatoire');
+                    isValid = false;
+                } else if (societe) {
+                    hideError('societe');
+                }
+
+                if (!isValid) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            });
+        }
+
+        // Validation du formulaire d'ajout de prospect
+        const addProspectForm = document.querySelector('#addProspectModal form');
+        if (addProspectForm) {
+            addProspectForm.addEventListener('submit', function(event) {
+                let isValid = true;
+                
+                // Vérification de la date
+                const dateInput = addProspectForm.querySelector('input[type="date"]');
+                if (dateInput) {
+                    if (!dateInput.value) {
+                        showError('date', 'La date est obligatoire');
+                        isValid = false;
+                    } else {
+                        hideError('date');
+                    }
+                }
+
+                // Vérification de la filiale (si visible)
+                const societe = document.getElementById('id_societe');
+                if (societe && societe.offsetParent !== null && !societe.value) {
+                    showError('societe', 'La filiale est obligatoire');
+                    isValid = false;
+                } else if (societe) {
+                    hideError('societe');
+                }
+
+                if (!isValid) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            });
+        }
+
+        // Validation des formulaires de modification
+        document.querySelectorAll('form[id^="edit-form-"]').forEach(form => {
+            form.addEventListener('submit', function(event) {
+                const formId = this.id;
+                const entrepriseId = formId.split('-')[2];
+                let isValid = true;
+
+                // Vérification du numéro de compte (si visible)
+                const numCompte = document.getElementById(`id_num_compte_${entrepriseId}`);
+                if (numCompte && numCompte.offsetParent !== null && !numCompte.value.trim()) {
+                    showError(`num_compte-edit-${entrepriseId}`, 'Le numéro de compte est obligatoire');
+                    isValid = false;
+                } else if (numCompte) {
+                    hideError(`num_compte-edit-${entrepriseId}`);
+                }
+
+                // Vérification de la date
+                const date = this.querySelector('input[type="date"]');
+                if (date && !date.value) {
+                    showError(`date-edit-${entrepriseId}`, 'La date est obligatoire');
+                    isValid = false;
+                } else if (date) {
+                    hideError(`date-edit-${entrepriseId}`);
+                }
+
+                if (!isValid) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            });
+        });
+    });
+</script>
+<style>
+    .custom-sidebar {
+        position: fixed;
+        top: 0;
+        right: -250px;
+        width: 250px;
+        height: 100vh;
+        background: #343a40;
+        color: white;
+        z-index: 9999;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .custom-sidebar.open {
+        right: 0; 
+    }
+    
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none;
+    }
+</style>
+
+{% endblock %}

@@ -1,0 +1,74 @@
+<div class="form-row">
+  <div class="form-group col-md-8"><label>Nom *</label>{{ form.nom }}</div>
+  <div class="form-group col-md-4"><label>Couleur</label>{{ form.couleur }}</div>
+</div>
+<div class="form-group"><label>Description</label>{{ form.description }}</div>
+<div class="access-switch mb-3">
+  <div><strong>Limiter l'accès à ce dossier</strong><small class="d-block text-muted">Désactivé : tous les profils autorisés au module peuvent consulter.</small></div>
+  {{ form.acces_restreint }}
+</div>
+<div class="access-options" id="accessOptions">
+  <div class="alert alert-light border small">Ajoutez plusieurs règles si les audiences ou les actions sont différentes. Les restrictions sont héritées par les sous-dossiers.</div>
+  {{ nouveau_regles_formset.management_form }}
+  <div id="newAccessRules">
+  {% for regle in nouveau_regles_formset %}
+    <div class="gd-card border p-3 mb-3 access-rule-card">
+      {{ regle.id }}<span class="d-none">{{ regle.DELETE }}</span>
+      <div class="d-flex justify-content-between mb-3"><strong class="text-primary"><i class="fas fa-key mr-2"></i>Règle d’accès</strong><button type="button" class="btn btn-sm btn-outline-danger remove-new-rule"><i class="fas fa-trash-alt"></i></button></div>
+      <div class="form-group"><label class="gd-form-label">Actions</label><div class="access-role-grid">{% for choice in regle.actions_autorisees %}<label class="access-role-card" for="{{ choice.id_for_label }}">{{ choice.tag }}<i class="fas fa-tasks"></i><span>{{ choice.choice_label }}</span></label>{% endfor %}</div></div>
+      <div class="form-group"><label class="gd-form-label">Rôles</label><div class="access-role-grid">{% for choice in regle.roles_autorises %}<label class="access-role-card" for="{{ choice.id_for_label }}">{{ choice.tag }}<i class="fas fa-user-tag"></i><span>{{ choice.choice_label }}</span></label>{% endfor %}</div></div>
+      <div class="row">
+        <div class="col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title">Sociétés</div>{{ regle.societes_autorisees }}</div></div>
+        <div class="col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title">Sections</div>{{ regle.sections_autorisees }}</div></div>
+        <div class="col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title">Utilisateurs</div>{{ regle.utilisateurs_autorises }}</div></div>
+      </div>
+    </div>
+  {% endfor %}
+  </div>
+  <button type="button" id="addNewAccessRule" class="btn btn-outline-primary"><i class="fas fa-plus mr-1"></i>Ajouter une règle</button>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const checkbox = document.getElementById('{{ form.acces_restreint.id_for_label }}');
+  const options = document.getElementById('accessOptions');
+  function toggleAccess() { options.style.display = checkbox.checked ? 'block' : 'none'; }
+  checkbox.addEventListener('change', toggleAccess); toggleAccess();
+  document.querySelectorAll('#folderModal .access-list-search').forEach(function(input) {
+    input.addEventListener('input', function() {
+      const query = this.value.toLocaleLowerCase();
+      const select = document.getElementById(this.dataset.target);
+      Array.from(select.options).forEach(function(option) {
+        option.hidden = !option.text.toLocaleLowerCase().includes(query);
+      });
+    });
+  });
+  const container = document.getElementById('newAccessRules');
+  const total = document.getElementById('id_new_rules-TOTAL_FORMS');
+  function bindRemove(button) {
+    button.addEventListener('click', function () {
+      const card = this.closest('.access-rule-card');
+      const deletion = card.querySelector('input[name$="-DELETE"]');
+      if (deletion) { deletion.checked = true; card.style.display = 'none'; }
+    });
+  }
+  document.querySelectorAll('.remove-new-rule').forEach(bindRemove);
+  document.getElementById('addNewAccessRule').addEventListener('click', function () {
+    const cards = container.querySelectorAll('.access-rule-card');
+    if (!cards.length) return;
+    const index = parseInt(total.value, 10);
+    const clone = cards[cards.length - 1].cloneNode(true);
+    clone.innerHTML = clone.innerHTML.replace(/new_rules-(\d+)-/g, 'new_rules-' + index + '-');
+    clone.style.display = '';
+    clone.querySelectorAll('input').forEach(function (input) {
+      if (input.name.endsWith('-id')) input.value = '';
+      else input.checked = false;
+    });
+    clone.querySelectorAll('select').forEach(function (select) {
+      Array.from(select.options).forEach(function (option) { option.selected = false; });
+    });
+    container.appendChild(clone);
+    total.value = index + 1;
+    bindRemove(clone.querySelector('.remove-new-rule'));
+  });
+});
+</script>

@@ -1,0 +1,44 @@
+{% extends 'audit/base.html' %}
+{% block title %}Détail audit{% endblock %}
+{% block content %}
+<div class="card card-primary card-outline">
+  <div class="card-header">
+    <h3 class="card-title">{{ object.numero }} - {{ object.formulaire.get_type_audit_display }}</h3>
+  </div>
+  <div class="card-body">
+    <p><strong>Section:</strong> {{ object.formulaire.section }} | <strong>Date:</strong> {{ object.date_audit }} | <strong>Statut:</strong> {{ object.get_statut_display }}</p>
+    <p><strong>Formulaire:</strong> {{ object.formulaire }}</p>
+
+    <div class="mb-3">
+      {% if user.is_superuser or user.is_auditeur %}
+        <form method="post" action="{% url 'audit:lancer' object.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-info btn-sm">Lancer</button></form>
+        <form method="post" action="{% url 'audit:terminer' object.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-warning btn-sm">Terminer</button></form>
+      {% endif %}
+
+      <a href="{% url 'audit:reponses-masse' object.pk %}" class="btn btn-primary btn-sm">Saisir réponses</a>
+      {# Actions removed #}
+    </div>
+        <div class="table-responsive">
+<table class="table table-sm table-striped">
+      <thead><tr><th>Ligne</th><th>Critère</th><th>Commentaire</th><th>Document</th></tr></thead>
+      <tbody>
+      {% for rep in object.reponses.all %}
+        <tr>
+          <td>{{ rep.ligne.id }}</td>
+          <td>{{ rep.ligne.critere.texte }}</td>
+          <td>{{ rep.commentaire|default:'-' }}</td>
+          <td>{% if rep.document %}<a href="{{ rep.document.url }}">Fichier</a>{% else %}-{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="text-center text-muted">Aucun élément n'existe pour cette table.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+
+    {% if object.statut == 'TERMINE' and object.resultat %}
+      <a href="{% url 'audit:resultat-detail' object.resultat.pk %}" class="btn btn-outline-success btn-sm">Voir résultat</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'plugins/select2/css/select2.min.css' %}">
+<link rel="stylesheet" href="{% static 'plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}">
+<link rel="stylesheet" href="{% static 'plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css' %}">
+<style>
+  .card-header.d-flex { align-items: center; }
+  .card-header .card-title { margin-bottom: 0; }
+  .card-header.d-flex > .btn,
+  .card-header.d-flex > .btn-group,
+  .card-header.d-flex > .card-tools { margin-left: auto; }
+  .required-star { font-weight: 700; margin-left: .35rem; color: #d9534f; }
+  .select2-container--default .select2-selection--single { height: 38px !important; padding: 6px 12px !important; border-radius: .25rem !important; }
+  .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 24px !important; margin-top: 2px; }
+  .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 10px !important; }
+  /* Filter sidebar */
+  .filter-sidebar-toggle { position: fixed; right: 16px; top: 50%; transform: translateY(-50%); z-index: 1062; border-radius: 999px; padding: 12px 16px; border: 0; background: linear-gradient(135deg,#007bff,#0056b3); color: #fff; box-shadow: 0 12px 28px rgba(0,95,204,.35); display: none; align-items: center; gap: 8px; font-weight: 600; transition: all .25s; }
+  body.has-filter-sidebar .filter-sidebar-toggle { display: inline-flex; }
+  body.filter-sidebar-open .filter-sidebar-toggle { opacity: 0; visibility: hidden; pointer-events: none; }
+  .filter-sidebar-backdrop { position: fixed; inset: 0; background: rgba(16,24,40,.45); z-index: 1056; opacity: 0; visibility: hidden; transition: opacity .25s; }
+  .filter-sidebar-panel { position: fixed; top: 0; right: 0; width: min(400px,92vw); height: 100vh; z-index: 1061; transform: translateX(105%); transition: transform .28s; padding: 14px; overflow-y: auto; background: #eef2f7; box-shadow: -10px 0 30px rgba(0,0,0,.18); }
+  .filter-sidebar-panel.is-open { transform: translateX(0); }
+  .filter-sidebar-panel .card { min-height: calc(100vh - 28px); margin-bottom: 0; border: 0; border-radius: 14px; overflow: hidden; }
+  .filter-sidebar-panel .card-header { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg,#343a40,#1f2327); color: #fff; border-bottom: 0; padding: 14px 16px; }
+  .filter-sidebar-panel .card-title { font-weight: 700; }
+  .filter-sidebar-panel .card-body { padding: 16px; background: #fff; }
+  .filter-sidebar-panel .js-filter-close { margin-left: auto; color: #fff; font-size: 1.1rem; opacity: .9; }
+  body.filter-sidebar-open .filter-sidebar-backdrop { opacity: 1; visibility: visible; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
+<script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
+<script>
+$(function(){
+  $('.select2').each(function(){
+    var $p = $('.filter-sidebar-panel');
+    $(this).select2({ width:'100%', dropdownParent: $p.length ? $p : $(document.body) });
+  });
+  var $s=$('.js-filter-sidebar').first(), $b=$('.js-filter-backdrop');
+  var $t;
+  function open()  { if(!$s.length)return; $s.addClass('is-open');$('body').addClass('filter-sidebar-open');if($t)$t.attr('aria-expanded','true'); }
+  function close() { if(!$s.length)return; $s.removeClass('is-open');$('body').removeClass('filter-sidebar-open');if($t)$t.attr('aria-expanded','false'); }
+  if($s.length){
+    $('body').addClass('has-filter-sidebar');
+    // Injecter le bouton fixe s'il n'existe pas déjà
+    if(!$('.filter-sidebar-toggle').length){
+      var $fbtn=$('<button class="filter-sidebar-toggle js-filter-toggle" title="Filtres"><i class="fas fa-filter"></i><span class="ml-2 d-none d-md-inline">Filtres</span></button>');
+      $('body').append($fbtn);
+    }
+    $t=$('.js-filter-toggle');
+    $t.attr('aria-expanded','false').on('click',function(){ $s.hasClass('is-open')?close():open(); });
+    $(document).on('click','.js-filter-close',close);
+    $b.on('click',close);
+    $(document).on('keydown',function(e){ if(e.key==='Escape')close(); });
+    var p=new URLSearchParams(window.location.search);
+    if(['q','statut','type','type_audit','section','norme'].some(function(k){return p.get(k);})) open();
+  }
+  $('form :input[required]').each(function(){
+    var id=$(this).attr('id'); if(!id)return;
+    var $l=$('label[for="'+id+'"]');
+    if($l.length&&!$l.find('.required-star').length) $l.append(' <span class="required-star" aria-hidden="true">*</span>');
+  });
+});
+</script>
+{% endblock %}

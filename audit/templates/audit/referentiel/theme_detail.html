@@ -1,0 +1,58 @@
+{% extends 'audit/base.html' %}
+{% block title %}Détails du thème{% endblock %}
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header d-flex align-items-center">
+    <h3 class="card-title mb-0">Détails du thème</h3>
+    <div class="ml-auto">
+      <a class="btn btn-default btn-sm mr-2" href="{% url 'audit:theme-list' %}">Retour</a>
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'audit:theme-edit' object.pk %}">Modifier</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <h5>Thème</h5>
+    <p class="mb-2">{{ object.texte }}</p>
+
+    <h5>Critères</h5>
+        <div class="table-responsive">
+<table class="table table-sm table-striped">
+      <thead>
+        <tr><th style="width:35%">Texte</th><th style="width:30%">Chapitres (norme)</th><th style="width:30%">Preuves attendues</th><th style="width:5%">Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for crit in criteres %}
+          <tr>
+            <td style="white-space:normal">{{ crit.texte }}</td>
+            <td>
+              {% for chap in crit.chapitre_norme.all %}
+                <strong>{{ chap.reference }}</strong> — {{ chap.intitule }}
+                {% if chap.norme %} <small class="text-muted">({{ chap.norme.nom }})</small>{% endif %}
+                {% if not forloop.last %}<br>{% endif %}
+              {% empty %}
+                <em class="text-muted">Aucun chapitre</em>
+              {% endfor %}
+            </td>
+            <td>
+              {% if crit.preuves_attendues.all %}
+                <ul class="mb-0">
+                  {% for p in crit.preuves_attendues.all %}
+                    <li>{{ p.libelle }}{% if p.code %} <small class="text-muted">({{ p.code }})</small>{% endif %}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <em class="text-muted">Aucune preuve</em>
+              {% endif %}
+            </td>
+            <td>
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'audit:critere-edit' crit.pk %}">Éditer</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-center text-muted">Aucun critère pour ce thème.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

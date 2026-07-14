@@ -1,0 +1,366 @@
+{% extends "accident_travail/base.html" %}
+{% load at_tags %}
+
+{% block title %}LAP 8 jours — {{ accident.reference }}{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-tasks mr-2 text-primary"></i>LAP 8 jours — {{ accident.reference }}</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_dashboard' %}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'at:at_detail' accident.pk %}">{{ accident.reference }}</a></li>
+            <li class="breadcrumb-item active">LAP 8 jours</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if en_retard_8j %}
+<div class="alert alert-danger alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+    <i class="fas fa-exclamation-triangle mr-2"></i>
+    <strong>RETARD :</strong> L'échéance du LAP 8 jours était le <strong>{{ echeance_8j|date:"d/m/Y H:i" }}</strong>. Ce formulaire est soumis <strong>en retard</strong>.
+</div>
+{% elif heures_restantes_8j is not None %}
+<div class="alert alert-{% if heures_restantes_8j < 24 %}warning{% else %}info{% endif %}">
+    <i class="fas fa-clock mr-2"></i>
+    Échéance LAP 8 jours : <strong>{{ echeance_8j|date:"d/m/Y H:i" }}</strong>
+    — il reste <strong>{{ heures_restantes_8j }}h</strong>.
+</div>
+{% endif %}
+<form method="post" id="form-lap8j">
+    {% csrf_token %}
+
+    <!-- En-tête -->
+    <div class="card card-outline card-primary mb-3">
+        <div class="card-header">
+            <h3 class="card-title">En-tête &amp; Participants</h3>
+        </div>
+        <div class="card-body">
+            {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+            <h6 class="mb-2">Participants</h6>
+            <!-- Champs cachés pour la soumission du formulaire -->
+            <div style="display:none">
+                {{ form.participants_exploitation }}
+                {{ form.participants_cssct }}
+                {{ form.participants_rh }}
+                {{ form.participants_qse }}
+                {{ form.participants_direction }}
+                {{ form.participants_finance }}
+                {{ form.participants_achat }}
+                {{ form.participants_commercial }}
+                {{ form.participants_autre }}
+                {{ form.participants_client }}
+            </div>
+            <!-- Tableau dynamique des participants -->
+            <table class="table table-sm table-bordered mb-2" id="participants-lap-table">
+                <thead class="thead-light">
+                    <tr>
+                        <th style="width:38%">Rôle</th>
+                        <th>Nom du participant</th>
+                        <th style="width:44px"></th>
+                    </tr>
+                </thead>
+                <tbody id="participants-lap-rows"></tbody>
+            </table>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-participant-lap">
+                <i class="fas fa-plus mr-1"></i>Ajouter un participant
+            </button>
+            <script>
+            (function(){
+                var ROLES = [
+                    {key:'exploitation',label:'Exploitation'},
+                    {key:'cssct',label:'CSSCT'},
+                    {key:'rh',label:'RH'},
+                    {key:'qse',label:'QSE'},
+                    {key:'direction',label:'Direction'},
+                    {key:'finance',label:'Finance'},
+                    {key:'achat',label:'Achat'},
+                    {key:'commercial',label:'Commercial'},
+                    {key:'autre',label:'Autre'},
+                    {key:'client',label:'Client'},
+                ];
+                var tbody = document.getElementById('participants-lap-rows');
+                var theForm = document.getElementById('form-lap8j');
+                var preFill48h = {{ participants_48h_json|safe }};
+
+                function buildSelect(sel) {
+                    var html = '<select class="form-control form-control-sm"><option value="">\u2014 R\u00f4le \u2014</option>';
+                    ROLES.forEach(function(r){
+                        html += '<option value="'+r.key+'"'+(r.key===sel?' selected':'')+'>'+r.label+'</option>';
+                    });
+                    return html+'</select>';
+                }
+
+                function addRow(roleKey, nameVal) {
+                    var tr = document.createElement('tr');
+                    var esc = (nameVal||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                    tr.innerHTML = '<td>'+buildSelect(roleKey)+'</td>'
+                        +'<td><input type="text" class="form-control form-control-sm" value="'+esc+'" placeholder="Pr\u00e9nom Nom"></td>'
+                        +'<td class="text-center"><button type="button" class="btn btn-danger btn-sm py-0 px-2" title="Supprimer"><i class="fas fa-times"></i></button></td>';
+                    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); });
+                    tbody.appendChild(tr);
+                }
+
+                function loadFromFields() {
+                    ROLES.forEach(function(r){
+                        var f = document.getElementById('id_participants_'+r.key);
+                        if(!f) return;
+                        var val = f.value.trim();
+                        if(val) val.split(',').forEach(function(n){ n=n.trim(); if(n) addRow(r.key,n); });
+                    });
+                }
+
+                function loadFrom48h() {
+                    ROLES.forEach(function(r){
+                        var val = (preFill48h[r.key]||'').trim();
+                        if(val) val.split(',').forEach(function(n){ n=n.trim(); if(n) addRow(r.key,n); });
+                    });
+                }
+
+                function syncToFields() {
+                    var collected = {};
+                    ROLES.forEach(function(r){ collected[r.key]=[]; });
+                    tbody.querySelectorAll('tr').forEach(function(tr){
+                        var role = tr.querySelector('select').value;
+                        var name = tr.querySelector('input[type="text"]').value.trim();
+                        if(role && name) collected[role].push(name);
+                    });
+                    ROLES.forEach(function(r){
+                        var f = document.getElementById('id_participants_'+r.key);
+                        if(f) f.value = collected[r.key].join(', ');
+                    });
+                }
+
+                document.getElementById('btn-add-participant-lap').addEventListener('click', function(){ addRow('',''); });
+                if(theForm) theForm.addEventListener('submit', syncToFields, true);
+
+                // Charger données 8j existantes, sinon pré-remplir depuis 48h
+                loadFromFields();
+                if(!tbody.querySelector('tr')) loadFrom48h();
+                if(!tbody.querySelector('tr')) addRow('','');
+            })();
+            </script>
+        </div>
+    </div>
+
+    <!-- Tableau des actions -->
+    <div class="card card-outline card-warning mb-3">
+        <div class="card-header d-flex">
+            <h3 class="card-title">
+                <i class="fas fa-list-check mr-2"></i>Actions correctives / préventives
+                <i class="fas fa-question-circle text-info ml-2" data-toggle="tooltip"
+                    title="Listez les actions issues de l'arbre des causes. Pour chaque cause racine, définissez une ou plusieurs actions avec un pilote et un délai."></i>
+            </h3>
+        </div>
+        <div class="card-body">
+            {{ action_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm" id="actions-table">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width:20%">Cause racine</th>
+                            <th style="width:27%">Action corrective / préventive</th>
+                            <th style="width:12%">Pilote</th>
+                            <th style="width:10%">Délai</th>
+                            <th style="width:10%">Date réalisation</th>
+                            <th style="width:10%">Date vérification</th>
+                            <th style="width:6%">Efficace</th>
+                            <th style="width:5%">Suppr.</th>
+                        </tr>
+                    </thead>
+                    <tbody id="formset-lap-actions">
+                        {% for f in action_formset %}
+                        <tr class="formset-lap-row">
+                            {{ f.id }}
+                            <td>{{ f.cause_racine }}</td>
+                            <td>{{ f.description }}</td>
+                            <td>{{ f.pilote }}</td>
+                            <td>{{ f.delai }}</td>
+                            <td>{{ f.date_realisation }}</td>
+                            <td>{{ f.date_verification }}</td>
+                            <td>
+                                {% for r in f.efficace %}
+                                <div class="custom-control custom-radio custom-control-inline">
+                                    {{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label>
+                                </div>
+                                {% endfor %}
+                            </td>
+                            <td class="text-center">
+                                {% if action_formset.can_delete %}
+                                <div class="custom-control custom-checkbox">
+                                    {{ f.DELETE }}
+                                    <label class="custom-control-label text-danger" for="{{ f.DELETE.id_for_label }}"><i
+                                            class="fas fa-trash"></i></label>
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" id="add-lap-action" class="btn btn-outline-warning btn-sm">
+                <i class="fas fa-plus mr-1"></i>Ajouter une action
+            </button>
+        </div>
+    </div>
+
+    <!-- Communication -->
+    <div class="card card-outline card-info mb-3">
+        <div class="card-header">
+            <h3 class="card-title">Communication &amp; Mise à jour</h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.communication_alerte_securite.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.communication_alerte_securite %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group"><label>{{ form.communication_date.label }}</label>{{ form.communication_date }}</div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.mise_a_jour_duer.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.mise_a_jour_duer %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group"><label>{{ form.duer_date.label }}</label>{{ form.duer_date }}</div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.transversalisation_groupe.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.transversalisation_groupe %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group"><label>{{ form.transversalisation_valide_par.label }}</label>{{ form.transversalisation_valide_par }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end" style="gap:.5rem">
+        <a href="{% url 'at:at_detail' accident.pk %}" class="btn btn-secondary">
+            <i class="fas fa-times mr-1"></i>Annuler
+        </a>
+        <button type="submit" name="sauvegarder" class="btn btn-success">
+            <i class="fas fa-save mr-1"></i>Sauvegarder
+        </button>
+        {% if accident.statut == '8j' %}
+        <button type="submit" name="cloturer" class="btn btn-danger"
+            onclick="return confirm('Confirmer la clôture de l\'accident ?')">
+            <i class="fas fa-check-circle mr-1"></i>Clôturer l'accident
+        </button>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // Ajouter une ligne au formset LAP
+    let lapFormsetCount = {{ action_formset.total_form_count }};
+    document.getElementById('add-lap-action')?.addEventListener('click', function () {
+        const tbody = document.getElementById('formset-lap-actions');
+        const template = tbody.querySelector('tr.formset-lap-row');
+        if (!template) {
+            // Créer une ligne vide
+            const tr = document.createElement('tr');
+            tr.className = 'formset-lap-row';
+            tr.innerHTML = `
+      <td><input name="lap_actions-${lapFormsetCount}-cause_racine" class="form-control form-control-sm" type="text"></td>
+      <td><input name="lap_actions-${lapFormsetCount}-description" class="form-control form-control-sm" type="text"></td>
+      <td><input name="lap_actions-${lapFormsetCount}-pilote" class="form-control form-control-sm" type="text"></td>
+      <td><input name="lap_actions-${lapFormsetCount}-delai" class="form-control form-control-sm" type="date"></td>
+      <td><input name="lap_actions-${lapFormsetCount}-date_realisation" class="form-control form-control-sm" type="date"></td>
+      <td><input name="lap_actions-${lapFormsetCount}-date_verification" class="form-control form-control-sm" type="date"></td>
+      <td><select name="lap_actions-${lapFormsetCount}-statut" class="form-control form-control-sm"><option value="non_demarre">Non démarré</option><option value="en_cours">En cours</option><option value="realise">Réalisé</option><option value="verifie">Vérifié</option></select></td>
+      <td></td><td></td>`;
+            tbody.appendChild(tr);
+        } else {
+            const newRow = template.cloneNode(true);
+            newRow.querySelectorAll('input,select,textarea').forEach(el => {
+                el.name = el.name.replace(/lap_actions-\d+/, `lap_actions-${lapFormsetCount}`);
+                el.id = el.id ? el.id.replace(/lap_actions-\d+/, `lap_actions-${lapFormsetCount}`) : '';
+                if (el.type !== 'checkbox' && el.type !== 'radio') el.value = '';
+            });
+            tbody.appendChild(newRow);
+        }
+        lapFormsetCount++;
+        document.querySelector('[name="lap_actions-TOTAL_FORMS"]').value = lapFormsetCount;
+    });
+
+    // Suppression automatique des lignes quand on clique sur DELETE
+    document.addEventListener('DOMContentLoaded', function() {
+        const tbody = document.getElementById('formset-lap-actions');
+        if (!tbody) return;
+        
+        // Attacher les listeners aux checkboxes DELETE existantes
+        function attachDeleteListeners() {
+            tbody.querySelectorAll('input[name$="-DELETE"]').forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        const row = this.closest('tr');
+                        if (row && confirm('Supprimer cette action ?')) {
+                            row.style.display = 'none';
+                            // Si c'est une nouvelle ligne (sans ID), on peut la supprimer complètement
+                            const idInput = row.querySelector('input[name$="-id"]');
+                            if (!idInput || !idInput.value) {
+                                row.remove();
+                            }
+                        } else {
+                            this.checked = false;
+                        }
+                    }
+                });
+            });
+        }
+        
+        attachDeleteListeners();
+        
+        // Réattacher après l'ajout de nouvelles lignes
+        const observer = new MutationObserver(attachDeleteListeners);
+        observer.observe(tbody, { childList: true });
+    });
+
+    // Auto-save toutes les 30 secondes
+    (function () {
+        var SAVE_URL = "{% url 'at:at_autosave_8j' accident.pk %}";
+        function doAutoSave() {
+            var form = document.getElementById('form-lap8j');
+            if (!form) return;
+            var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!csrf) return;
+            fetch(SAVE_URL, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-CSRFToken': csrf.value },
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d.saved) toastr.info('LAP sauvegardé', '', { timeOut: 1500 }); })
+            .catch(function () {});
+        }
+        setInterval(doAutoSave, 30000);
+    })();
+</script>
+{% endblock %}

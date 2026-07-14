@@ -1,0 +1,314 @@
+{% extends 'conge/base.html' %}
+{% load static %}
+
+{% block title %}Nouvelle Demande de Congé{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+  <div class="col-sm-6"><h1 class="m-0"><i class="fas fa-calendar-plus mr-2 text-primary"></i>Nouvelle Demande de Congé</h1></div>
+  <div class="col-sm-6">
+    <ol class="breadcrumb float-sm-right">
+      <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'conge:liste' %}">Congés</a></li>
+      <li class="breadcrumb-item active">Nouvelle demande</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-12 col-lg-10 col-xl-9">
+    <form method="post" id="conge-form" novalidate>
+      {% csrf_token %}
+      {{ form.signature_demandeur }}
+
+      {# ── Erreurs globales ──────────────────────────────────────── #}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+      {# ── Formulaire style papier ───────────────────────────────── #}
+      <div class="conge-form-card">
+
+        {# En-tête (logo + informations auto) #}
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <div class="d-flex align-items-center">
+            <img src="{% static 'dist/img/abserveLogo.png' %}"
+                 alt="AB Serve" style="height:52px;" class="mr-3"
+                 onerror="this.style.display='none'; this.nextSibling.style.display='block'">
+            <div style="display:none; font-weight:700; color:#555; font-size:1.1rem;">
+              AB Serve<br><small style="font-size:.7rem;">Beyond quality</small>
+            </div>
+          </div>
+          <div class="text-right text-muted" style="font-size:.85rem;">
+            <div><strong>Date de la demande :</strong> {{ "now"|date:"d/m/Y" }}</div>
+            <div><strong>Section :</strong> {{ user.section|default:"Non assignée" }}</div>
+          </div>
+        </div>
+
+        {# Titre #}
+        <div class="conge-title-bar">DEMANDE DE CONGÉS</div>
+        <div class="conge-subtitle">Exemplaire à conserver par <u><strong>le demandeur</strong></u></div>
+
+        {# ── NOM / PRÉNOM ────────────────────────────────────────── #}
+        <div class="row">
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">NOM :</label>
+              {{ form.nom }}
+              {% if form.nom.errors %}
+                <div class="invalid-feedback d-block">{{ form.nom.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">Prénom :</label>
+              {{ form.prenom }}
+              {% if form.prenom.errors %}
+                <div class="invalid-feedback d-block">{{ form.prenom.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {# ── DATES D'ABSENCE ─────────────────────────────────────── #}
+        <div class="row">
+          <div class="col-sm-5">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">S'absentera du :</label>
+              {{ form.date_debut }}
+              {% if form.date_debut.errors %}
+                <div class="invalid-feedback d-block">{{ form.date_debut.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-5">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">
+                Au : <small class="font-weight-normal text-muted">(inclus)</small>
+              </label>
+              {{ form.date_fin }}
+              {% if form.date_fin.errors %}
+                <div class="invalid-feedback d-block">{{ form.date_fin.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {# ── DATE REPRISE / NOMBRE JOURS ────────────────────────── #}
+        <div class="row">
+          <div class="col-sm-5">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">Date de la reprise :</label>
+              {{ form.date_reprise }}
+              {% if form.date_reprise.errors %}
+                <div class="invalid-feedback d-block">{{ form.date_reprise.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="form-group">
+              <label class="font-weight-bold small text-uppercase text-muted">Nombre de jour(s) :</label>
+              {{ form.nombre_jours }}
+              {% if form.nombre_jours.errors %}
+                <div class="invalid-feedback d-block">{{ form.nombre_jours.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        {# ── IMPUTATION (type de congé) ──────────────────────────── #}
+        <div class="form-group mb-2">
+          <label class="font-weight-bold">
+            <u>Imputation sur</u>* :
+          </label>
+          {% if form.type_conge.errors %}
+            <div class="invalid-feedback d-block">{{ form.type_conge.errors.0 }}</div>
+          {% endif %}
+          <div class="type-conge-grid mt-2">
+            {# Congés payés #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="conges_payes"
+                     {% if form.type_conge.value == 'conges_payes' %}checked{% endif %}>
+              Congés payés
+            </label>
+            {# Congés ancienneté #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="conges_anciennete"
+                     {% if form.type_conge.value == 'conges_anciennete' %}checked{% endif %}>
+              Congés ancienneté
+            </label>
+            {# Banque d'heures #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="banque_heures"
+                     {% if form.type_conge.value == 'banque_heures' %}checked{% endif %}>
+              Banque d'heures
+            </label>
+            {# Événement familial #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="evenement_familial"
+                     {% if form.type_conge.value == 'evenement_familial' %}checked{% endif %}>
+              Événement familial
+            </label>
+            {# Congés sans solde #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="conges_sans_solde"
+                     {% if form.type_conge.value == 'conges_sans_solde' %}checked{% endif %}>
+              Congés sans solde
+            </label>
+            {# Imputation manuelle #}
+            <label class="type-conge-label">
+              <input type="radio" name="type_conge" value="autre"
+                     {% if form.type_conge.value == 'autre' %}checked{% endif %}>
+              Autre (imputation manuelle)
+            </label>
+            {# Préciser lequel (événement familial ou saisie libre) #}
+            <div id="precision-div" style="display:{% if form.type_conge.value == 'evenement_familial' or form.type_conge.value == 'autre' %}block{% else %}none{% endif %};">
+              <div class="d-flex align-items-center gap-2">
+                <small class="text-muted font-italic">Préciser lequel :</small>
+                {{ form.evenement_familial_precision }}
+              </div>
+              {% if form.evenement_familial_precision.errors %}
+                <div class="invalid-feedback d-block">{{ form.evenement_familial_precision.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <small class="text-muted font-italic">
+            *Cocher la case correspondante.<br>
+            L'imputation sera appliquée selon la disponibilité des droits acquis par le salarié.
+          </small>
+        </div>
+
+        <hr class="my-3">
+
+        {# ── SIGNATURE DU DEMANDEUR ──────────────────────────────── #}
+        <div class="form-group">
+          <label class="font-weight-bold">Signature du demandeur :</label>
+          {% if form.signature_demandeur.errors %}
+            <div class="invalid-feedback d-block">{{ form.signature_demandeur.errors.0 }}</div>
+          {% endif %}
+          <div class="sig-wrapper mt-1">
+            <canvas id="sig-canvas-demandeur"></canvas>
+            <button type="button" class="btn btn-sm btn-outline-secondary sig-clear-btn"
+                    id="clear-sig-demandeur">
+              <i class="fas fa-eraser"></i> Effacer
+            </button>
+            <div id="sig-placeholder-demandeur" class="sig-placeholder">
+              <i class="fas fa-pen mr-2"></i>Signez ici avec votre souris ou doigt…
+            </div>
+          </div>
+          <small class="text-muted">Dessinez votre signature électronique dans le cadre ci-dessus.</small>
+        </div>
+
+      </div>{# /conge-form-card #}
+
+      {# ── Actions (Modernes) ──────────────────────────────────────── #}
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1.5rem; flex-wrap: wrap;">
+        <a href="{% url 'conge:liste' %}" class="btn" style="background: var(--gray-100); color: var(--gray-700); padding: 0.75rem 1.5rem; border-radius: var(--radius-lg); text-decoration: none; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-times"></i> Annuler
+        </a>
+        <button type="submit" class="btn" id="submit-btn" style="background: linear-gradient(135deg, var(--success), #059669); color: white; padding: 0.75rem 2rem; border-radius: var(--radius-lg); font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; border: none; cursor: pointer;">
+          <i class="fas fa-paper-plane"></i> Soumettre la demande
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block conge_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── Signature pad ─────────────────────────────────────────── */
+  var pad = initSignaturePad(
+    'sig-canvas-demandeur',
+    'id_signature_demandeur',
+    'clear-sig-demandeur',
+    'sig-placeholder-demandeur'
+  );
+
+  /* ── Type congé → afficher/cacher "Préciser lequel" ────────── */
+  function updatePrecision() {
+    var sel = document.querySelector('input[name="type_conge"]:checked');
+    var div = document.getElementById('precision-div');
+    if (div) {
+      div.style.display = (sel && ['evenement_familial', 'autre'].includes(sel.value)) ? 'block' : 'none';
+    }
+  }
+  document.querySelectorAll('input[name="type_conge"]').forEach(function (r) {
+    r.addEventListener('change', updatePrecision);
+  });
+  updatePrecision();
+
+  /* ── Auto-calcul nombre de jours ────────────────────────────── */
+  var fDebut   = document.getElementById('id_date_debut');
+  var fFin     = document.getElementById('id_date_fin');
+  var fReprise = document.getElementById('id_date_reprise');
+  var fJours   = document.getElementById('id_nombre_jours');
+
+  function calcJours() {
+    if (!fDebut.value || !fFin.value) return;
+    var d = new Date(fDebut.value), f = new Date(fFin.value);
+    if (isNaN(d) || isNaN(f) || f < d) return;
+    var diff = Math.round((f - d) / 86400000) + 1;
+    fJours.value = diff;
+  }
+  function autoReprise() {
+    if (!fFin.value) return;
+    var f = new Date(fFin.value);
+    if (isNaN(f)) return;
+    f.setDate(f.getDate() + 1);
+    fReprise.value = f.toISOString().split('T')[0];
+    calcJours();
+  }
+  fDebut.addEventListener('change', calcJours);
+  fFin.addEventListener('change', autoReprise);
+
+  /* ── Validation avant soumission ────────────────────────────── */
+  document.getElementById('conge-form').addEventListener('submit', function (e) {
+    var hidden = document.getElementById('id_signature_demandeur');
+
+    // Vérifier signature
+    if (!pad || pad.isEmpty()) {
+      e.preventDefault();
+      Swal.fire({
+        icon: 'warning',
+        title: 'Signature manquante',
+        text: 'La signature électronique est obligatoire avant de soumettre.',
+        confirmButtonText: 'OK'
+      }).then(function() {
+        document.querySelector('.sig-wrapper').scrollIntoView({ behavior: 'smooth' });
+      });
+      return;
+    }
+    if (!hidden.value) {
+      hidden.value = pad.toDataURL('image/png');
+    }
+
+    // Vérifier type congé
+    var typeChecked = document.querySelector('input[name="type_conge"]:checked');
+    if (!typeChecked) {
+      e.preventDefault();
+      Swal.fire({
+        icon: 'warning',
+        title: 'Type de congé manquant',
+        text: 'Veuillez sélectionner un type de congé (imputation).',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
+    // Désactiver bouton pour éviter double clic
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-btn').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Envoi en cours…';
+  });
+});
+</script>
+{% endblock %}

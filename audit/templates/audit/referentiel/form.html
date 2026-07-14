@@ -1,0 +1,150 @@
+{% extends 'audit/base.html' %}
+{% load static %}
+{% block title %}Référentiel{% endblock %}
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header"><h3 class="card-title">Édition référentiel</h3></div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <div class="form-row">
+        {% for field in form.visible_fields %}
+          <div class="form-group col-12" id="fg_{{ field.html_name }}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<small class="form-text text-muted">{{ field.help_text }}</small>{% endif %}
+            {% if field.errors %}<div class="text-danger">{{ field.errors }}</div>{% endif %}
+            {% if field.name == 'code' %}
+              <small class="form-text text-muted">Exemples de codes : C, PC, NC</small>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <div class="form-row mt-3">
+        <div class="col-12">
+          <button class="btn btn-primary">Enregistrer</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.dual-listbox{display:flex;gap:8px;align-items:stretch;border:1px solid #dee2e6;border-radius:8px;padding:10px;background:#f8f9fa}
+.dlb-col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:6px}
+.dlb-header{font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#495057;padding:4px 2px 2px;border-bottom:2px solid #dee2e6;display:flex;align-items:center;gap:6px}
+.dlb-count{display:inline-block;background:#007bff;color:#fff;border-radius:10px;padding:0 7px;font-size:.78rem;font-weight:700;min-width:20px;text-align:center;line-height:1.6}
+.dlb-search{border:1px solid #ced4da;border-radius:5px;padding:4px 8px;font-size:.85rem;outline:none;width:100%;box-sizing:border-box}
+.dlb-search:focus{border-color:#80bdff;box-shadow:0 0 0 2px rgba(0,123,255,.15)}
+.dlb-list{list-style:none;margin:0;padding:0;border:1px solid #ced4da;border-radius:5px;background:#fff;overflow-y:auto;min-height:180px;max-height:300px;flex:1}
+.dlb-list li{padding:6px 10px;font-size:.875rem;cursor:pointer;border-bottom:1px solid #f1f3f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .1s;user-select:none}
+.dlb-list li:last-child{border-bottom:none}
+.dlb-list li:hover{background:#e9f0ff}
+.dlb-list li.dlb-sel{background:#cfe2ff;color:#0a3d91;font-weight:600}
+.dlb-list li.dlb-hidden{display:none}
+.dlb-actions{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:0 4px;flex-shrink:0}
+.dlb-btn{background:#fff;border:1px solid #adb5bd;border-radius:5px;width:34px;height:30px;font-size:.75rem;cursor:pointer;color:#343a40;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;padding:0}
+.dlb-btn:hover{background:#007bff;border-color:#007bff;color:#fff}
+@media(max-width:600px){.dual-listbox{flex-direction:column}.dlb-actions{flex-direction:row}.dlb-list{min-height:110px;max-height:160px}}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  function AutoDLB(opts){
+    this.avail=opts.availableUl; this.sel=opts.selectedUl;
+    this.countEl=opts.countEl||null; this.selectEl=opts.selectEl; this._items=[];
+  }
+  AutoDLB.prototype._li=function(item){
+    var li=document.createElement('li');
+    li.textContent=item.text; li.title=item.text; li.dataset.value=item.value;
+    return li;
+  };
+  AutoDLB.prototype.load=function(items,selVals){
+    var sv=(selVals||[]).map(String);
+    this._items=items.map(function(it){return{value:String(it.value),text:it.text,selected:sv.indexOf(String(it.value))!==-1};});
+    this._render();
+  };
+  AutoDLB.prototype._render=function(){
+    var self=this; self.avail.innerHTML=''; self.sel.innerHTML='';
+    self._items.forEach(function(item){
+      var li=self._li(item);
+      li.addEventListener('click',function(){item.selected=!item.selected;self._render();});
+      if(item.selected) self.sel.appendChild(li); else self.avail.appendChild(li);
+    });
+    self._sync();
+  };
+  AutoDLB.prototype._sync=function(){
+    var self=this; if(!self.selectEl) return;
+    self._items.forEach(function(item){
+      var opt=self.selectEl.querySelector('option[value="'+item.value.replace(/"/g,'&quot;')+'"]');
+      if(opt){opt.selected=item.selected;}
+      else{var o=document.createElement('option');o.value=item.value;o.textContent=item.text;o.selected=item.selected;self.selectEl.appendChild(o);}
+    });
+    if(self.countEl) self.countEl.textContent=self._items.filter(function(i){return i.selected;}).length;
+  };
+  AutoDLB.prototype.addVisible=function(){
+    var self=this;
+    Array.from(self.avail.children).forEach(function(li){
+      if(!li.classList.contains('dlb-hidden')){var item=self._items.find(function(i){return i.value===li.dataset.value;});if(item)item.selected=true;}
+    }); self._render();
+  };
+  AutoDLB.prototype.removeVisible=function(){
+    var self=this;
+    Array.from(self.sel.children).forEach(function(li){
+      if(!li.classList.contains('dlb-hidden')){var item=self._items.find(function(i){return i.value===li.dataset.value;});if(item)item.selected=false;}
+    }); self._render();
+  };
+  AutoDLB.prototype.removeAll=function(){this._items.forEach(function(i){i.selected=false;});this._render();};
+  AutoDLB.prototype.filterAvail=function(q){
+    q=q.toLowerCase().trim();
+    Array.from(this.avail.children).forEach(function(li){li.classList.toggle('dlb-hidden',q!==''&&li.textContent.toLowerCase().indexOf(q)===-1);});
+  };
+  AutoDLB.prototype.filterSel=function(q){
+    q=q.toLowerCase().trim();
+    Array.from(this.sel.children).forEach(function(li){li.classList.toggle('dlb-hidden',q!==''&&li.textContent.toLowerCase().indexOf(q)===-1);});
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('select[multiple]').forEach(function(sel,idx){
+      if(sel.style.display==='none') return;
+      var uid='adlb_'+idx;
+      var wrapper=document.createElement('div'); wrapper.className='dual-listbox';
+      wrapper.innerHTML=
+        '<div class="dlb-col"><div class="dlb-header">Disponibles</div>'
+        +'<input type="text" class="dlb-search" placeholder="Rechercher...">'
+        +'<ul class="dlb-list" id="'+uid+'_avail"></ul></div>'
+        +'<div class="dlb-actions">'
+        +'<button type="button" class="dlb-btn" title="Tout ajouter">&#9658;&#9658;</button>'
+        +'<button type="button" class="dlb-btn" title="Ajouter">&#9658;</button>'
+        +'<button type="button" class="dlb-btn" title="Retirer">&#9664;</button>'
+        +'<button type="button" class="dlb-btn" title="Tout retirer">&#9664;&#9664;</button>'
+        +'</div>'
+        +'<div class="dlb-col"><div class="dlb-header">S&eacute;lectionn&eacute;s <span class="dlb-count" id="'+uid+'_count">0</span></div>'
+        +'<input type="text" class="dlb-search" placeholder="Rechercher...">'
+        +'<ul class="dlb-list" id="'+uid+'_sel"></ul></div>';
+      sel.style.display='none';
+      sel.parentNode.insertBefore(wrapper,sel.nextSibling);
+      var items=Array.from(sel.options).map(function(o){return{value:String(o.value),text:o.textContent.trim()};});
+      var selVals=Array.from(sel.options).filter(function(o){return o.selected;}).map(function(o){return o.value;});
+      var dlb=new AutoDLB({
+        availableUl:document.getElementById(uid+'_avail'),
+        selectedUl:document.getElementById(uid+'_sel'),
+        countEl:document.getElementById(uid+'_count'),
+        selectEl:sel
+      });
+      dlb.load(items,selVals);
+      var searches=wrapper.querySelectorAll('.dlb-search');
+      if(searches[0]) searches[0].addEventListener('input',function(){dlb.filterAvail(this.value);});
+      if(searches[1]) searches[1].addEventListener('input',function(){dlb.filterSel(this.value);});
+      var btns=wrapper.querySelectorAll('.dlb-btn');
+      if(btns[0]) btns[0].addEventListener('click',function(){dlb.addVisible();});
+      if(btns[1]) btns[1].addEventListener('click',function(){dlb.addVisible();});
+      if(btns[2]) btns[2].addEventListener('click',function(){dlb.removeVisible();});
+      if(btns[3]) btns[3].addEventListener('click',function(){dlb.removeAll();});
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,626 @@
+{% extends "accident_travail/base.html" %}
+{% load at_tags %}
+
+{% block title %}{{ accident.reference }} — Détail{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-file-medical mr-2 text-danger"></i>{{ accident.reference }}</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_dashboard' %}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'at:at_liste' %}">Liste</a></li>
+            <li class="breadcrumb-item active">{{ accident.reference }}</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Progression -->
+<div class="card card-outline card-primary mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="step-wizard">
+            <div class="step {% if accident.statut == 'brouillon' %}active{% else %}done{% endif %}">
+                <i class="fas fa-bolt mr-1"></i><span class="d-none d-sm-inline">Brouillon</span>
+            </div>
+            <div class="step {% if accident.statut == '24h' or accident.statut == '48h' or accident.statut == '8j' or accident.statut == 'cloture' %}done{% endif %}">
+                <i class="fas fa-file-alt mr-1"></i><span class="d-none d-sm-inline">Déclaration 24h</span>
+                {% if accident.soumis_le %}<i class="fas fa-check-circle ml-1" style="font-size:.8em"></i>{% endif %}
+            </div>
+            <div class="step {% if has_analyse %}done{% elif accident.statut == '48h' %}active{% endif %}">
+                <i class="fas fa-search mr-1"></i><span class="d-none d-sm-inline">Analyse 48h</span>
+                {% if has_analyse and accident.analyse_48h.soumis_le %}<i class="fas fa-check-circle ml-1" style="font-size:.8em"></i>{% endif %}
+                {% if analyse_soumise_en_retard %}<span class="badge badge-danger ml-1">RETARD</span>{% endif %}
+            </div>
+            <div class="step {% if has_lap %}done{% elif accident.statut == '8j' %}active{% endif %}">
+                <i class="fas fa-tasks mr-1"></i><span class="d-none d-sm-inline">LAP 8 jours</span>
+                {% if has_lap and accident.lap_8j.soumis_le %}<i class="fas fa-check-circle ml-1" style="font-size:.8em"></i>{% endif %}
+                {% if lap_soumis_en_retard %}<span class="badge badge-danger ml-1">RETARD</span>{% endif %}
+            </div>
+            <div class="step {% if accident.statut == 'cloture' %}done{% endif %}">
+                <i class="fas fa-check-circle mr-1"></i><span class="d-none d-sm-inline">Clôturé</span>
+                {% if accident.statut == 'cloture' %}<i class="fas fa-check-circle ml-1" style="font-size:.8em"></i>{% endif %}
+            </div>
+        </div>
+        {% load at_tags %}
+        <div class="progress mt-2" style="height:8px">
+            <div class="progress-bar bg-{% statut_color accident.statut %}" style="width:{% progression_pct accident.statut %}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mt-1">
+            <small class="text-muted">
+                {% if accident.statut == 'brouillon' %}
+                    Brouillon — à compléter
+                {% elif accident.statut == '24h' %}
+                    Déclaration 24h — {% if accident.soumis_le %}soumise{% else %}enregistrée{% endif %}
+                {% elif accident.statut == '48h' %}
+                    Analyse 48h — {% if has_analyse %}enregistrée{% else %}à démarrer{% endif %}
+                {% elif accident.statut == '8j' %}
+                    LAP 8 jours — {% if has_lap %}enregistré{% else %}à démarrer{% endif %}
+                {% elif accident.statut == 'cloture' %}
+                    Clôturé
+                {% endif %}
+            </small>
+            <small class="text-muted">{% progression_pct accident.statut %}%</small>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Infos principales -->
+    <div class="col-md-8">
+        <div class="card card-outline card-danger">
+            <div class="card-header d-flex">
+                <h3 class="card-title">Informations générales</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Type</dt>
+                    <dd class="col-sm-8">{{ accident.get_type_accident_display }}</dd>
+                    <dt class="col-sm-4">Société</dt>
+                    <dd class="col-sm-8">{{ accident.societe }}</dd>
+                    <dt class="col-sm-4">Section</dt>
+                    <dd class="col-sm-8">{{ accident.section|default:"—" }}</dd>
+                    <dt class="col-sm-4">Site</dt>
+                    <dd class="col-sm-8">{{ accident.site|default:"—" }}</dd>
+                    <dt class="col-sm-4">Date accident</dt>
+                    <dd class="col-sm-8">{{ accident.date_accident|date:"d/m/Y" }} {% if accident.heure_accident %}à {{ accident.heure_accident|time:"H:i" }}{% endif %}</dd>
+                    <dt class="col-sm-4">Lieu</dt>
+                    <dd class="col-sm-8">{{ accident.lieu_accident|default:"—" }}</dd>
+                    <dt class="col-sm-4">Conséquence</dt>
+                    <dd class="col-sm-8">{{ accident.get_consequence_display|default:"—" }}</dd>
+                    <dt class="col-sm-4">Circonstances</dt>
+                    <dd class="col-sm-8">{{ accident.circonstances_detaillees|default:"—"|linebreaksbr }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Victime -->
+        <div class="card card-outline card-warning">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-user-injured mr-2"></i>La victime</h3>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Nom et prénom</dt>
+                    <dd class="col-sm-8"><strong>{{ accident.victime_nom_prenom }}</strong></dd>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Arbre des causes — Méthode des 5 Pourquoi -->
+        {% if has_analyse %}
+        <div class="card card-outline card-danger">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-project-diagram mr-2 text-danger"></i>Arbre des causes — Méthode des 5 Pourquoi</h3>
+                <div class="card-tools">
+                    <a href="{% url 'at:at_analyse_48h' accident.pk %}#tab-arbre" class="btn btn-tool" title="Modifier l'arbre des causes">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-2" style="background:#f8f9fa">
+                {% include "accident_travail/includes/arbre_causes_widget.html" with accident=accident can_edit=False widget_id="arbre-detail" %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions correctives immédiates -->
+        {% if actions_immediates %}
+        <div class="card card-outline card-info">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-bolt mr-2"></i>Actions correctives immédiates</h3>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Description</th>
+                            <th>Pilote</th>
+                            <th>Délai</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for action in actions_immediates %}
+                        <tr>
+                            <td>{{ action.description }}</td>
+                            <td>{{ action.pilote|default:"—" }}</td>
+                            <td>{{ action.delai|date:"d/m/Y"|default:"—" }}</td>
+                            <td>{{ action.get_statut_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Panneau latéral -->
+    <div class="col-md-4">
+        <!-- Actions disponibles -->
+        <div class="card card-outline card-primary">
+            <div class="card-header">
+                <h3 class="card-title">Actions</h3>
+            </div>
+            <div class="card-body d-grid" style="display:flex;flex-direction:column;gap:.5rem">
+                {% if accident.statut != 'cloture' %}
+                <a href="{% url 'at:at_update_24h' accident.pk %}" class="btn {% if accident.statut == 'brouillon' %}btn-success{% else %}btn-warning{% endif %} btn-block">
+                    <i class="fas fa-{% if accident.statut == 'brouillon' %}play{% else %}edit{% endif %} mr-1"></i>{% if accident.statut == 'brouillon' %}Commencer la déclaration 24h{% else %}Modifier la déclaration 24h{% endif %}
+                </a>
+                {% endif %}
+                {% if accident.statut != 'brouillon' %}
+                <a href="{% url 'at:at_analyse_48h' accident.pk %}" class="btn btn-info btn-block">
+                    <i class="fas fa-search mr-1"></i>{% if has_analyse %}Modifier{% else %}Remplir{% endif %} l'analyse 48h
+                </a>
+                {% endif %}
+                {% if accident.statut == '48h' or accident.statut == '8j' or accident.statut == 'cloture' %}
+                <a href="{% url 'at:at_lap_8j' accident.pk %}" class="btn btn-primary btn-block">
+                    <i class="fas fa-tasks mr-1"></i>{% if has_lap %}Modifier{% else %}Remplir{% endif %} la LAP 8 jours
+                </a>
+                {% endif %}
+                <hr class="my-2">
+                <a href="{% url 'at:at_rapport' accident.pk %}" class="btn btn-dark btn-block" target="_blank">
+                    <i class="fas fa-file-pdf mr-1"></i>Télécharger / Imprimer le rapport
+                </a>
+                <!---<a href="{% url 'at:at_export_excel' accident.pk %}" class="btn btn-success btn-block mt-1">
+                    <i class="fas fa-file-excel mr-1"></i>Télécharger Excel
+                </a>--->
+            </div>
+        </div>
+
+        <!-- Échéances -->
+        <div class="card card-outline card-secondary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-clock mr-2"></i>Échéances</h3>
+            </div>
+            <div class="card-body">
+                <p class="mb-1">
+                    <strong>Analyse 48h :</strong><br>
+                    {% if accident.echeance_48h %}
+                    <span class="{% if accident.est_en_retard and accident.statut == '24h' %}text-danger font-weight-bold{% endif %}">
+                        {{ accident.echeance_48h|date:"d/m/Y H:i" }}
+                    </span>
+                    {% else %}—{% endif %}
+                    {% if has_analyse and accident.analyse_48h.soumis_le %}
+                    <br><small class="{% if analyse_soumise_en_retard %}text-danger font-weight-bold{% else %}text-success{% endif %}">
+                        <i class="fas fa-{% if analyse_soumise_en_retard %}exclamation-triangle{% else %}check{% endif %} mr-1"></i>
+                        Soumis le {{ accident.analyse_48h.soumis_le|date:"d/m/Y H:i" }}
+                        {% if analyse_soumise_en_retard %}(EN RETARD){% endif %}
+                    </small>
+                    {% endif %}
+                </p>
+                <p class="mb-0">
+                    <strong>LAP 8 jours :</strong><br>
+                    {% if accident.echeance_8j %}
+                    <span class="{% if accident.est_en_retard and accident.statut == '48h' %}text-danger font-weight-bold{% endif %}">
+                        {{ accident.echeance_8j|date:"d/m/Y H:i" }}
+                    </span>
+                    {% else %}—{% endif %}
+                    {% if has_lap and accident.lap_8j.soumis_le %}
+                    <br><small class="{% if lap_soumis_en_retard %}text-danger font-weight-bold{% else %}text-success{% endif %}">
+                        <i class="fas fa-{% if lap_soumis_en_retard %}exclamation-triangle{% else %}check{% endif %} mr-1"></i>
+                        Soumis le {{ accident.lap_8j.soumis_le|date:"d/m/Y H:i" }}
+                        {% if lap_soumis_en_retard %}(EN RETARD){% endif %}
+                    </small>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+
+        <!-- Métadonnées -->
+        <div class="card card-outline card-secondary">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-calendar-alt mr-1"></i>Dates de remplissage</h3>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0" style="font-size:.8rem">
+                    <tbody>
+                        <!-- Formulaire 24h -->
+                        <tr class="table-light">
+                            <td colspan="2" class="font-weight-bold text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                <i class="fas fa-file-alt mr-1 text-warning"></i>Déclaration 24h
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Créé le</td>
+                            <td>{{ accident.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Créé par</td>
+                            <td>{{ accident.created_by|default:"—" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Soumis le</td>
+                            <td>
+                                {% if accident.soumis_le %}
+                                <span class="text-success"><i class="fas fa-check mr-1"></i>{{ accident.soumis_le|date:"d/m/Y H:i" }}</span>
+                                {% else %}
+                                <span class="text-muted">Non soumis</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Dernière modif.</td>
+                            <td>{{ accident.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+
+                        <!-- Formulaire 48h -->
+                        {% if has_analyse %}
+                        <tr class="table-light">
+                            <td colspan="2" class="font-weight-bold text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                <i class="fas fa-search mr-1 text-info"></i>Analyse 48h
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Commencé le</td>
+                            <td>{{ accident.analyse_48h.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Soumis le</td>
+                            <td>
+                                {% if accident.analyse_48h.soumis_le %}
+                                <span class="{% if analyse_soumise_en_retard %}text-danger{% else %}text-success{% endif %}">
+                                    <i class="fas fa-{% if analyse_soumise_en_retard %}exclamation-triangle{% else %}check{% endif %} mr-1"></i>
+                                    {{ accident.analyse_48h.soumis_le|date:"d/m/Y H:i" }}
+                                    {% if analyse_soumise_en_retard %}<br><span class="badge badge-danger" style="font-size:.65rem">EN RETARD</span>{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Non soumis</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Dernière modif.</td>
+                            <td>{{ accident.analyse_48h.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+
+                        <!-- Formulaire 8j -->
+                        {% if has_lap %}
+                        <tr class="table-light">
+                            <td colspan="2" class="font-weight-bold text-uppercase" style="font-size:.7rem;letter-spacing:.05em">
+                                <i class="fas fa-tasks mr-1 text-primary"></i>LAP 8 jours
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Commencé le</td>
+                            <td>{{ accident.lap_8j.created_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Soumis le</td>
+                            <td>
+                                {% if accident.lap_8j.soumis_le %}
+                                <span class="{% if lap_soumis_en_retard %}text-danger{% else %}text-success{% endif %}">
+                                    <i class="fas fa-{% if lap_soumis_en_retard %}exclamation-triangle{% else %}check{% endif %} mr-1"></i>
+                                    {{ accident.lap_8j.soumis_le|date:"d/m/Y H:i" }}
+                                    {% if lap_soumis_en_retard %}<br><span class="badge badge-danger" style="font-size:.65rem">EN RETARD</span>{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">Non soumis</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted pl-3">Dernière modif.</td>
+                            <td>{{ accident.lap_8j.updated_at|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historique des actions -->
+{% if request.user.is_superuser %}
+{% if historique %}
+<div class="card card-outline card-primary mt-4">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-history mr-2 text-primary"></i>Historique du suivi</h3>
+        <div class="card-tools">
+            <span class="badge badge-primary mr-2">{{ hist_paginator.count }} événement{{ hist_paginator.count|pluralize }}</span>
+            <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                <i class="fas fa-minus"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th style="width:40px"></th>
+                        <th style="width:150px">Date &amp; heure</th>
+                        <th style="width:160px">Utilisateur</th>
+                        <th>Action</th>
+                        <th style="width:110px">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in historique %}
+                    <tr class="{% if 'RETARD' in entry.change_message %}table-danger{% elif 'créé' in entry.change_message %}table-primary{% elif 'soumis' in entry.change_message or 'clôtur' in entry.change_message %}table-success{% endif %}">
+                        <td class="text-center">
+                            {% if 'RETARD' in entry.change_message %}
+                                <i class="fas fa-exclamation-triangle text-danger"></i>
+                            {% elif 'créé' in entry.change_message %}
+                                <i class="fas fa-plus-circle text-primary"></i>
+                            {% elif 'soumis' in entry.change_message or 'clôtur' in entry.change_message %}
+                                <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                                <i class="fas fa-pencil-alt text-secondary"></i>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap small text-muted">
+                            <i class="far fa-clock mr-1"></i>{{ entry.action_time|date:"d/m/Y H:i" }}
+                        </td>
+                        <td>
+                            <span class="font-weight-bold">{{ entry.user.get_full_name|default:entry.user.username }}</span>
+                        </td>
+                        <td class="small">{{ entry.get_change_message }}</td>
+                        <td class="text-center">
+                            {% if 'RETARD' in entry.change_message %}
+                                <span class="badge badge-danger">EN RETARD</span>
+                            {% elif 'soumis' in entry.change_message or 'clôtur' in entry.change_message %}
+                                <span class="badge badge-success">Soumis</span>
+                            {% elif 'créé' in entry.change_message %}
+                                <span class="badge badge-primary">Créé</span>
+                            {% else %}
+                                <span class="badge badge-secondary">Modifié</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if hist_is_paginated %}
+        <div class="d-flex justify-content-center py-2">
+            <ul class="pagination pagination-sm mb-0">
+                {% if hist_page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?hist_page=1">&laquo;</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?hist_page={{ hist_page_obj.previous_page_number }}">&lsaquo;</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&lsaquo;</span></li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ hist_page_obj.number }} / {{ hist_paginator.num_pages }}</span>
+                </li>
+
+                {% if hist_page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?hist_page={{ hist_page_obj.next_page_number }}">&rsaquo;</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?hist_page={{ hist_paginator.num_pages }}">&raquo;</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">&rsaquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Modal plein écran — diagramme Ishikawa -->
+{% if has_analyse and accident.analyse_48h.pourquoi_data %}
+<div class="modal fade" id="fishbone-modal-detail" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document" style="max-width:96vw;margin:2vh auto">
+        <div class="modal-content">
+            <div class="modal-header py-2" style="background:#c0392b">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-fish mr-2"></i>Diagramme Ishikawa — {{ accident.reference }}
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body p-2" id="fishbone-modal-detail-body"
+                 style="background:#f8f9fa;overflow-x:auto;max-height:88vh">
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if has_analyse and accident.analyse_48h.pourquoi_data %}
+<script>
+(function () {
+    var pourquoiData = {{ pourquoi_data_json|safe }};
+    var accRef  = '{{ accident.reference|escapejs }}';
+    var victime = '{{ accident.victime_nom_prenom|escapejs }}';
+
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // Derive actual section names from saved data (sorted by numeric prefix)
+    var _dataSections = [];
+    Object.keys(pourquoiData).forEach(function (c) {
+        var s = pourquoiData[c].section || '';
+        if (s && _dataSections.indexOf(s) === -1) _dataSections.push(s);
+    });
+    _dataSections.sort(function (a, b) { return parseInt(a) - parseInt(b); });
+
+    // Build BONE_CFG: use actual names from data where available, fall back to standard
+    var _stdNames = [
+        "1 \u2014 L'organisation du travail",
+        "2 \u2014 La victime",
+        "3 \u2014 La t\u00e2che demand\u00e9e / l'activit\u00e9 r\u00e9alis\u00e9e",
+        "4 \u2014 Le milieu",
+        "5 \u2014 Les produits, \u00e9quipements utilis\u00e9s"
+    ];
+    var _boneLabels = ["Organisation\ndu travail", "La victime", "T\u00e2che /\nActivit\u00e9", "Le milieu", "Produits &\n\u00c9quipements"];
+    var _boneSides  = ['T', 'B', 'T', 'B', 'T'];
+    var _boneTopIdx = 0, _boneBotIdx = 0;
+    var BONE_CFG = _stdNames.map(function (stdName, si) {
+        // Find matching section in data by numeric prefix (si+1)
+        var actualName = _dataSections.find(function (s) { return parseInt(s) === (si + 1); }) || stdName;
+        var side = _boneSides[si] || 'T';
+        var pos  = side === 'T' ? _boneTopIdx++ : _boneBotIdx++;
+        var cfg  = { name: actualName, label: _boneLabels[si], side: side, pos: pos };
+        if (si === 4) cfg.blen = 160;  // Produits & Équipements — shorter bone
+        return cfg;
+    });
+    function buildFishbone(data, ref, victime) {
+        // Hiérarchie horizontale avec design moderne
+        if (Object.keys(data).length === 0) {
+            return '<div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>Aucune cause identifiée.</div>';
+        }
+
+        var html = '<style>'
+            + '.cause-box { position: relative; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 10px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; transition: all 0.3s ease; }'
+            + '.cause-box:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }'
+            + '.cause-box-blue { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; }'
+            + '.cause-box-red { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; font-weight: bold; }'
+            + '.cause-box-green { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; }'
+            + '.cause-label { position: absolute; top: -10px; left: 10px; background: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }'
+            + '.arrow-connector { color: #7f8c8d; font-size: 24px; display: flex; align-items: center; justify-content: center; }'
+            + '.question-header { background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%); color: white; padding: 12px; border-radius: 8px 8px 0 0; font-weight: bold; }'
+            + '.cause-flow { display: flex; align-items: stretch; flex-wrap: nowrap; overflow-x: auto; padding: 20px 10px; background: #f8f9fa; border-radius: 8px; }'
+            + '.cause-item { flex: 0 0 auto; width: 200px; }'
+            + '.arrow-item { flex: 0 0 auto; width: 50px; display: flex; align-items: center; justify-content: center; }'
+            + '</style>';
+
+        html += '<div class="mb-4 p-3" style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">'
+            + '<h5 class="text-center mb-0" style="color: #2c3e50;">'
+            + '<i class="fas fa-exclamation-triangle mr-2"></i>'
+            + '<strong>Accident : ' + esc(ref) + '</strong> — Victime : <strong>' + esc(victime) + '</strong>'
+            + '</h5></div>';
+
+        // Grouper par section (utiliser BONE_CFG.name pour correspondre aux sections)
+        BONE_CFG.forEach(function(bc) {
+            var qItems = Object.keys(data)
+                .filter(function (c) { return (data[c].section || '') === bc.name; })
+                .map(function (c) {
+                    return {
+                        code: c,
+                        question: data[c].question || '',
+                        pourquoi: data[c].pourquoi || ['','','','','']
+                    };
+                });
+
+            if (qItems.length === 0) return;
+
+            html += '<div class="card mb-4" style="border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden;">'
+                + '<div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">'
+                + '<h6 class="mb-0"><i class="fas fa-folder-open mr-2"></i>' + esc(bc.name) + '</h6>'
+                + '</div><div class="card-body p-3">';
+
+            qItems.forEach(function(qi) {
+                var activePourquoi = qi.pourquoi.filter(function(p) { return (p || '').trim(); });
+                if (activePourquoi.length === 0) return;
+
+                html += '<div class="mb-3">'
+                    + '<div class="question-header">'
+                    + '<span class="badge badge-light mr-2">' + esc(qi.code) + '</span>'
+                    + esc(qi.question)
+                    + '</div>';
+
+                // Flux horizontal des pourquoi avec des boîtes
+                html += '<div class="cause-flow">';
+
+                for (var i = 0; i < 5; i++) {
+                    var val = qi.pourquoi[i] || '';
+                    var isLast = (i === 4);
+                    
+                    // Boîte de cause
+                    html += '<div class="cause-item">'
+                        + '<div class="cause-box ' + (isLast ? 'cause-box-red' : (i === 0 ? 'cause-box-green' : 'cause-box-blue')) + '">'
+                        + '<span class="cause-label" style="color: ' + (isLast ? '#e74c3c' : (i === 0 ? '#27ae60' : '#3498db')) + ';">'
+                        + (isLast ? '🎯 Cause racine' : 'P' + (i + 1))
+                        + '</span>'
+                        + '<div>' + (val ? esc(val) : '<span style="opacity:0.6;">Non renseigné</span>') + '</div>'
+                        + '</div>'
+                        + '</div>';
+                    
+                    // Flèche de connexion (sauf après le dernier)
+                    if (i < 4) {
+                        html += '<div class="arrow-item">'
+                            + '<div class="arrow-connector"><i class="fas fa-arrow-right"></i></div>'
+                            + '</div>';
+                    }
+                }
+
+                html += '</div>'; // fin cause-flow
+                html += '</div>'; // fin question block
+            });
+
+            html += '</div></div>'; // fin card
+        });
+
+        return html;
+    }
+
+    var el = document.getElementById('detail-fishbone-draw');
+    if (el && Object.keys(pourquoiData).length) {
+        el.innerHTML = buildFishbone(pourquoiData, accRef, victime);
+    }
+
+    // Expand → fullscreen modal
+    var expBtn = document.getElementById('btn-expand-fishbone-detail');
+    if (expBtn) expBtn.addEventListener('click', function () {
+        var mb = document.getElementById('fishbone-modal-detail-body');
+        if (mb) {
+            mb.innerHTML = el ? el.innerHTML : '';
+            var s = mb.querySelector('svg');
+            if (s) s.style.maxWidth = 'none';
+        }
+        $('#fishbone-modal-detail').modal('show');
+    });
+
+    // Download as PNG (capture HTML as image using html2canvas if available)
+    var dlBtn = document.getElementById('btn-download-fishbone-detail');
+    if (dlBtn) dlBtn.addEventListener('click', function () {
+        if (typeof html2canvas === 'undefined') {
+            alert('La fonctionnalité de téléchargement n\'est pas disponible. Utilisez la capture d\'écran de votre navigateur.');
+            return;
+        }
+        html2canvas(el).then(function(canvas) {
+            var a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = 'hierarchie_causes_{{ accident.reference|escapejs }}.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

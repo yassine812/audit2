@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><style>
+body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+.header { background: #dc3545; color: white; padding: 16px 20px; border-radius: 4px 4px 0 0; }
+.header h2 { margin: 0; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; }
+.body { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; border-radius: 0 0 4px 4px; }
+.danger-banner { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-weight: bold; }
+.info-row { display: flex; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+.info-label { font-weight: bold; width: 180px; flex-shrink: 0; color: #555; font-size: .88rem; }
+.info-value { font-size: .88rem; }
+.refus-block { background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 14px; margin: 14px 0; border-radius: 2px; }
+.btn { display: inline-block; padding: 10px 22px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 12px; }
+.footer { text-align: center; color: #aaa; font-size: .75rem; margin-top: 16px; }
+</style></head>
+<body>
+<div class="header">
+  <h2>✗ Demande de Congé Refusée</h2>
+</div>
+<div class="body">
+  <div class="danger-banner">
+    ✗ Votre demande de congé a été <strong>refusée</strong>.
+  </div>
+  <p>Bonjour <strong>{{ demande.prenom }} {{ demande.nom }}</strong>,</p>
+  <p>Votre responsable a malheureusement refusé votre demande de congé pour la période suivante :</p>
+  <div style="margin: 16px 0;">
+    <div class="info-row">
+      <span class="info-label">Absence demandée du :</span>
+      <span class="info-value">{{ demande.date_debut|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Au (inclus) :</span>
+      <span class="info-value">{{ demande.date_fin|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Nombre de jours :</span>
+      <span class="info-value">{{ demande.nombre_jours }} jour(s)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Type de congé :</span>
+      <span class="info-value">{{ demande.get_type_conge_display }}</span>
+    </div>
+    {% if demande.validateur %}
+    <div class="info-row">
+      <span class="info-label">Refusé par :</span>
+      <span class="info-value">{{ demande.validateur.get_full_name|default:demande.validateur.username }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% if demande.commentaire_refus %}
+  <div class="refus-block">
+    <strong>Motif du refus :</strong><br>
+    {{ demande.commentaire_refus }}
+  </div>
+  {% endif %}
+  <p>Pour toute question, veuillez contacter votre responsable directement.</p>
+  {% if request %}
+  <a class="btn" href="{{ request.scheme }}://{{ request.get_host }}{% url 'conge:liste' %}">
+    Consulter mes demandes
+  </a>
+  {% endif %}
+</div>
+<div class="footer">
+  Ce message a été généré automatiquement — merci de ne pas y répondre.
+</div>
+</body>
+</html>

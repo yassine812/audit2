@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enquête de satisfaction</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #444;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eaeaea;
+            margin-bottom: 25px;
+        }
+        .header img {
+            max-height: 60px;
+            margin-bottom: 15px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 24px;
+        }
+        .content {
+            padding: 0 10px;
+        }
+        .button-container {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .button {
+            background-color: #3498db;
+            color: white !important;
+            padding: 14px 28px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .details {
+            background: #f5f9fc;
+            padding: 18px;
+            border-radius: 6px;
+            margin: 25px 0;
+            border-left: 4px solid #3498db;
+        }
+        .details h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .footer {
+            margin-top: 35px;
+            padding-top: 20px;
+            border-top: 1px solid #eaeaea;
+            font-size: 14px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+        .link-fallback {
+            word-break: break-all;
+            font-size: 13px;
+            color: #7f8c8d;
+            margin-top: 10px;
+        }
+        .highlight {
+            background-color: #fffde7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border-left: 4px solid #ffd600;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <!-- Vous pouvez ajouter votre logo ici -->
+            <h1>Enquête de Satisfaction - {{ company_name }}</h1>
+            <p style="color: #3498db; font-weight: 500;">Votre opinion compte pour nous !</p>
+        </div>
+        
+        <div class="content">
+            <p>Bonjour,</p>
+            
+            <p>Dans le cadre de notre démarche d'amélioration continue, <strong>l'équipe commerciale</strong> de {{ company_name }} vous invite à partager votre expérience.</p>
+            
+            <div class="highlight">
+                <p>Cette enquête de satisfaction ne vous prendra que quelques minutes et nous aidera à mieux répondre à vos attentes.</p>
+            </div>
+            
+            <div class="details">
+                <h3>Informations sur votre enquête :</h3>
+                <ul>
+                    <li><strong>Destinataire :</strong> {{ client.nom }}</li>
+                    <li><strong>Date limite de réponse :</strong> {{ date_limite }}</li>
+                    <li><strong>Durée estimée :</strong> 3-5 minutes</li>
+                </ul>
+            </div>
+            
+            <div class="button-container">
+                <a href="{{ url }}" class="button">Accéder à l'enquête</a>
+            </div>
+            
+            <p>Pour toute question concernant cette enquête, vous pouvez contacter notre équipe commerciale.</p>
+            
+            <p><small>Ce lien est personnel et valable jusqu'au <strong>{{ date_limite }}</strong>.</small></p>
+        </div>
+        
+        <div class="footer">
+            <p>Merci pour le temps que vous nous accordez.</p>
+            <p>Cordialement,<br><strong>L'équipe Commerciale</strong> de {{ company_name }}</p>
+            <p><small>Ceci est un message automatique - Merci de ne pas y répondre directement</small></p>
+            {% if company_address %}
+            <p style="font-size: 12px; margin-top: 10px;">{{ company_address }}</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

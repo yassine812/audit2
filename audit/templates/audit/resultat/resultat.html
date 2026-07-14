@@ -1,0 +1,57 @@
+{% extends 'audit/base.html' %}
+{% block title %}Résultat audit{% endblock %}
+{% block content %}
+<div class="row">
+  <div class="col-md-3">
+    <div class="small-box bg-success"><div class="inner"><h3>{{ object.nb_conformes }}</h3><p>Conformes</p></div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-warning"><div class="inner"><h3>{{ object.nb_partiels }}</h3><p>Partiels</p></div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-danger"><div class="inner"><h3>{{ object.nb_nc }}</h3><p>Non conformes</p></div></div>
+  </div>
+  <div class="col-md-3">
+    <div class="small-box bg-info"><div class="inner"><h3>{{ object.niveau_prestation_pct }}%</h3><p>Niveau prestation</p></div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between">
+    <h3 class="card-title">Synthèse résultat</h3>
+    <a href="{% url 'audit:resultat-edit' object.pk %}" class="btn btn-primary btn-sm">Modifier</a>
+  </div>
+  <div class="card-body">
+    <canvas id="radarChart" height="120"></canvas>
+    <hr>
+    <p><strong>Points forts:</strong><br>{{ object.points_forts|linebreaksbr|default:'-' }}</p>
+    <p><strong>Risques:</strong><br>{{ object.risques|linebreaksbr|default:'-' }}</p>
+    <p><strong>Opportunités:</strong><br>{{ object.opportunites|linebreaksbr|default:'-' }}</p>
+    <p><strong>Points sensibles:</strong><br>{{ object.points_sensibles|linebreaksbr|default:'-' }}</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{{ radar_labels|json_script:"radar-labels-data" }}
+{{ radar_values|json_script:"radar-values-data" }}
+<script>
+const ctx = document.getElementById('radarChart');
+const radarLabels = JSON.parse(document.getElementById('radar-labels-data').textContent);
+const radarValues = JSON.parse(document.getElementById('radar-values-data').textContent);
+new Chart(ctx, {
+  type: 'radar',
+  data: {
+    labels: radarLabels,
+    datasets: [{
+      label: 'Résultat',
+      data: radarValues,
+      fill: true,
+      borderColor: 'rgb(54, 162, 235)',
+      backgroundColor: 'rgba(54, 162, 235, 0.2)'
+    }]
+  }
+});
+</script>
+{% endblock %}

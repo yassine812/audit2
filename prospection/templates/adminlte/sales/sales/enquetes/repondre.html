@@ -1,0 +1,2070 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="{{ language|default:'fr' }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if language == 'en' %}Satisfaction Survey - AB Serve{% elif language == 'de' %}Zufriedenheitsumfrage - AB Serve{% else %}Enquête de Satisfaction - AB Serve{% endif %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Intégration de l'API Web Speech pour la synthèse vocale -->
+    <script>
+        // Vérifier la compatibilité du navigateur
+        const isSpeechSynthesisSupported = 'speechSynthesis' in window;
+        let speechSynthesis = isSpeechSynthesisSupported ? window.speechSynthesis : null;
+        let currentUtterance = null;
+        
+        // Détection des voix disponibles
+        let voices = [];
+        
+        function loadVoices() {
+            if (!isSpeechSynthesisSupported) {
+                console.warn('La synthèse vocale n\'est pas supportée par ce navigateur');
+                return Promise.reject('not_supported');
+            }
+            
+            return new Promise((resolve) => {
+                // Fonction pour obtenir les voix
+                const getVoices = () => {
+                    voices = speechSynthesis.getVoices();
+                    if (voices.length > 0) {
+                        resolve(voices);
+                    } else {
+                        // Certains navigateurs chargent les voix de manière asynchrone
+                        speechSynthesis.onvoiceschanged = getVoices;
+                    }
+                };
+                
+                getVoices();
+                
+                // Timeout si les voix ne sont pas chargées après 3 secondes
+                setTimeout(() => {
+                    if (voices.length === 0) {
+                        console.warn('Délai d\'attente dépassé pour le chargement des voix');
+                        resolve([]);
+                    }
+                }, 3000);
+            });
+        }
+        
+        // Charger les voix au démarrage
+        if (isSpeechSynthesisSupported) {
+            loadVoices().catch(console.error);
+        }
+    </script>
+    <style>
+        :root {
+            --abs-blue: #0056b3;
+            --abs-light-blue: #e6f0fa;
+            --abs-orange: #ff7f00;
+            --abs-green: #28a745;
+            --abs-dark: #2c3e50;
+            --abs-light: #f8f9fa;
+            --abs-gray: #6c757d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            font-family: 'Poppins', sans-serif;
+            color: var(--abs-dark);
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        .survey-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 86, 179, 0.15);
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(0, 86, 179, 0.1);
+            display: grid;
+            grid-template-columns: 250px 1fr 250px;
+            min-height: 80vh;
+        }
+
+        @media (max-width: 992px) {
+            .survey-container {
+                grid-template-columns: 220px 1fr;
+            }
+            .right-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 8px;
+            }
+
+            .survey-container {
+                grid-template-columns: 1fr;
+                min-height: auto;
+                border-radius: 16px;
+            }
+
+            .left-panel {
+                padding: 16px;
+                border-right: none;
+                border-bottom: 1px solid rgba(0, 86, 179, 0.1);
+            }
+
+            .center-panel {
+                padding: 14px;
+            }
+
+            .right-panel {
+                padding: 14px;
+                border-left: none;
+                border-top: 1px solid rgba(0, 86, 179, 0.1);
+            }
+
+            .logo {
+                height: 70px;
+            }
+
+            .survey-title {
+                font-size: 1.25rem;
+            }
+
+            .progress-dots {
+                gap: 8px;
+                overflow-x: auto;
+                padding-bottom: 6px;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .progress-dot {
+                flex: 0 0 auto;
+                width: 28px;
+                height: 28px;
+                font-size: 0.85rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .left-panel {
+                padding: 14px;
+            }
+
+            .center-panel {
+                padding: 12px;
+            }
+
+            .question-card {
+                padding: 14px;
+            }
+
+            .nav-buttons {
+                gap: 10px;
+            }
+
+            .nav-btn,
+            .btn-submit {
+                width: 100%;
+            }
+        }
+
+        .left-panel {
+            padding: 30px;
+            background: var(--abs-light-blue);
+            border-right: 1px solid rgba(0, 86, 179, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .right-panel {
+            padding: 30px;
+            background: var(--abs-light);
+            border-left: 1px solid rgba(0, 86, 179, 0.1);
+            overflow-y: auto;
+        }
+
+        .center-panel {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100%;
+        }
+
+        .logo-container {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .logo {
+            height: 100px;
+            width: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .survey-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--abs-blue);
+            text-align: center;
+        }
+
+        .survey-intro {
+            font-size: 1rem;
+            color: var(--abs-gray);
+            line-height: 1.5;
+            text-align: center;
+            margin-top: 30px;
+        }
+
+        .progress-container {
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .progress-track {
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--abs-blue), var(--abs-orange));
+            border-radius: 3px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+
+        .progress-dots {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        .progress-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e9ecef;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--abs-gray);
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+
+        .progress-dot.active {
+            background: var(--abs-blue);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .progress-dot.completed {
+            background: var(--abs-blue);
+            color: white;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #e9ecef;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .progress-line-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            transition: width 0.5s ease;
+            z-index: -9999;
+        }
+
+        .question-container {
+            display: none;
+            animation: fadeIn 0.5s ease;
+            flex-grow: 1;
+        }
+
+        .question-container.active {
+            display: block;
+        }
+
+        .question-card {
+            background: white;
+            border-radius: 15px;
+            padding: 0;
+            margin-bottom: 5px;
+        }
+
+        .question-title {
+            font-size: 1.3rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            color: var(--abs-dark);
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .question-title:before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 5px;
+            height: 70%;
+            width: 5px;
+            background: var(--abs-blue);
+            border-radius: 5px;
+        }
+
+        .options-container {
+            margin-top: 20px;
+        }
+
+        .option-item {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .option-input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .option-label {
+            display: flex;
+            align-items: center;
+            padding: 18px 25px;
+            background: var(--abs-light);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #e9ecef;
+        }
+
+        .option-label:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 86, 179, 0.1);
+            border-color: var(--abs-blue);
+        }
+
+        .option-input:checked + .option-label {
+            background: var(--abs-light-blue);
+            border-color: var(--abs-blue);
+            box-shadow: 0 5px 15px rgba(0, 86, 179, 0.1);
+        }
+
+        .option-text {
+            margin-left: 15px;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        .text-answer {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1rem;
+            resize: none;
+            transition: all 0.3s;
+        }
+
+        .text-answer:focus {
+            outline: none;
+            border-color: var(--abs-blue);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
+        }
+
+        .scale-container {
+            margin: 30px 0;
+        }
+
+        .scale-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: var(--abs-gray);
+        }
+
+        .scale-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #e9ecef;
+            outline: none;
+            margin: 20px 0;
+            transition: all 0.3s;
+        }
+
+        .scale-slider:hover {
+            background: #dee2e6;
+        }
+
+        .scale-slider {
+            position: relative;
+            z-index: 5;
+        }
+        
+        .scale-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid var(--abs-blue);
+            border-radius: 50%;
+            cursor: pointer;
+            margin-top: -15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            opacity: 0; /* Rendre le thumb natif transparent */
+        }
+
+        .scale-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            border-color: var(--abs-orange);
+        }
+
+        .scale-value {
+            text-align: center;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--abs-blue);
+            margin: 15px 0;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 14px 30px;
+            border-radius: 50px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+
+        .btn-prev {
+            background: white;
+            color: var(--abs-blue);
+            border: 2px solid var(--abs-blue);
+        }
+
+        .btn-prev:hover {
+            background: var(--abs-light-blue);
+        }
+
+        .btn-next {
+            background: var(--abs-blue);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 86, 179, 0.2);
+        }
+
+        .btn-next:hover {
+            background: #004494;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 86, 179, 0.25);
+        }
+
+        .btn-submit {
+            background: var(--abs-green);
+            color: white;
+            width: 100%;
+            padding: 16px;
+            border-radius: 50px;
+            border: none;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 30px;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+            display: none;
+        }
+
+        .btn-submit:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .optional-field {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px dashed #dee2e6;
+        }
+
+        .optional-label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: var(--abs-gray);
+            font-style: italic;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .comments-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: var(--abs-blue);
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .comments-header i {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+
+        .comment-display {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid var(--abs-blue);
+            display: none;
+        }
+
+        .comment-display.active {
+            display: block;
+        }
+
+        .comment-question {
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: var(--abs-dark);
+            font-size: 0.95rem;
+        }
+
+        .comment-text {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--abs-gray);
+        }
+
+        .comment-container {
+            margin-bottom: 15px;
+        }
+
+        .comment-question-title {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--abs-blue);
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .comment-textarea {
+            margin-bottom: 0;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .survey-container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr auto;
+            }
+
+            .survey-title{
+                width: 85%;
+            }
+
+            .right-panel{
+                width: 85%;
+            }
+
+            .center-panel{
+                width: 85%;
+            }
+
+            .logo-container{
+                margin-bottom: 0px;
+            }
+
+            .left-panel {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                padding: 20px;
+                border-right: none;
+                border-bottom: 1px solid rgba(0, 86, 179, 0.1);
+            }
+
+            .right-panel {
+                border-left: none;
+                border-top: 1px solid rgba(0, 86, 179, 0.1);
+                order: 3;
+            }
+
+            .center-panel {
+                order: 2;
+            }
+
+            .logo {
+                height: 60px;
+                margin-right: 20px;
+            }
+
+            .survey-title {
+                margin-bottom: 0;
+                font-size: 1.3rem;
+            }
+
+            .survey-intro {
+                display: none;
+            }
+
+            .progress-container {
+                margin: 20px 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .survey-container {
+                margin: 10px auto;
+                border-radius: 15px;
+            }
+
+            .left-panel {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .logo {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+
+            .question-title {
+                font-size: 1.15rem;
+            }
+
+            .option-label {
+                padding: 15px 20px;
+            }
+
+            .progress-dot {
+                width: 25px;
+                height: 25px;
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .progress-dot {
+                width: 20px;
+                height: 20px;
+                font-size: 0.8rem;
+            }
+
+            .nav-btn {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Animation pour les questions */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.02);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .question-container.active {
+            animation: pulse 0.5s ease;
+        }
+
+        .btn-read-question {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 86, 179, 0.1);
+            border: 1px solid rgba(0, 86, 179, 0.2);
+            color: var(--abs-blue);
+            cursor: pointer;
+            padding: 0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            margin-left: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+            font-size: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-read-question:hover {
+            background: rgba(0, 86, 179, 0.2);
+            text-decoration: none;
+        }
+        
+        .btn-read-question i {
+            margin-right: 6px;
+            font-size: 16px;
+        }
+        
+        .btn-read-question.reading {
+            background: rgba(0, 86, 179, 0.2);
+            border-color: var(--abs-blue);
+        }
+        
+        .btn-read-question.playing i {
+            color: #fff;
+        }
+        
+        .btn-read-question.playing {
+            background: var(--abs-blue);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .btn-read-question .fa-volume-up {
+            transition: transform 0.3s ease;
+        }
+
+        .btn-read-question:hover .fa-volume-up {
+            transform: scale(1.1);
+        }
+
+        .btn-read-question .fa-stop {
+            display: none;
+        }
+
+        .btn-read-question.playing .fa-volume-up {
+            display: none;
+        }
+
+        .btn-read-question.playing .fa-stop {
+            display: inline-block;
+        }
+/* Container & hint */
+.scale-pro { --track:#e9ecef; --fill:var(--abs-blue); --thumb:#fff; --shadow:rgba(0,0,0,.12); }
+
+.scale-cta{display:flex;align-items:center;gap:.6rem;margin-bottom:.35rem;color:var(--abs-gray);font-size:.98rem}
+.cta-hand{display:inline-block; animation:wobble 1.4s ease-in-out infinite}
+@keyframes wobble{0%,100%{transform:translateX(0) rotate(0)} 25%{transform:translateX(2px) rotate(4deg)} 75%{transform:translateX(-2px) rotate(-4deg)}}
+.cta-text{position:relative}
+.cta-text:after{content:"";position:absolute;left:0;bottom:-2px;width:100%;height:2px;background:linear-gradient(90deg,transparent, var(--abs-blue), transparent);opacity:.25}
+
+/* Track + bubble */
+.scale-track-wrap{position:relative;padding:16px 0}
+.scale-bubble{
+  position:absolute; top:-6px; transform:translateX(-50%) translateY(-100%);
+  background:var(--abs-dark); color:#fff; font-size:.85rem; padding:4px 8px; border-radius:999px;
+  box-shadow:0 6px 18px var(--shadow); pointer-events:none; transition:left .15s ease, transform .15s ease;
+}
+.scale-bubble:after{
+  content:""; position:absolute; left:50%; bottom:-6px; transform:translateX(-50%);
+  border:6px solid transparent; border-top-color:var(--abs-dark);
+}
+.scale-sparkles{position:absolute; right:-6px; top:-6px; opacity:0; pointer-events:none; font-size:1.1rem}
+.scale-sparkles.active{ animation:popSparkle .8s ease }
+@keyframes popSparkle{0%{opacity:0; transform:scale(.6)} 40%{opacity:1; transform:scale(1.1)} 100%{opacity:0; transform:scale(1)}}
+
+/* Slider */
+.scale-slider{
+  -webkit-appearance:none; width:100%; height:12px; border-radius:999px; outline:none;
+  background:linear-gradient(90deg,var(--fill) 50%,var(--track) 50%) no-repeat;
+  background-size:50% 100%; transition:box-shadow .2s ease;
+}
+.scale-slider:hover{ box-shadow:0 6px 22px rgba(0,86,179,.18) }
+.scale-slider::-webkit-slider-runnable-track{ height:12px; border-radius:999px; background:transparent }
+.scale-slider::-moz-range-track{ height:12px; border-radius:999px; background:transparent }
+
+/* Thumb breathing */
+.scale-slider::-webkit-slider-thumb{
+  -webkit-appearance:none; width:28px; height:28px; border-radius:50%;
+  background:var(--thumb); border:3px solid var(--fill); box-shadow:0 6px 16px rgba(0,86,179,.28);
+  animation:breath 1.6s ease-in-out infinite;
+}
+@keyframes breath{0%,100%{transform:scale(1)} 50%{transform:scale(1.06)}}
+.scale-slider:active::-webkit-slider-thumb{ transform:scale(1.1) }
+.scale-slider::-moz-range-thumb{
+  width:28px;height:28px;border-radius:50%;background:var(--thumb);border:3px solid var(--fill);box-shadow:0 6px 16px rgba(0,86,179,.28);
+}
+
+/* Readout */
+.scale-readout{display:flex;align-items:center;gap:.55rem;margin-top:.25rem}
+.scale-value{font-size:1.55rem;font-weight:700;color:var(--abs-blue);transition:transform .15s ease}
+.scale-emoji{font-size:1.25rem}
+.scale-badge{font-size:.8rem;border-radius:999px;padding:4px 10px;border:1px solid #e9ecef;background:#f8f9fa}
+.scale-badge.tone-bad{background:#fff5f5;border-color:#f5c2c7;color:#b02a37}
+.scale-badge.tone-neutral{background:#fff9e6;border-color:#ffe08a;color:#8a6d3b}
+.scale-badge.tone-good{background:#e9f7ef;border-color:#b7e1c1;color:#2e7d32}
+.scale-badge.tone-excellent{background:#e6f0fa;border-color:#9ec5fe;color:#0d6efd}
+
+/* Feedback */
+.scale-feedback{margin-top:10px;font-size:.98rem;color:var(--abs-dark);min-height:1.2em}
+.scale-feedback.nudge{animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Responsive */
+@media (max-width:576px){
+  .scale-value{font-size:1.4rem}
+  .scale-slider{height:10px}
+}
+
+    </style>
+</head>
+
+<body>
+    <div class="survey-container">
+        <div class="left-panel">
+            <div class="logo-container">
+                <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve Logo" class="logo">
+            </div>
+            <div class="survey-title">
+                {% if language == 'en' %}
+                    Client Satisfaction Survey
+                {% elif language == 'de' %}
+                    Kundenumfrage
+                {% else %}
+                    Enquête de Satisfaction Clients
+                {% endif %}
+            </div>
+            <div class="survey-intro">
+                {% if language == 'en' %}
+                    Your opinion counts! Help us improve our services by sharing your experience.
+                {% elif language == 'de' %}
+                    Ihre Meinung zählt! Helfen Sie uns, unsere Dienstleistungen zu verbessern, indem Sie Ihre Erfahrungen mitteilen.
+                {% else %}
+                    Votre opinion compte ! Aidez-nous à améliorer nos services en partageant votre expérience.
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="center-panel">
+            <div class="progress-container">
+                <div class="progress-track">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="progress-dots-container">
+                    <div class="progress-line-fill" id="progress-line-fill"></div>
+                    <div class="progress-dots" id="progress-dots">
+                        {% for question in questions %}
+                        <div class="progress-dot {% if forloop.first %}active{% endif %}" data-question="{{ forloop.counter }}">
+                            {{ forloop.counter }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" id="survey-form">
+                {% csrf_token %}
+                {% for question in questions %}
+                <div class="question-container {% if forloop.first %}active{% endif %}" id="question-{{ forloop.counter }}" data-question-id="{{ question.id }}" data-question-type="{{ question.type }}">
+                    <div class="question-card">
+                        <div class="question-title">
+                            <span class="question-text">
+                                {% if language == 'en' and question.question_en %}
+                                    {{ question.question_en }}
+                                {% elif language == 'de' and question.question_de %}
+                                    {{ question.question_de }}
+                                {% else %}
+                                    {{ question.question_fr }}
+                                {% endif %}
+                            </span>
+                            <div class="btn-read-question" onclick="readQuestionText(this, event)" 
+                                data-question-text="{% if language == 'en' and question.question_en %}{{ question.question_en }}{% elif language == 'de' and question.question_de %}{{ question.question_de }}{% else %}{{ question.question_fr }}{% endif %}">
+                                <i class="fas fa-volume-up"></i>
+                            </div>
+                        </div>
+                        <div class="options-container">
+                            {% if question.type == 'closed' %}
+                            {# Question fermée avec 4 options #}
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Very satisfied{% elif language == 'de' %}Sehr zufrieden{% else %}Très satisfait{% endif %}"
+                                    id="q{{ question.id }}_1" class="option-input required" required>
+                                <label for="q{{ question.id }}_1" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Very satisfied{% elif language == 'de' %}Sehr zufrieden{% else %}Très satisfait{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Satisfied{% elif language == 'de' %}Zufrieden{% else %}Satisfait{% endif %}"
+                                    id="q{{ question.id }}_2" class="option-input required" required>
+                                <label for="q{{ question.id }}_2" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Satisfied{% elif language == 'de' %}Zufrieden{% else %}Satisfait{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Not very satisfied{% elif language == 'de' %}Wenig zufrieden{% else %}Peu satisfait{% endif %}"
+                                    id="q{{ question.id }}_3" class="option-input required" required>
+                                <label for="q{{ question.id }}_3" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Not very satisfied{% elif language == 'de' %}Wenig zufrieden{% else %}Peu satisfait{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Not at all satisfied{% elif language == 'de' %}Überhaupt nicht zufrieden{% else %}Pas du tout satisfait{% endif %}"
+                                    id="q{{ question.id }}_4" class="option-input required" required>
+                                <label for="q{{ question.id }}_4" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Not at all satisfied{% elif language == 'de' %}Überhaupt nicht zufrieden{% else %}Pas du tout satisfait{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+
+                            {% elif question.type == 'ouinon' %}
+                            {# Question Oui/Non/Peut-être #}
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Yes{% elif language == 'de' %}Ja{% else %}Oui{% endif %}"
+                                    id="q{{ question.id }}_1" class="option-input required" required>
+                                <label for="q{{ question.id }}_1" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Yes{% elif language == 'de' %}Ja{% else %}Oui{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}No{% elif language == 'de' %}Nein{% else %}Non{% endif %}"
+                                    id="q{{ question.id }}_2" class="option-input required" required>
+                                <label for="q{{ question.id }}_2" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}No{% elif language == 'de' %}Nein{% else %}Non{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+                            <div class="option-item">
+                                <input type="radio" name="q_{{ question.id }}_main" value="{% if language == 'en' %}Maybe{% elif language == 'de' %}Vielleicht{% else %}Peut-être{% endif %}"
+                                    id="q{{ question.id }}_3" class="option-input required" required>
+                                <label for="q{{ question.id }}_3" class="option-label">
+                                    <i class="far fa-circle unchecked"></i>
+                                    <i class="fas fa-check-circle checked"
+                                        style="display:none; color: var(--abs-blue);"></i>
+                                    <span class="option-text">
+                                        {% if language == 'en' %}Maybe{% elif language == 'de' %}Vielleicht{% else %}Peut-être{% endif %}
+                                    </span>
+                                </label>
+                            </div>
+
+                            {% elif question.type == 'open' %}
+                            {# Question ouverte (commentaire seul) #}
+                            <textarea name="q_{{ question.id }}_main" class="text-answer" rows="5"
+                                placeholder="{% if language == 'en' %}Your answer...{% elif language == 'de' %}Ihre Antwort...{% else %}Votre réponse...{% endif %}"></textarea>
+
+                                {% elif question.type == 'note' %}
+                                {# Question avec note (1-10) #}
+                                <div class="scale-container scale-pro" data-i18n-lang="{{ language|default:'fr' }}" data-autodemo="1">
+                                <div class="scale-cta">
+                                    <div class="scale-emoji" id="emoji-{{ forloop.counter }}" style="display: none;"></div>
+                                    <span class="cta-hand" aria-hidden="true">👋</span>
+                                    <span class="cta-text">
+                                    {% if language == 'en' %}Slide to rate — your feedback powers us!{% elif language == 'de' %}Zum Bewerten schieben — Ihr Feedback treibt uns an!{% else %}Faites glisser pour noter — votre avis nous fait avancer !{% endif %}
+                                    </span>
+                                </div>
+
+                                <div class="scale-track-wrap" style="position: relative; padding: 30px 0;">
+                                    <div class="scale-track" style="position: relative; height: 10px; background: #e9ecef; border-radius: 5px; margin: 20px 0;">
+                                        <div class="scale-fill" style="position: absolute; top: 0; left: 0; height: 100%; background: var(--abs-blue); border-radius: 5px; width: 50%;"></div>
+                                        <div class="emoji-thumb-container" id="emoji-container-{{ forloop.counter }}" style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; z-index: 10; cursor: grab; user-select: none; touch-action: none;">
+                                            <div class="emoji-thumb" id="emoji-thumb-{{ forloop.counter }}" style="width: 40px; height: 40px; background: white; border: 2px solid var(--abs-blue); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-bottom: 5px; transition: transform 0.1s ease, border-color 0.2s ease;">😐</div>
+                                            <div class="emoji-value" id="emoji-value-{{ forloop.counter }}" style="font-size: 0.9rem; font-weight: bold; color: var(--abs-blue); background: white; padding: 2px 8px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">5</div>
+                                        </div>
+                                    </div>
+                                    <input
+                                    type="range"
+                                    name="q_{{ question.id }}_main"
+                                    oninput="updateEmojiThumb(this, 'emoji-thumb-{{ forloop.counter }}')"
+                                    onchange="updateEmojiThumb(this, 'emoji-thumb-{{ forloop.counter }}')"
+                                    min="1"
+                                    max="10"
+                                    step="1"
+                                    value="5"
+                                    class="scale-slider required"
+                                    id="scale-{{ question.id }}"
+                                    style="position: absolute; width: 100%; top: 30px; left: 0; opacity: 0; cursor: pointer; height: 60px; margin: 0;"
+                                    aria-label="{% if language == 'en' %}Score from 1 to 10{% elif language == 'de' %}Bewertung von 1 bis 10{% else %}Note de 1 à 10{% endif %}"
+                                    required
+                                    list="ticks-{{ question.id }}"
+                                    />
+                                    <div class="scale-sparkles" id="scale-sparkles-{{ question.id }}" aria-hidden="true">✨</div>
+                                    <datalist id="ticks-{{ question.id }}"><option value="1"></option><option value="5"></option><option value="10"></option></datalist>
+                                </div>
+
+
+                                <div class="scale-labels">
+                                    <span>1 ({% if language == 'en' %}Not at all{% elif language == 'de' %}Gar nicht{% else %}Pas du tout{% endif %})</span>
+                                    <span>10 ({% if language == 'en' %}Excellent{% elif language == 'de' %}Exzellent{% else %}Excellent{% endif %})</span>
+                                </div>
+
+                                <div class="scale-feedback nudge" id="scale-feedback-{{ question.id }}">
+                                    {% if language == 'en' %}Slide a little more for perfection 😉{% elif language == 'de' %}Ein bisschen weiter schieben für „perfekt“ 😉{% else %}Glissez un peu plus pour la perfection 😉{% endif %}
+                                </div>
+                                </div>
+                                {% endif %}                                                             
+                        </div>
+                        <div class="error-message" id="error-{{ forloop.counter }}">
+                            {% if language == 'en' %}
+                                Please answer this question before continuing.
+                            {% elif language == 'de' %}
+                                Bitte beantworten Sie diese Frage, bevor Sie fortfahren.
+                            {% else %}
+                                Veuillez répondre à cette question avant de continuer.
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="nav-buttons">
+                        {% if not forloop.first %}
+                        <button type="button" class="nav-btn btn-prev" onclick="prevQuestion()">
+                            <i class="fas fa-arrow-left"></i>
+                            {% if language == 'en' %}Previous{% elif language == 'de' %}Zurück{% else %}Précédent{% endif %}
+                        </button>
+                        {% else %}
+                        <div style="width:130px"></div>
+                        {% endif %}
+
+                        {% if not forloop.last %}
+                        <button type="button" class="nav-btn btn-next" onclick="validateAndNext({{ forloop.counter }}, '{{ question.type }}')">
+                            {% if language == 'en' %}Next{% elif language == 'de' %}Weiter{% else %}Suivant{% endif %}
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn-submit" id="submit-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            {% if language == 'en' %}Submit answers{% elif language == 'de' %}Antworten absenden{% else %}Envoyer les réponses{% endif %}
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </form>
+        </div>
+
+        <div class="right-panel" id="comments-panel">
+            <div class="comments-header">
+                <i class="far fa-comments"></i>
+                <h3>{% if language == 'en' %}Comments{% elif language == 'de' %}Kommentare{% else %}Commentaires{% endif %}</h3>
+            </div>
+            {% for question in questions %}
+            <div class="comment-container" id="comment-container-{{ forloop.counter }}" style="display: none;">
+                <textarea name="q_{{ question.id }}_comment" id="q{{ question.id }}_comment"
+                    class="text-answer comment-textarea" rows="3" 
+                    placeholder="{% if language == 'en' %}Your remarks, suggestions for this question...{% elif language == 'de' %}Ihre Anmerkungen, Vorschläge für diese Frage...{% else %}Vos remarques, suggestions pour cette question...{% endif %}"
+                    placeholder="{% if question.type == 'open' %}{% if language == 'en' %}Your answer...{% else %}Votre réponse...{% endif %}{% else %}{% if language == 'en' %}Your remarks, suggestions for this question...{% else %}Vos remarques, suggestions pour cette question...{% endif %}{% endif %}"
+                    data-question-id="{{ question.id }}"></textarea>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {{ current_question_num|default:1|json_script:"current-question" }}
+    {{ questions|length|default:0|json_script:"total-questions" }}
+    {{ language|default:'fr'|json_script:"survey-language" }}
+    
+    <!-- Debug: Afficher la langue actuelle -->
+    <div id="debug-language" style="display: none;">
+        Langue actuelle: {{ language|default:'fr' }}
+    </div>
+
+    <script>
+        let currentQuestion = JSON.parse(document.getElementById("current-question").textContent);
+        const totalQuestions = JSON.parse(document.getElementById("total-questions").textContent);
+        const token = '{{ token|default:"" }}';
+        const existingResponses = JSON.parse('{{ existing_responses|escapejs|default:"{}" }}');
+        let saveTimeout = {};
+
+        // Fonction pour lire le texte de la question (avec gestion d'erreur améliorée)
+        function readQuestionText(button, event) {
+            
+            // Empêcher la soumission du formulaire et la navigation
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+            } else {
+                console.log('Aucun événement détecté');
+            }
+            
+            // Vérifier si le bouton est valide
+            if (!button) {
+                console.error('Erreur: Le bouton est null ou non défini');
+                return;
+            }
+            
+            // Récupérer le texte à lire depuis l'attribut data-question-text
+            const questionText = button.getAttribute('data-question-text');
+            
+            // Vérifier si le texte est présent
+            if (!questionText) {
+                console.error('Erreur: Aucun texte trouvé dans data-question-text');
+                console.log('Attributs du bouton:', Object.entries(button.attributes).map(a => `${a.name}: ${a.value}`).join(', '));
+                return;
+            }
+            
+            // Vérifier si la lecture est déjà en cours
+            const isCurrentlyReading = button.classList.contains('reading');
+            
+            // Si déjà en train de lire, on arrête
+            if (isCurrentlyReading) {
+                stopReading();
+                return;
+            }
+            
+            // Mettre à jour l'état du bouton
+            button.classList.add('reading');
+            button.innerHTML = `
+                <i class="fas fa-stop" style="
+                    font-size: 1.2em;
+                    display: block;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                "></i>`;
+            
+            // Fonction pour gérer la lecture
+            const startReading = () => {
+                try {
+                    // Vérifier si la synthèse vocale est supportée
+                    if (!isSpeechSynthesisSupported) {
+                        throw new Error('La synthèse vocale n\'est pas supportée par votre navigateur');
+                    }
+                    
+                    // Arrêter toute lecture en cours
+                    speechSynthesis.cancel();
+                    
+                    // Créer un nouvel énoncé
+                    currentUtterance = new SpeechSynthesisUtterance(questionText);
+                    
+                    // Configurer les paramètres de lecture
+                    currentUtterance.volume = 1; // Volume (0 à 1)
+                    currentUtterance.rate = 0.9; // Vitesse (0.1 à 10)
+                    currentUtterance.pitch = 1; // Hauteur (0 à 2)
+                    
+                    // Définir la langue en fonction de la sélection
+                    const language = '{{ language|default:"fr" }}';
+                    currentUtterance.lang = language === 'en' ? 'en-US' : 
+                                          language === 'de' ? 'de-DE' : 'fr-FR';
+                    
+                    // Trouver une voix appropriée
+                    if (voices.length > 0) {
+                        // Essayer de trouver une voix dans la langue sélectionnée
+                        const langPrefix = language === 'en' ? 'en' : 
+                                         language === 'de' ? 'de' : 'fr';
+                        
+                        const preferredVoice = voices.find(v => v.lang.startsWith(langPrefix));
+                        if (preferredVoice) {
+                            currentUtterance.voice = preferredVoice;
+                        }
+                    }
+                    
+                    // Gestionnaires d'événements
+                    currentUtterance.onend = () => {
+                        button.classList.remove('reading');
+                        button.style.cssText = '';
+                        button.innerHTML = `
+                            <i class="fas fa-volume-up" style="
+                                display: block;
+                                width: 100%;
+                                height: 100%;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            "></i>`;
+                        currentUtterance = null;
+                    };
+                    
+                    currentUtterance.onerror = (event) => {
+                        // Ne pas afficher l'erreur si c'est une interruption volontaire
+                        if (event.error !== 'interrupted') {
+                            console.error('Erreur de lecture:', event);
+                            button.classList.remove('reading');
+                            button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                            button.title = 'Erreur de lecture';
+                        }
+                        currentUtterance = null;
+                    };
+                    
+                    // Démarrer la lecture
+                    speechSynthesis.speak(currentUtterance);
+                    
+                } catch (e) {
+                    console.error('Erreur lors de la lecture:', e);
+                    button.classList.remove('reading');
+                    button.innerHTML = '<i class="fas fa-volume-up"></i>';
+                    button.title = 'Erreur: ' + (e.message || 'Impossible de lire le texte');
+                }
+            };
+            
+            // Vérifier si les voix sont chargées
+            if (voices.length === 0 && isSpeechSynthesisSupported) {
+                loadVoices()
+                    .then(() => startReading())
+                    .catch((error) => {
+                        console.error('Erreur lors du chargement des voix:', error);
+                        startReading(); // Essayer quand même de lire
+                    });
+            } else {
+                startReading();
+            }
+                        
+            // Fonction pour arrêter la lecture
+            function stopReading() {
+                // Arrêter la synthèse vocale si elle est en cours
+                if (isSpeechSynthesisSupported && speechSynthesis) {
+                    speechSynthesis.cancel();
+                }
+                
+                // Réinitialiser l'interface
+                document.querySelectorAll('.btn-read-question.reading').forEach(btn => {
+                    btn.classList.remove('reading');
+                    btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+                });
+                
+                currentUtterance = null;
+            }
+        }
+
+        // Fonction pour arrêter la lecture
+        function stopReading() {
+            // Arrêter la synthèse vocale si elle est en cours
+            if (isSpeechSynthesisSupported && speechSynthesis) {
+                speechSynthesis.cancel();
+            }
+            
+            // Réinitialiser l'interface
+            document.querySelectorAll('.btn-read-question.reading').forEach(btn => {
+                btn.classList.remove('reading');
+                btn.innerHTML = '<i class="fas fa-volume-up"></i>';
+            });
+            
+            currentUtterance = null;
+        }
+        
+        // Arrêter la lecture quand on change de question ou de page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fonction pour arrêter la lecture et réinitialiser les boutons
+            function stopReading() {
+                if (typeof responsiveVoice !== 'undefined' && responsiveVoice.isPlaying()) {
+                    responsiveVoice.cancel();
+                    document.querySelectorAll('.btn-read-question').forEach(btn => {
+                        btn.classList.remove('reading');
+                        btn.innerHTML = '{% if language == "en" %}<i class="fas fa-volume-up"></i> Read question{% elif language == "de" %}<i class="fas fa-volume-up"></i> Frage vorlesen{% else %}<i class="fas fa-volume-up"></i> Lire la question{% endif %}';
+                    });
+                }
+            }
+
+            // Gestion des boutons de navigation
+            document.querySelectorAll('.nav-btn, .progress-dot').forEach(element => {
+                element.addEventListener('click', stopReading, true);
+            });
+
+            // Configuration des boutons de lecture
+            document.querySelectorAll('.btn-read-question').forEach(button => {
+                // S'assurer que le bouton est de type button pour éviter la soumission du formulaire
+                button.setAttribute('type', 'button');
+                button.setAttribute('formnovalidate', 'formnovalidate');
+                
+                // Supprimer tout gestionnaire d'événement existant
+                const newButton = button.cloneNode(true);
+                button.parentNode.replaceChild(newButton, button);
+                
+                // Ajouter le gestionnaire d'événement
+                newButton.onclick = function(e) {
+                    readQuestionText(this, e);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                };
+            });
+        });
+
+        // Mappage des réponses multilingues vers le français
+        const responseTranslationMap = {
+            // Questions fermées (4 options)
+            'Très satisfait': 'Très satisfait',
+            'Very satisfied': 'Très satisfait',
+            'Sehr zufrieden': 'Très satisfait',
+            'Satisfait': 'Satisfait',
+            'Satisfied': 'Satisfait',
+            'Zufrieden': 'Satisfait',
+            'Peu satisfait': 'Peu satisfait',
+            'Not very satisfied': 'Peu satisfait',
+            'Wenig zufrieden': 'Peu satisfait',
+            'Pas du tout satisfait': 'Pas du tout satisfait',
+            'Not at all satisfied': 'Pas du tout satisfait',
+            'Überhaupt nicht zufrieden': 'Pas du tout satisfait',
+            
+            // Questions Oui/Non/Peut-être
+            'Oui': 'Oui',
+            'Yes': 'Oui',
+            'Ja': 'Oui',
+            'Non': 'Non',
+            'No': 'Non',
+            'Nein': 'Non',
+            'Peut-être': 'Peut-être',
+            'Maybe': 'Peut-être',
+            'Vielleicht': 'Peut-être'
+        };
+        
+        // Fonction pour traduire une réponse vers le français
+        function translateToFrench(response) {
+            // si c'est un nombre (ex: "7", "9.0"), on renvoie tel quel
+            if (/^\s*\d+(\.\d+)?\s*$/.test(String(response))) return String(response).trim();
+            return responseTranslationMap[response] || response;
+        }
+        
+        // Contrôleurs pour annuler les requêtes en cours par question
+        const saveControllers = {};
+        function saveResponseAjax(questionId, response, comment = '') {
+            clearTimeout(saveTimeout[questionId]);
+            saveTimeout[questionId] = setTimeout(() => {
+                // Annuler une requête précédente pour cette question si encore en vol
+                if (saveControllers[questionId]) {
+                    try { saveControllers[questionId].abort(); } catch (e) {}
+                }
+                saveControllers[questionId] = new AbortController();
+                const signal = saveControllers[questionId].signal;
+                fetch(`/prospection/enquetes/save-response/${token}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    signal,
+                    body: JSON.stringify({
+                        question_id: questionId,
+                        response: response,
+                        comment: comment
+                    })
+                })
+                .then(resp => {
+                    if (!resp.ok) {
+                        // Essayer d'extraire un message d'erreur JSON sinon fallback texte
+                        return resp.text().then(t => { throw new Error(t || `HTTP ${resp.status}`); });
+                    }
+                    return resp.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        console.log('Réponse sauvegardée:', data.message);
+                    } else {
+                        console.error('Erreur:', data.message);
+                    }
+                })
+                .catch(error => {
+                    if (error && error.name === 'AbortError') {
+                        // Requête annulée car une nouvelle a été déclenchée: ignorer
+                        return;
+                    }
+                    console.error('Erreur réseau:', error);
+                });
+            }, 500); // Délai de 500ms pour éviter trop de requêtes
+        }
+
+        // Fonction pour restaurer les réponses existantes
+        function restoreExistingResponses() {
+            Object.keys(existingResponses).forEach(questionId => {
+                const response = existingResponses[questionId];
+                
+                // Restaurer les réponses radio
+                // Pour restaurer la réponse, nous devons trouver l'option qui correspond à la valeur en français
+                // car les valeurs affichées sont dans la langue du token
+                const language = '{{ language|default:"fr" }}';
+                let responseValue = response.response;
+                
+                // Si la réponse est une des valeurs standard, on la convertit dans la langue d'affichage
+                if (responseValue === 'Très satisfait') {
+                    responseValue = language === 'en' ? 'Very satisfied' : 
+                                  (language === 'de' ? 'Sehr zufrieden' : 'Très satisfait');
+                } else if (responseValue === 'Satisfait') {
+                    responseValue = language === 'en' ? 'Satisfied' : 
+                                  (language === 'de' ? 'Zufrieden' : 'Satisfait');
+                } else if (responseValue === 'Peu satisfait') {
+                    responseValue = language === 'en' ? 'Not very satisfied' : 
+                                  (language === 'de' ? 'Wenig zufrieden' : 'Peu satisfait');
+                } else if (responseValue === 'Pas du tout satisfait') {
+                    responseValue = language === 'en' ? 'Not at all satisfied' : 
+                                  (language === 'de' ? 'Überhaupt nicht zufrieden' : 'Pas du tout satisfait');
+                } else if (responseValue === 'Oui') {
+                    responseValue = language === 'en' ? 'Yes' : 
+                                  (language === 'de' ? 'Ja' : 'Oui');
+                } else if (responseValue === 'Non') {
+                    responseValue = language === 'en' ? 'No' : 
+                                  (language === 'de' ? 'Nein' : 'Non');
+                } else if (responseValue === 'Peut-être') {
+                    responseValue = language === 'en' ? 'Maybe' : 
+                                  (language === 'de' ? 'Vielleicht' : 'Peut-être');
+                }
+                
+                const radioInput = document.querySelector(`input[name="q_${questionId}_main"][value="${responseValue}"]`);
+                if (radioInput) {
+                    radioInput.checked = true;
+                    const label = radioInput.nextElementSibling;
+                    if (label) {
+                        const unchecked = label.querySelector('.unchecked');
+                        const checked = label.querySelector('.checked');
+                        if (unchecked) unchecked.style.display = 'none';
+                        if (checked) checked.style.display = 'inline-block';
+                        label.style.borderColor = 'var(--abs-blue)';
+                    }
+                }
+                
+                // Restaurer les réponses de type note (slider)
+                const slider = document.querySelector(`input[name="q_${questionId}_main"][type="range"]`);
+                if (slider && response.response) {
+                    slider.value = response.response;
+                    const valueDisplay = document.getElementById(`scale-value-${questionId}`);
+                    if (valueDisplay) {
+                        valueDisplay.textContent = response.response;
+                    }
+                }
+                
+                // Restaurer les réponses de type texte
+                const textArea = document.querySelector(`textarea[name="q_${questionId}_main"]`);
+                if (textArea && response.response) {
+                    textArea.value = response.response;
+                }
+                
+                // Restaurer les commentaires
+                const commentArea = document.querySelector(`textarea[name="q_${questionId}_comment"]`);
+                if (commentArea && response.comment) {
+                    commentArea.value = response.comment;
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Restaurer les réponses existantes
+            restoreExistingResponses();
+            
+            // Aller à la question courante
+            showQuestion(currentQuestion);
+            updateProgress();
+            
+            // Gestion des curseurs de note
+            document.querySelectorAll('.scale-slider').forEach(slider => {
+                const questionId = slider.name.split('_')[1];
+                const valueDisplay = document.getElementById(`scale-value-${questionId}`);
+                if (valueDisplay) {
+                    valueDisplay.textContent = slider.value;
+                }
+                
+                // Save default value once on init to ensure a note is recorded even if user doesn't move the slider
+                if (!slider.dataset.initialSaved) {
+                    try { saveResponseAjax(questionId, String(slider.value)); } catch(_) {}
+                    slider.dataset.initialSaved = '1';
+                }
+
+                slider.addEventListener('input', function() {
+                    const questionId = this.name.split('_')[1];
+                    const valueDisplay = document.getElementById(`scale-value-${questionId}`);
+                    if (valueDisplay) {
+                        valueDisplay.textContent = this.value;
+                        valueDisplay.style.transform = 'scale(1.2)';
+                        setTimeout(() => {
+                            valueDisplay.style.transform = 'scale(1)';
+                        }, 200);
+                    }
+                    
+                    // Traduire la réponse en français avant de l'envoyer
+                    const frenchResponse = translateToFrench(this.value);
+                    saveResponseAjax(questionId, frenchResponse);
+                });
+            });
+
+            document.querySelectorAll('.option-input[type="radio"]').forEach(input => {
+                input.addEventListener('change', function() {
+                    const questionId = this.name.split('_')[1];
+                    const label = this.nextElementSibling;
+                    
+                    document.querySelectorAll(`input[name="${this.name}"]`).forEach(radio => {
+                        radio.nextElementSibling.querySelector('.unchecked').style.display = 'inline-block';
+                        radio.nextElementSibling.querySelector('.checked').style.display = 'none';
+                        radio.nextElementSibling.style.borderColor = '#e9ecef';
+                    });
+                    label.querySelector('.unchecked').style.display = 'none';
+                    label.querySelector('.checked').style.display = 'inline-block';
+                    label.style.borderColor = 'var(--abs-blue)';
+
+                    saveResponseAjax(questionId, this.value);
+                });
+            });
+
+            // Gestion des zones de texte (questions ouvertes)
+            document.querySelectorAll('textarea[name$="_main"]').forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    const questionId = this.name.split('_')[1];
+                    saveResponseAjax(questionId, this.value);
+                });
+            });
+
+            // Gestion des commentaires
+            document.querySelectorAll('textarea[name$="_comment"]').forEach(textarea => {
+                textarea.addEventListener('input', function() {
+                    const questionId = this.name.split('_')[1];
+                    const mainResponse = document.querySelector(`input[name="q_${questionId}_main"]:checked`)?.value || 
+                                       document.querySelector(`textarea[name="q_${questionId}_main"]`)?.value || 
+                                       document.querySelector(`input[name="q_${questionId}_main"][type="range"]`)?.value || '';
+                    saveResponseAjax(questionId, mainResponse, this.value);
+                });
+            });
+
+            // Gestion des clics sur les points de progression
+            document.querySelectorAll('.progress-dot').forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const questionNum = parseInt(this.getAttribute('data-question'));
+                    if (questionNum <= currentQuestion) {
+                        showQuestion(questionNum);
+                    }
+                });
+            });
+        });
+
+        function showQuestion(n) {
+            document.querySelectorAll('.question-container').forEach(q => {
+                q.classList.remove('active');
+            });
+            
+            const currentQ = document.getElementById(`question-${n}`);
+            currentQ.classList.add('active');
+            
+            // Vérifier le type de la question active
+            const questionType = currentQ.getAttribute('data-question-type');
+            const commentsPanel = document.getElementById('comments-panel');
+            
+            if (questionType === 'open') {
+                // Masquer complètement le panneau de commentaires pour les questions ouvertes
+                commentsPanel.style.display = 'none';
+            } else {
+                // Afficher le panneau de commentaires et le champ correspondant
+                commentsPanel.style.display = 'block';
+                
+                // Masquer tous les conteneurs de commentaires
+                document.querySelectorAll('.comment-container').forEach(container => {
+                    container.style.display = 'none';
+                });
+                
+                // Afficher le conteneur de commentaire de la question active
+                const currentCommentContainer = document.getElementById(`comment-container-${n}`);
+                if (currentCommentContainer) {
+                    currentCommentContainer.style.display = 'block';
+                }
+            }
+            
+            currentQuestion = n;
+            updateProgress();
+            
+            document.getElementById('submit-btn').style.display = 
+                (currentQuestion === totalQuestions) ? 'block' : 'none';
+        }
+
+        function updateProgress() {
+            const progress = (currentQuestion / totalQuestions) * 100;
+            const progressBar = document.getElementById('progress-bar');
+            const progressLineFill = document.getElementById('progress-line-fill');
+            
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+            }
+            if (progressLineFill) {
+                const denom = Math.max(1, (totalQuestions - 1));
+                progressLineFill.style.width = `${((currentQuestion - 1) / denom) * 100}%`;
+            }
+            
+            const dots = document.querySelectorAll('.progress-dot');
+            dots.forEach((dot, index) => {
+                dot.classList.remove('active', 'completed');
+                
+                if (index + 1 === currentQuestion) {
+                    dot.classList.add('active');
+                } else if (index + 1 < currentQuestion) {
+                    dot.classList.add('completed');
+                }
+            });
+        }
+
+        function validateAndNext(questionNum, questionType) {
+            let isValid = true;
+            const errorElement = document.getElementById(`error-${questionNum}`);
+            
+            if (questionType !== 'open') {
+                const questionContainer = document.getElementById(`question-${questionNum}`);
+                const requiredInputs = questionContainer.querySelectorAll('.required');
+                
+                let hasAnswer = false;
+                
+                if (questionType === 'note') {
+                    hasAnswer = true;
+                } else {
+                    requiredInputs.forEach(input => {
+                        if (input.checked) hasAnswer = true;
+                    });
+                }
+                
+                if (!hasAnswer) {
+                    errorElement.style.display = 'block';
+                    isValid = false;
+                    errorElement.style.animation = 'none';
+                    void errorElement.offsetWidth;
+                    errorElement.style.animation = 'fadeIn 0.5s ease';
+                } else {
+                    errorElement.style.display = 'none';
+                }
+            }
+            
+            if (isValid) {
+                const activeQuestion = document.querySelector('.question-container.active');
+                const questionId = activeQuestion ? activeQuestion.getAttribute('data-question-id') : null;
+                const qType = activeQuestion ? activeQuestion.getAttribute('data-question-type') : null;
+
+                if (questionId && qType) {
+                    let response = '';
+                    let comment = '';
+
+                    if (qType === 'open') {
+                    const mainTextarea = document.querySelector(`textarea[name="q_${questionId}_main"]`);
+                    response = mainTextarea ? mainTextarea.value : '';
+                    // pour OPEN: on stocke le texte en "réponse", commentaire vide
+                    saveResponseAjax(questionId, response, '');
+                    } else if (qType === 'note') {
+                    // ✅ LIRE LA VALEUR DU SLIDER
+                    const slider = document.querySelector(`input[name="q_${questionId}_main"][type="range"]`);
+                    response = slider ? String(slider.value) : '';
+                    const commentTextarea = document.querySelector(`#q${questionId}_comment`);
+                    comment = commentTextarea ? commentTextarea.value : '';
+                    saveResponseAjax(questionId, response, comment);
+                    } else {
+                    // closed / ouinon
+                    const selectedOption = document.querySelector(`input[name="q_${questionId}_main"]:checked`);
+                    response = selectedOption ? selectedOption.value : '';
+                    if (response) {
+                        response = translateToFrench(response); // seulement pour les libellés
+                    }
+                    const commentTextarea = document.querySelector(`#q${questionId}_comment`);
+                    comment = commentTextarea ? commentTextarea.value : '';
+                    saveResponseAjax(questionId, response, comment);
+                    }
+                }
+
+                if (currentQuestion < totalQuestions) {
+                    showQuestion(currentQuestion + 1);
+                }
+            }
+            
+            return isValid;
+        }
+
+        function prevQuestion() {
+            if (currentQuestion > 1) {
+                showQuestion(currentQuestion - 1);
+            }
+        }
+
+        document.getElementById('survey-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            fetch(`/prospection/enquetes/repondre/${token}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: 'submit_final=true'
+            })
+            .then(response => {
+                if (response.ok) {
+                    const lang = '{{ language|default:"fr" }}';
+                    window.location.href = `/prospection/reponse_ok/?language=${lang}`;
+                } else {
+                    const errorMessage = language === 'de' 
+                        ? 'Fehler beim Senden. Bitte versuchen Sie es erneut.' 
+                        : (language === 'en' 
+                            ? 'Error submitting. Please try again.' 
+                            : 'Erreur lors de la soumission. Veuillez réessayer.');
+                    alert(errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                const errorMessage = language === 'de' 
+                    ? 'Netzwerkfehler. Bitte versuchen Sie es erneut.' 
+                    : (language === 'en' 
+                        ? 'Network error. Please try again.' 
+                        : 'Erreur réseau. Veuillez réessayer.');
+                alert(errorMessage);
+            });
+        });
+        (function(){
+  // Libellés courts & motivants par langue et par "tone"
+  const FB = {
+    fr:{ bad:["On veut vous surprendre ✨ Glissez un peu 👉","Une petite poussée vers 6 nous motive 💪"],
+         neutral:["Presque le top 😌 Essayez 7–8 ?","Un cran de plus et on se dépasse 🚀"],
+         good:["Génial ! Et si on visait 9 ? ⭐","Un petit geste vers 10 nous propulse 😉"],
+         excellent:["Merci pour l’élan ✨ Vous êtes au top !","Cette note nous booste ! 🙌"] },
+    en:{ bad:["We’d love to wow you ✨ Slide a bit 👉","A nudge to 6 fuels our improvement 💪"],
+         neutral:["So close to awesome 😌 Try 7–8?","One notch up and we’ll go the extra mile 🚀"],
+         good:["Great! What about a 9? ⭐","A tiny push to 10 rockets us 😉"],
+         excellent:["Thank you for the lift ✨ You rock!","This score powers us up! 🙌"] },
+    de:{ bad:["Wir möchten Sie begeistern ✨ Ein Stückchen weiter 👉","Ein Schub auf 6 treibt uns an 💪"],
+         neutral:["Fast perfekt 😌 Probieren Sie 7–8?","Eine Stufe mehr – wir legen nach 🚀"],
+         good:["Super! Wie wäre es mit 9? ⭐","Ein kleiner Schub zu 10 – und wir starten durch 😉"],
+         excellent:["Danke für den Rückenwind ✨ Sie sind spitze!","Diese Note gibt uns Power! 🙌"] }
+  };
+
+  const BADGE_TEXT = {
+    fr: {bad:"Faible", neutral:"Neutre", good:"Bien", excellent:"Excellent"},
+    en: {bad:"Low", neutral:"Neutral", good:"Good", excellent:"Excellent"},
+    de: {bad:"Niedrig", neutral:"Neutral", good:"Gut", excellent:"Exzellent"},
+  };
+
+  // Calcule le "tone" selon la valeur
+  function toneFor(value){
+    const v = Number(value);
+    if (v <= 3) return "bad";
+    if (v <= 6) return "neutral";
+    if (v <= 8) return "good";
+    return "excellent";
+  }
+
+  // Fonction pour mettre à jour l'émoji, sa position et la valeur
+  // Fonction pour mettre à jour l'émoji en fonction de la valeur
+function updateEmoji(value) {
+    if (value <= 2) return '😡'; // Très mécontent
+    if (value <= 4) return '🙁';  // Mécontent
+    if (value === 5) return '😐'; // Neutre
+    if (value <= 7) return '🙂';  // Satisfait
+    if (value <= 9) return '😊';  // Très satisfait
+    if (value === 10) return '😍'; // Excellent
+    return '😐'; // Par défaut
+}
+
+window.updateEmojiThumb = function(slider, thumbId) {
+    const value = parseInt(slider.value);
+    const min = parseInt(slider.min) || 1;
+    const max = parseInt(slider.max) || 10;
+    const range = max - min;
+    
+    // Calculer la position en pourcentage
+    const percent = ((value - min) / range) * 100;
+    
+    // Mettre à jour la position du conteneur de l'émoji et le fond bleu
+    const containerId = thumbId.replace('emoji-thumb-', 'emoji-container-');
+    const container = document.getElementById(containerId);
+    const track = container ? container.closest('.scale-track') : null;
+    const fill = track ? track.querySelector('.scale-fill') : null;
+    const valueElement = document.getElementById(thumbId.replace('emoji-thumb-', 'emoji-value-'));
+    
+    if (container && track && fill) {
+      // Mettre à jour la position du thumb et du fond bleu
+      container.style.left = `${percent}%`;
+      fill.style.width = `${percent}%`;
+      
+      // Mettre à jour l'émoji en fonction de la valeur
+      let emoji = '😐'; // neutre par défaut
+      if (value <= 2) emoji = '😡'; // Très mécontent
+      else if (value <= 4) emoji = '🙁'; // Mécontent
+      else if (value === 5) emoji = '😐'; // Neutre
+      else if (value <= 7) emoji = '🙂'; // Satisfait
+      else if (value <= 9) emoji = '😊'; // Très satisfait
+      else if (value === 10) emoji = '😍'; // Excellent
+      
+      // Mettre à jour l'émoji et la valeur
+      const thumb = document.getElementById(thumbId);
+      if (thumb) thumb.textContent = emoji;
+      if (valueElement) valueElement.textContent = value;
+    }
+  };
+
+  // Met à jour le fond du slider (remplissage à gauche)
+  function paintSlider(slider){
+    const min = Number(slider.min||1), max = Number(slider.max||10), v = Number(slider.value||5);
+    const pct = ((v - min) / (max - min)) * 100;
+    slider.style.background = `linear-gradient(90deg, var(--abs-blue) ${pct}%, #e9ecef ${pct}%)`;
+  }
+
+
+  // Style pour le thumb personnalisé
+  const style = document.createElement('style');
+  style.textContent = `
+    .scale-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+    .emoji-thumb {
+      transition: left 0.1s ease-out, transform 0.2s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .scale-slider:active + .emoji-thumb,
+    .scale-slider:focus + .emoji-thumb {
+      transform: scale(1.1);
+      border-color: var(--abs-orange);
+      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Fonction pour gérer le glisser-déposer du thumb
+  function setupDragAndDrop(container, slider) {
+    let isDragging = false;
+    let startX = 0;
+    let startLeft = 0;
+    const track = container.closest('.scale-track');
+    const fill = track.querySelector('.scale-fill');
+    
+    container.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startLeft = container.offsetLeft;
+      container.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      
+      const trackRect = track.getBoundingClientRect();
+      const deltaX = e.clientX - startX;
+      let newLeft = startLeft + deltaX;
+      
+      // Limiter la position aux limites du track
+      newLeft = Math.max(0, Math.min(newLeft, trackRect.width - container.offsetWidth / 2));
+      
+      // Calculer la nouvelle valeur
+      const percent = (newLeft / trackRect.width) * 100;
+      const value = Math.round(percent * (slider.max - slider.min) / 100) + parseInt(slider.min);
+      
+      // Mettre à jour le slider et déclencher les événements
+      slider.value = value;
+      slider.dispatchEvent(new Event('input'));
+      slider.dispatchEvent(new Event('change'));
+      
+      // Mettre à jour la position visuelle
+      container.style.left = `${percent}%`;
+      fill.style.width = `${percent}%`;
+    });
+    
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        container.style.cursor = 'grab';
+        document.body.style.userSelect = '';
+      }
+    });
+    
+    // Gérer le toucher pour les appareils tactiles
+    container.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      startX = e.touches[0].clientX;
+      startLeft = container.offsetLeft;
+      e.preventDefault();
+    }, { passive: false });
+    
+    document.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      
+      const trackRect = track.getBoundingClientRect();
+      const deltaX = e.touches[0].clientX - startX;
+      let newLeft = startLeft + deltaX;
+      
+      newLeft = Math.max(0, Math.min(newLeft, trackRect.width - container.offsetWidth / 2));
+      
+      const percent = (newLeft / trackRect.width) * 100;
+      const value = Math.round(percent * (slider.max - slider.min) / 100) + parseInt(slider.min);
+      
+      slider.value = value;
+      slider.dispatchEvent(new Event('input'));
+      slider.dispatchEvent(new Event('change'));
+      
+      container.style.left = `${percent}%`;
+      fill.style.width = `${percent}%`;
+      
+      e.preventDefault();
+    }, { passive: false });
+    
+    document.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+  }
+
+  // Initialiser les curseurs au chargement de la page
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.scale-slider').forEach(slider => {
+      const thumbId = slider.getAttribute('oninput').match(/'([^']+)'/)[1];
+      const container = document.getElementById(thumbId.replace('emoji-thumb-', 'emoji-container-'));
+      
+      if (container) {
+        // Configurer le glisser-déposer
+        setupDragAndDrop(container, slider);
+        
+        // Mettre à jour la position initiale
+        window.updateEmojiThumb(slider, thumbId);
+        
+        // Gérer le redimensionnement de la fenêtre
+        let resizeTimer;
+        window.addEventListener('resize', function() {
+          clearTimeout(resizeTimer);
+          resizeTimer = setTimeout(function() {
+            window.updateEmojiThumb(slider, thumbId);
+          }, 250);
+        });
+        
+        // Mettre à jour les événements
+        slider.oninput = function() {
+          window.updateEmojiThumb(this, thumbId);
+        };
+        
+        slider.onchange = function() {
+          window.updateEmojiThumb(this, thumbId);
+        };
+      }
+    });
+  });
+
+  // Init + bind
+  document.querySelectorAll('.scale-container').forEach(container=>{
+    const lang = (container.getAttribute('data-i18n-lang')||'fr').toLowerCase();
+    const slider = container.querySelector('.scale-slider');
+    const emojiElement = container.querySelector('.scale-emoji');
+    const valueEl = container.querySelector('.scale-value');
+    const badgeEl = container.querySelector('.scale-badge');
+    const feedbackEl = container.querySelector('.scale-feedback');
+
+    function updateUI(){
+      if (!slider) return;
+      
+      const val = slider.value;
+      const tone = toneFor(val);
+      
+      // Mise à jour de la valeur si l'élément existe
+      if (valueEl) valueEl.textContent = val;
+
+      // Mise à jour du badge si l'élément existe
+      if (badgeEl) {
+        badgeEl.className = `scale-badge tone-${tone}`;
+        badgeEl.textContent = BADGE_TEXT[lang][tone];
+      }
+
+      // Mise à jour du message de feedback si l'élément existe
+      if (feedbackEl && FB[lang] && FB[lang][tone]) {
+        const arr = FB[lang][tone];
+        const msg = arr[(Number(val)+arr.length)%arr.length];
+        feedbackEl.textContent = msg;
+      }
+
+      // Mise à jour du style du slider
+      if (typeof paintSlider === 'function') {
+        paintSlider(slider);
+      }
+
+      // Animation de la valeur si l'élément existe
+      if (valueEl) {
+        valueEl.style.transform = 'scale(1.15)';
+        setTimeout(()=>{ valueEl.style.transform = 'scale(1)'; }, 140);
+      }
+    }
+
+    // première mise à jour
+    updateUI();
+    updateEmoji(slider, emojiElement);
+
+    // focus/hover -> rappeler l’indice
+    slider.addEventListener('focus', ()=> container.querySelector('.scale-hint').style.opacity = '1');
+    slider.addEventListener('blur',  ()=> container.querySelector('.scale-hint').style.opacity = '.9');
+
+    // input -> maj UI + sauvegarde (en français côté base via votre map existante si besoin)
+    slider.addEventListener('input', function() {
+      updateUI();
+      updateEmoji(slider, emojiElement);
+      // votre logique existante sauvegarde déjà au 'input' des sliders:
+      // elle appelle saveResponseAjax(questionId, this.value)
+      // donc rien d’autre à faire ici.
+    });
+
+    // click/touch initial: surligner l’indice brièvement
+    slider.addEventListener('pointerdown', ()=>{
+      const hint = container.querySelector('.scale-hint');
+      hint.style.transition = 'all .2s';
+      hint.style.transform = 'scale(1.03)';
+      setTimeout(()=>{ hint.style.transform = 'scale(1)'; }, 180);
+    });
+  });
+})();
+
+        // Code JavaScript dupliqué supprimé - la gestion des radios est déjà faite plus haut
+    </script>
+</body>
+</html>

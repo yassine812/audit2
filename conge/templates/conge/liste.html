@@ -1,0 +1,291 @@
+{% extends 'conge/base.html' %}
+{% load static %}
+
+{% block title %}{% if is_responsable %}Gestion des Congés{% else %}Mes Congés{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+  <div class="col-sm-6">
+    <h1 class="m-0">
+      <i class="fas fa-calendar-alt mr-2 text-primary"></i>
+      {% if is_responsable %}Gestion des Congés{% else %}Mes Congés{% endif %}
+    </h1>
+  </div>
+  <div class="col-sm-6">
+    <ol class="breadcrumb float-sm-right">
+      <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+      <li class="breadcrumb-item active">{% if is_responsable %}Congés{% else %}Mes congés{% endif %}</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{# ── Bouton fixe filtre ──────────────────────────────────────────── #}
+<button class="btn-filter-toggle js-filter-toggle" title="Filtres" aria-label="Ouvrir les filtres">
+  <i class="fas fa-sliders-h"></i>
+  {% if has_filters %}<span class="filter-badge">{{ paginator.count|default:"1" }}</span>{% endif %}
+</button>
+
+{# ── Backdrop ────────────────────────────────────────────────────── #}
+<div class="js-filter-backdrop filter-sidebar-backdrop"></div>
+
+{# ── Sidebar filtre (moderne) ────────────────────────────────────── #}
+<div class="js-filter-sidebar filter-sidebar-panel">
+  <div class="filter-sidebar-header">
+    <div><i class="fas fa-sliders-h"></i> <span>Affiner la recherche</span></div>
+    <button class="js-filter-close" aria-label="Fermer les filtres" title="Fermer">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <div class="filter-sidebar-body">
+    <form method="get" id="filter-form">
+      {% if is_responsable %}
+      <div class="filter-group">
+        <label class="filter-label"><i class="fas fa-user mr-1"></i>Recherche</label>
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Nom ou prénom…" aria-label="Rechercher par nom">
+      </div>
+      {% endif %}
+      <div class="filter-group">
+        <label class="filter-label"><i class="fas fa-tag mr-1"></i>Statut</label>
+        <select name="statut" class="form-control" aria-label="Filtrer par statut">
+          <option value="">Tous les statuts</option>
+          {% for v, l in statut_choices %}
+            <option value="{{ v }}" {% if statut == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label"><i class="fas fa-briefcase mr-1"></i>Type de congé</label>
+        <select name="type_conge" class="form-control" aria-label="Filtrer par type de congé">
+          <option value="">Tous les types</option>
+          {% for v, l in type_conge_choices %}
+            <option value="{{ v }}" {% if type_conge == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label"><i class="fas fa-calendar-check mr-1"></i>À partir du</label>
+        <input type="date" name="date_debut" value="{{ date_debut }}" class="form-control" aria-label="Date de début">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label"><i class="fas fa-calendar-times mr-1"></i>Jusqu'au</label>
+        <input type="date" name="date_fin" value="{{ date_fin }}" class="form-control" aria-label="Date de fin">
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fas fa-search mr-1"></i>Rechercher
+        </button>
+        {% if has_filters %}
+        <a href="{% url 'conge:liste' %}" class="btn btn-outline-secondary" style="width: 100%;">
+          <i class="fas fa-redo mr-1"></i>Réinitialiser
+        </a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
+{# ── En-tête avec actions ──────────────────────────────────────────── #}
+<div class="row mb-4">
+  <div class="col-12">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+      <div>
+        <h1 style="font-size: 1.875rem; font-weight: 700; color: var(--gray-900); margin: 0; display: flex; align-items: center; gap: 0.75rem;">
+          <div>
+            {% if paginator.count %}
+            <span style="background: var(--primary-light); color: var(--primary-dark); padding: 0.25rem 0.625rem; border-radius: var(--radius); font-size: 0.875rem; margin-left: 0.5rem; font-weight: 500;">
+              {{ paginator.count }} demande{{ paginator.count|pluralize }}
+            </span>
+            {% endif %}
+          </div>
+        </h1>
+      </div>
+      <div style="display: flex; gap: 0.625rem; flex-wrap: wrap;">
+        {% if user.is_superuser %}
+        <a href="{% url 'conge:config_list' %}" class="btn" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 0.625rem 1rem; border-radius: var(--radius-lg); text-decoration: none; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-cogs"></i>Configuration
+        </a>
+        {% endif %}
+        <a href="{% url 'conge:nouvelle_demande' %}" class="btn" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 0.625rem 1rem; border-radius: var(--radius-lg); text-decoration: none; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-plus"></i>Nouvelle demande
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Contenu principal ───────────────────────────────────────────── #}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+
+      <div class="card-body p-0">
+        {% if page_obj.object_list %}
+        <div style="overflow-x: auto;">
+          <table class="table" style="margin-bottom: 0;">
+            <thead>
+              <tr>
+                {% if is_responsable %}
+                <th style="width: 180px;">👤 Demandeur</th>
+                {% endif %}
+                <th style="width: 120px;">🏢 Section</th>
+                <th style="min-width: 150px;">📅 Période</th>
+                <th style="width: 70px; text-align: center;">⏰ Jours</th>
+                <th style="width: 150px;">📋 Type</th>
+                <th style="width: 100px; text-align: center;">📆 Demande</th>
+                <th style="width: 110px; text-align: center;">📊 Statut</th>
+                <th style="width: 120px; text-align: center;">⚙️ Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in page_obj %}
+              <tr style="border-bottom: 1px solid var(--gray-100); transition: background-color 0.2s;">
+                {% if is_responsable %}
+                <td>
+                  <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 0.875rem;">
+                      {{ d.prenom|first|upper }}
+                    </div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--gray-900); font-size: 0.9375rem;">{{ d.nom }} {{ d.prenom }}</div>
+                      <div style="color: var(--gray-500); font-size: 0.8125rem;">{{ d.demandeur.username }}</div>
+                    </div>
+                  </div>
+                </td>
+                {% endif %}
+                <td>
+                  <span style="background: var(--primary-light); color: var(--primary-dark); padding: 0.375rem 0.75rem; border-radius: var(--radius-lg); font-size: 0.8125rem; font-weight: 600; display: inline-block;">
+                    {{ d.section|default:"—" }}
+                  </span>
+                </td>
+                <td>
+                  <span style="color: var(--gray-900); font-weight: 500; white-space: nowrap;">
+                    <i class="far fa-calendar" style="color: var(--primary); margin-right: 0.25rem;"></i>
+                    {{ d.date_debut|date:"d/m" }} — {{ d.date_fin|date:"d/m/Y" }}
+                  </span>
+                </td>
+                <td style="text-align: center;">
+                  <span style="background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: var(--primary-dark); padding: 0.375rem 0.625rem; border-radius: var(--radius); font-weight: 700; font-size: 0.875rem; display: inline-block;">
+                    {{ d.nombre_jours }}j
+                  </span>
+                </td>
+                <td>
+                  <div>
+                    <span style="color: var(--gray-900); font-weight: 500; font-size: 0.875rem;">
+                      {{ d.get_type_conge_display }}
+                    </span>
+                    {% if d.evenement_familial_precision %}
+                    <div style="color: var(--gray-500); font-size: 0.8125rem; margin-top: 0.25rem;">
+                      <i class="fas fa-info-circle mr-1"></i>{{ d.evenement_familial_precision }}
+                    </div>
+                    {% endif %}
+                  </div>
+                </td>
+                <td style="text-align: center; color: var(--gray-600); font-size: 0.875rem; white-space: nowrap;">
+                  {{ d.date_demande|date:"d/m/Y" }}
+                </td>
+                <td style="text-align: center;">
+                  {% if d.statut == 'en_attente' %}
+                    <span class="status-badge en_attente">
+                      <i class="fas fa-hourglass-half"></i> En attente
+                    </span>
+                  {% elif d.statut == 'valide' %}
+                    <span class="status-badge valide">
+                      <i class="fas fa-check-circle"></i> Validé
+                    </span>
+                  {% else %}
+                    <span class="status-badge refuse">
+                      <i class="fas fa-times-circle"></i> Refusé
+                    </span>
+                  {% endif %}
+                </td>
+                <td style="text-align: center;">
+                  <div style="display: flex; gap: 0.375rem; justify-content: center;">
+                    <a href="{% url 'conge:detail' d.pk %}"
+                       class="btn" style="padding: 0.375rem 0.75rem; background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius-lg); text-decoration: none; transition: all 0.2s; font-size: 0.875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;"
+                       title="Voir le détail">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    {% if d.is_valide %}
+                    <a href="{% url 'conge:pdf' d.pk 'demandeur' %}"
+                       class="btn" style="padding: 0.375rem 0.75rem; background: var(--gray-100); color: var(--gray-700); border-radius: var(--radius-lg); text-decoration: none; transition: all 0.2s; font-size: 0.875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;"
+                       title="Télécharger PDF"
+                       download="conge_{{ d.nom }}_{{ d.prenom }}_demandeur.pdf">
+                      <i class="fas fa-file-pdf"></i>
+                    </a>
+                    {% endif %}
+                    {% if is_responsable and d.is_en_attente %}
+                    <a href="{% url 'conge:valider' d.pk %}"
+                       class="btn" style="padding: 0.375rem 0.75rem; background: var(--warning-light); color: #92400e; border-radius: var(--radius-lg); text-decoration: none; transition: all 0.2s; font-size: 0.875rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.25rem;"
+                       title="Valider / Refuser">
+                      <i class="fas fa-gavel"></i>
+                    </a>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Pagination #}
+        {% if is_paginated %}
+        <div style="padding: 1.5rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: center; flex-wrap: wrap; gap: 0.5rem;">
+          {% if page_obj.has_previous %}
+            <a href="?page=1" class="btn" style="padding: 0.5rem 0.75rem; background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius); text-decoration: none; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-chevron-double-left"></i>
+            </a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}" class="btn" style="padding: 0.5rem 0.75rem; background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius); text-decoration: none; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+          {% endif %}
+
+          <span style="padding: 0.5rem 1rem; font-weight: 700; color: var(--gray-900);">
+            {{ page_obj.number }} / {{ paginator.num_pages }}
+          </span>
+
+          {% if page_obj.has_next %}
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}" class="btn" style="padding: 0.5rem 0.75rem; background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius); text-decoration: none; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+            <a href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ paginator.num_pages }}" class="btn" style="padding: 0.5rem 0.75rem; background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius); text-decoration: none; font-weight: 600; transition: all 0.2s;">
+              <i class="fas fa-chevron-double-right"></i>
+            </a>
+          {% endif %}
+        </div>
+        <div style="text-align: center; padding-bottom: 0.75rem; color: var(--gray-600); font-size: 0.875rem;">
+          <strong>{{ paginator.count }}</strong> résultat{{ paginator.count|pluralize }}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div style="text-align: center; padding: 3rem 1rem;">
+          <div style="font-size: 3rem; color: var(--gray-300); margin-bottom: 1rem;">
+            <i class="fas fa-inbox"></i>
+          </div>
+          <p style="color: var(--gray-600); font-size: 1.125rem; font-weight: 500; margin-bottom: 0.5rem;">
+            {% if has_filters %}
+            Aucune demande ne correspond à votre recherche
+            {% else %}
+            Aucune demande de congé pour le moment
+            {% endif %}
+          </p>
+          <p style="color: var(--gray-500); margin-bottom: 1.5rem;">
+            {% if has_filters %}
+            Essayez de modifier vos filtres pour voir plus de résultats.
+            {% else %}
+            Créez votre première demande de congé ci-dessous.
+            {% endif %}
+          </p>
+          <a href="{% url 'conge:nouvelle_demande' %}" class="btn" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 0.75rem 1.5rem; border-radius: var(--radius-lg); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;">
+            <i class="fas fa-plus"></i> Créer une demande
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

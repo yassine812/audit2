@@ -1,0 +1,241 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AB Serve | Accueil</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .header .logo {
+      width: 72px; height: 72px;
+      background: rgba(255,255,255,.1);
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,.15);
+    }
+    .header h1 {
+      color: #fff;
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header p {
+      color: rgba(255,255,255,.55);
+      font-size: .95rem;
+      margin-top: .4rem;
+    }
+    .user-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 50px;
+      padding: .35rem .9rem;
+      color: rgba(255,255,255,.7);
+      font-size: .85rem;
+      margin-top: .75rem;
+    }
+    .modules-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+      max-width: 1100px;
+      width: 100%;
+    }
+    @media (max-width: 900px) {
+      .modules-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .modules-grid { grid-template-columns: 1fr; }
+    }
+    .module-card {
+      background: rgba(255,255,255,.06);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 20px;
+      padding: 2rem 1.75rem;
+      text-decoration: none;
+      color: #fff;
+      transition: transform .2s ease, background .2s ease, box-shadow .2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: .75rem;
+    }
+    .module-card:hover {
+      transform: translateY(-6px);
+      background: rgba(255,255,255,.11);
+      box-shadow: 0 20px 60px rgba(0,0,0,.4);
+      text-decoration: none;
+      color: #fff;
+    }
+    .module-icon {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    .icon-blue   { background: linear-gradient(135deg, #667eea, #764ba2); }
+    .icon-green  { background: linear-gradient(135deg, #11998e, #38ef7d); }
+    .icon-red    { background: linear-gradient(135deg, #f7971e, #e74c3c); }
+    .icon-teal   { background: linear-gradient(135deg, #43b89c, #1abc9c); }
+    .icon-orange { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+    .icon-dark   { background: linear-gradient(135deg, #434343, #000); }
+
+    .module-card h3 { font-size: 1.15rem; font-weight: 700; margin: 0; }
+    .module-card p  { font-size: .85rem; color: rgba(255,255,255,.55); margin: 0; line-height: 1.5; }
+    .module-arrow {
+      margin-top: auto;
+      align-self: flex-end;
+      width: 32px; height: 32px;
+      background: rgba(255,255,255,.1);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .8rem;
+      transition: background .2s;
+    }
+    .module-card:hover .module-arrow { background: rgba(255,255,255,.25); }
+
+    .footer-logout {
+      margin-top: 2.5rem;
+      text-align: center;
+    }
+    .btn-logout {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 50px;
+      color: rgba(255,255,255,.6);
+      padding: .5rem 1.25rem;
+      font-size: .85rem;
+      text-decoration: none;
+      transition: background .2s, color .2s;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .btn-logout:hover { background: rgba(231,76,60,.2); color: #e74c3c; border-color: rgba(231,76,60,.4); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">
+      <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve"
+           style="width:72px;height:72px;object-fit:contain;border-radius:16px;">
+    </div>
+    <h1>AB Serve</h1>
+    <p>Plateforme de gestion industrielle</p>
+    <span class="user-badge">
+      <i class="fas fa-user-circle"></i>
+      {{ request.user.get_full_name|default:request.user.username }}
+    </span>
+  </div>
+
+  <div class="modules-grid">
+
+    <a href="{% url 'prospection:index' %}" class="module-card">
+      <div class="module-icon icon-blue">
+        <i class="fas fa-chart-line"></i>
+      </div>
+      <h3>Prospection</h3>
+      <p>Gestion commerciale, clients, prospects, appels et rendez-vous.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+
+    <a href="{% url 'audit:dashboard' %}" class="module-card">
+      <div class="module-icon icon-green">
+        <i class="fas fa-clipboard-check"></i>
+      </div>
+      <h3>Audit</h3>
+      <p>Référentiels, audits qualité, évaluations et rapports.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO %}
+    <a href="{% url 'at:at_dashboard' %}" class="module-card">
+      <div class="module-icon icon-red">
+        <i class="fas fa-hard-hat"></i>
+      </div>
+      <h3>Accidents de Travail</h3>
+      <p>Déclarations, analyses 48h, LAP 8 jours et suivi des causes.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    {% endif %}
+
+    <a href="{% url 'conge:liste' %}" class="module-card">
+      <div class="module-icon icon-teal">
+        <i class="fas fa-calendar-alt"></i>
+      </div>
+      <h3>Congés</h3>
+      <p>Demandes de congé, suivi, validations et tableau de bord RH.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO %}
+    <a href="{% url 'achats:dashboard' %}" class="module-card">
+      <div class="module-icon icon-orange">
+        <i class="fas fa-cart-shopping"></i>
+      </div>
+      <h3>Achats</h3>
+      <p>Demandes d’achat, devis, réception et suivi fournisseurs.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    {% endif %}
+
+    <a href="{% url 'gestion_documentaire:document_list' %}" class="module-card">
+      <div class="module-icon icon-dark">
+        <i class="fas fa-folder-tree"></i>
+      </div>
+      <h3>Gestion documentaire</h3>
+      <p>Documents QSE, versions, validation, diffusion et archivage centralisés.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+
+    {% if request.user.is_superuser %}
+    <a href="{% url 'administration:dashboard' %}" class="module-card">
+      <div class="module-icon icon-dark">
+        <i class="fas fa-user-shield"></i>
+      </div>
+      <h3>Administration</h3>
+      <p>Gestion des utilisateurs, sociétés, sections, sites et customers.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
+    {% endif %}
+
+  </div>
+
+  <div class="footer-logout">
+    <a href="{% url 'logout' %}" class="btn-logout">
+      <i class="fas fa-sign-out-alt"></i> Se déconnecter
+    </a>
+  </div>
+
+</body>
+</html>

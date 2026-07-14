@@ -1,0 +1,84 @@
+{% extends 'audit/base.html' %}
+{% block content %}
+<div class="card card-outline {% if is_referenced %}card-warning{% else %}card-danger{% endif %}" style="max-width:540px;margin:2rem auto">
+  <div class="card-header">
+    <h3 class="card-title">
+      {% if is_referenced %}
+      <i class="fas fa-ban mr-2 text-warning"></i>Désactiver le formulaire
+      {% else %}
+      <i class="fas fa-trash-alt mr-2 text-danger"></i>Supprimer / Désactiver le formulaire
+      {% endif %}
+    </h3>
+  </div>
+  <div class="card-body">
+    <p>Formulaire : <strong>« {{ object.titre }} »</strong></p>
+    <p class="text-muted small">Ce formulaire comporte <strong>{{ object.lignes.count }} ligne(s)</strong>.</p>
+
+    {% if is_referenced %}
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle mr-1"></i>
+      Ce formulaire est <strong>utilisé par des audits existants</strong>. Il ne peut pas être supprimé.<br>
+      Vous pouvez le <strong>désactiver</strong> pour qu'il n'apparaisse plus lors de la création de nouveaux audits.
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle mr-1"></i>
+      Ce formulaire n'est associé à aucun audit. Vous pouvez le désactiver ou le supprimer définitivement (avec toutes ses lignes).
+    </div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap" style="gap:.5rem;margin-top:1rem">
+      {% if has_actif %}
+      <form method="post" class="js-action-form" data-action-label="desactiver" data-action-color="#f0ad4e" data-action-text="Ce formulaire sera desactive et ne sera plus selectable.">
+        {% csrf_token %}
+        <input type="hidden" name="_action" value="deactivate">
+        <button type="submit" class="btn btn-warning">
+          <i class="fas fa-ban mr-1"></i>Désactiver
+        </button>
+      </form>
+      {% endif %}
+
+      {% if not is_referenced %}
+      <form method="post" class="js-action-form" data-action-label="supprimer" data-action-color="#d33" data-action-text="Ce formulaire et ses lignes seront supprimes definitivement.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-trash-alt mr-1"></i>Supprimer définitivement
+        </button>
+      </form>
+      {% endif %}
+
+      <a href="{% url 'audit:formulaire-list' %}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left mr-1"></i>Annuler
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(function(){
+    $(document).on('submit', '.js-action-form', function(e){
+      e.preventDefault();
+      var form = this;
+      var label = $(form).data('action-label') || 'confirmer';
+      var color = $(form).data('action-color') || '#3085d6';
+      var text = $(form).data('action-text') || 'Veuillez confirmer cette action.';
+
+      Swal.fire({
+        title: 'Confirmer',
+        text: text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: color,
+        confirmButtonText: 'Oui, ' + label,
+        cancelButtonText: 'Annuler'
+      }).then(function(result){
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

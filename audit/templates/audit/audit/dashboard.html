@@ -1,0 +1,417 @@
+{% extends 'audit/base.html' %}
+{% block title %}Tableau de bord — Audit interne{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ══ Banner ══ */
+.dash-banner {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 55%, #0f3460 100%);
+  border-radius: 14px;
+  padding: 1.6rem 2rem;
+  color: #fff;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+  position: relative;
+}
+.dash-banner::after {
+  content:""; position:absolute; right:-50px; top:-50px;
+  width:220px; height:220px; border-radius:50%; background:rgba(255,255,255,.04);
+}
+.dash-banner h2 { font-size:1.4rem; font-weight:800; margin:0 0 .25rem; }
+.dash-banner p  { opacity:.65; font-size:.88rem; margin:0; }
+.dash-banner .bdate { margin-top:.5rem; font-size:.76rem; opacity:.45; }
+
+/* ══ KPI Cards ══ */
+.kpi-box {
+  border-radius: 12px;
+  padding: 1.1rem 1rem;
+  position: relative; overflow: hidden;
+  transition: transform .18s, box-shadow .18s;
+}
+.kpi-box:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.13); }
+.kpi-box .ki { position:absolute; right:10px; top:10px; font-size:1.8rem; opacity:.15; }
+.kpi-box .kv { font-size:2.2rem; font-weight:900; line-height:1; }
+.kpi-box .kl { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-top:.4rem; opacity:.8; }
+.kb-total { background:linear-gradient(135deg,#e8f0fe,#c5cae9); color:#1a237e; }
+.kb-brou  { background:linear-gradient(135deg,#f3f4f6,#e5e7eb); color:#374151; }
+.kb-plan  { background:linear-gradient(135deg,#dbeafe,#bfdbfe); color:#1e40af; }
+.kb-cours { background:linear-gradient(135deg,#d1fae5,#a7f3d0); color:#065f46; }
+.kb-term  { background:linear-gradient(135deg,#fef3c7,#fde68a); color:#78350f; }
+.kb-valid { background:linear-gradient(135deg,#dcfce7,#bbf7d0); color:#14532d; border:1px solid #6ee7b7; }
+.kb-score { background:linear-gradient(135deg,#ede9fe,#ddd6fe); color:#4c1d95; }
+
+/* ══ Section header ══ */
+.s-head {
+  font-size:.72rem; font-weight:800; text-transform:uppercase; letter-spacing:.09em;
+  color:#9ca3af; margin:0 0 .75rem;
+  display:flex; align-items:center; gap:.5rem;
+}
+.s-head::after { content:""; flex:1; height:1px; background:#e9ecef; }
+
+/* ══ Chart card ══ */
+.c-card {
+  background:#fff; border-radius:12px;
+  box-shadow:0 2px 10px rgba(0,0,0,.06);
+  padding:1.2rem 1.3rem; height:100%;
+}
+
+/* ══ Progress type bars ══ */
+.pb-row { margin-bottom:.85rem; }
+.pb-row:last-child { margin-bottom:0; }
+.pb-name { font-size:.78rem; font-weight:600; color:#374151; display:flex; justify-content:space-between; margin-bottom:.2rem; }
+.pb-track { height:7px; border-radius:99px; background:#e9ecef; overflow:hidden; }
+.pb-fill  { height:100%; border-radius:99px; }
+
+/* ══ Quick actions ══ */
+.qa-grid { display:grid; grid-template-columns:1fr 1fr; gap:.65rem; }
+.qa-item {
+  display:flex; align-items:center; gap:.6rem;
+  padding:.7rem .9rem; border-radius:10px; text-decoration:none;
+  font-size:.8rem; font-weight:600; color:inherit;
+  transition:transform .15s, box-shadow .15s;
+}
+.qa-item:hover { transform:translateY(-2px); box-shadow:0 5px 14px rgba(0,0,0,.1); text-decoration:none; color:inherit; }
+.qa-ico { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.95rem; flex-shrink:0; }
+.qa-1 { background:#eff6ff; } .qa-1 .qa-ico { background:#3b82f6; color:#fff; }
+.qa-2 { background:#f0fdf4; } .qa-2 .qa-ico { background:#22c55e; color:#fff; }
+.qa-3 { background:#fdf4ff; } .qa-3 .qa-ico { background:#a855f7; color:#fff; }
+.qa-4 { background:#fff7ed; } .qa-4 .qa-ico { background:#f97316; color:#fff; }
+
+/* ══ Recent audits table ══ */
+.rt-wrap { border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+.rt-head  { background:#f9fafb; padding:.8rem 1.2rem; border-bottom:1px solid #e9ecef;
+            display:flex; justify-content:space-between; align-items:center; }
+.rt-head span { font-size:.83rem; font-weight:700; color:#374151; }
+.rt { width:100%; border-collapse:collapse; font-size:.81rem; }
+.rt thead th { background:#f3f4f6; padding:.5rem .85rem; text-align:left;
+  font-weight:700; color:#6b7280; text-transform:uppercase; font-size:.67rem;
+  letter-spacing:.07em; border-bottom:1px solid #e9ecef; }
+.rt tbody tr:hover { background:#f9fafb; }
+.rt tbody td { padding:.55rem .85rem; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+.rt tbody tr:last-child td { border-bottom:none; }
+
+/* ══ Badges / pills ══ */
+.sb { display:inline-block; border-radius:20px; padding:2px 9px;
+  font-size:.68rem; font-weight:700; letter-spacing:.03em; white-space:nowrap; }
+.sb-brou  { background:#f3f4f6; color:#374151; }
+.sb-plan  { background:#dbeafe; color:#1e40af; }
+.sb-cours { background:#d1fae5; color:#065f46; }
+.sb-term  { background:#fef3c7; color:#78350f; }
+.sb-valid { background:#dcfce7; color:#14532d; }
+.sp { display:inline-block; border-radius:20px; padding:2px 9px; font-size:.73rem; font-weight:800; }
+.sp-g { background:#d1fae5; color:#065f46; }
+.sp-m { background:#fef3c7; color:#78350f; }
+.sp-b { background:#fee2e2; color:#991b1b; }
+.sp-n { background:#f3f4f6; color:#9ca3af; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Banner ── #}
+<div class="dash-banner">
+  <h2><i class="fas fa-chart-line mr-2"></i>Tableau de bord Audit</h2>
+  <p>Vue globale sur l'ensemble des audits internes
+    {% if is_filtered %}<span class="badge badge-warning ml-2" style="font-size:.7rem">Filtré</span>{% endif %}
+  </p>
+  <div class="bdate"><i class="far fa-calendar-alt mr-1"></i>{{ today|date:"l d F Y" }}</div>
+</div>
+
+{# ── KPI row ── #}
+<p class="s-head"><i class="fas fa-tachometer-alt text-primary"></i>Indicateurs clés</p>
+<div class="row mb-3">
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-total"><i class="fas fa-clipboard-list ki"></i>
+      <div class="kv">{{ total }}</div><div class="kl">Total</div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-brou"><i class="fas fa-file ki"></i>
+      <div class="kv">{{ nb_brouillon }}</div><div class="kl">Brouillons</div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-plan"><i class="fas fa-calendar-check ki"></i>
+      <div class="kv">{{ nb_planifie }}</div><div class="kl">Planifiés</div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-cours"><i class="fas fa-spinner ki"></i>
+      <div class="kv">{{ nb_en_cours }}</div><div class="kl">En cours</div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-term"><i class="fas fa-flag-checkered ki"></i>
+      <div class="kv">{{ nb_termine }}</div><div class="kl">Terminés</div>
+    </div>
+  </div>
+  <div class="col-6 col-sm-4 col-md-3 col-lg mb-2">
+    <div class="kpi-box kb-score"><i class="fas fa-percentage ki"></i>
+      <div class="kv">{% if avg_score %}{{ avg_score|floatformat:0 }}%{% else %}—{% endif %}</div>
+      <div class="kl">Score moy.</div>
+    </div>
+  </div>
+</div>
+
+{# ── Charts row ── #}
+<div class="row mb-3">
+  <div class="col-md-4 mb-3">
+    <p class="s-head"><i class="fas fa-chart-pie text-info"></i>Répartition statuts</p>
+    <div class="c-card d-flex align-items-center justify-content-center">
+      <canvas id="chartStatut" style="max-height:220px;max-width:100%"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <p class="s-head"><i class="fas fa-chart-bar text-warning"></i>Audits par type</p>
+    <div class="c-card">
+      <canvas id="chartType" style="max-height:220px"></canvas>
+    </div>
+  </div>
+  <div class="col-md-4 mb-3">
+    <p class="s-head"><i class="fas fa-tasks text-success"></i>Progression par type</p>
+    <div class="c-card">
+      {% for t in by_type %}
+      <div class="pb-row">
+        <div class="pb-name">
+          <span>{{ t.label }}</span>
+          <span style="color:#9ca3af;font-size:.72rem">{{ t.done }}/{{ t.count }}</span>
+        </div>
+        <div class="pb-track">
+          <div class="pb-fill" style="width:{{ t.pct }}%;background:{% if t.pct >= 75 %}#22c55e{% elif t.pct >= 40 %}#f59e0b{% else %}#ef4444{% endif %}"></div>
+        </div>
+      </div>
+      {% empty %}
+      <p style="color:#9ca3af;font-size:.82rem;margin:0">Aucune donnée.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ── Recent audits + side column ── #}
+<div class="row">
+  <div class="col-lg-8 mb-3">
+    <p class="s-head"><i class="fas fa-history text-primary"></i>Audits récents</p>
+    <div class="rt-wrap">
+      <div class="rt-head">
+        <span><i class="fas fa-list mr-1"></i>10 derniers audits</span>
+        <a href="{% url 'audit:list' %}" class="btn btn-sm btn-outline-primary" style="font-size:.73rem;padding:2px 10px">
+          Voir tout <i class="fas fa-arrow-right ml-1"></i>
+        </a>
+      </div>
+      <div style="overflow-x:auto">
+                <div class="table-responsive">
+<table class="rt">
+          <thead>
+            <tr>
+              <th>N°</th>
+              <th>Formulaire</th>
+              <th>Type</th>
+              <th>Date</th>
+              <th>Statut</th>
+              <th>Score</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in recent_audits %}
+            <tr>
+              <td style="font-weight:700;color:#1a237e;white-space:nowrap">{{ a.numero }}</td>
+              <td>{{ a.formulaire.titre|truncatechars:28 }}</td>
+              <td style="white-space:nowrap;font-size:.75rem">{{ a.formulaire.get_type_audit_display }}</td>
+              <td style="white-space:nowrap">{{ a.date_audit|date:"d/m/Y" }}</td>
+              <td>
+                {% if a.statut == 'BROUILLON' %}<span class="sb sb-brou">Brouillon</span>
+                {% elif a.statut == 'PLANIFIER' %}<span class="sb sb-plan">Planifié</span>
+                {% elif a.statut == 'EN_COURS' %}<span class="sb sb-cours">En cours</span>
+                {% elif a.statut == 'TERMINE' %}<span class="sb sb-term">Terminé</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if a.score is not None %}
+                  <span class="sp {% if a.score >= 75 %}sp-g{% elif a.score >= 50 %}sp-m{% else %}sp-b{% endif %}">
+                    {{ a.score|floatformat:0 }}%
+                  </span>
+                {% else %}
+                  <span class="sp sp-n">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if a.statut == 'EN_COURS' or a.statut == 'TERMINE' %}
+                <a href="{% url 'audit:audit-rapport' a.pk %}" class="btn btn-xs btn-outline-primary"
+                   style="padding:2px 8px;font-size:.7rem;border-radius:6px" title="Rapport">
+                  <i class="fas fa-file-alt"></i>
+                </a>
+                {% else %}
+                <a href="{% url 'audit:audit-evaluation' a.pk %}" class="btn btn-xs btn-outline-success"
+                   style="padding:2px 8px;font-size:.7rem;border-radius:6px" title="Évaluation">
+                  <i class="fas fa-play"></i>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" style="text-align:center;color:#9ca3af;padding:1.5rem">Aucun audit trouvé.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4 mb-3">
+    <p class="s-head"><i class="fas fa-bolt text-warning"></i>Accès rapide</p>
+    <div class="c-card mb-3">
+      <div class="qa-grid">
+        {% if can_create_any %}
+        <a href="{% url 'audit:create' %}" class="qa-item qa-1">
+          <div class="qa-ico"><i class="fas fa-plus"></i></div><span>Nouvel audit</span>
+        </a>
+        {% endif %}
+        <a href="{% url 'audit:list' %}?statut=EN_COURS" class="qa-item qa-2">
+          <div class="qa-ico"><i class="fas fa-spinner"></i></div><span>En cours</span>
+        </a>
+        <a href="{% url 'audit:formulaire-list' %}" class="qa-item qa-3">
+          <div class="qa-ico"><i class="fas fa-file-alt"></i></div><span>Formulaires</span>
+        </a>
+        <a href="{% url 'audit:list' %}?statut=TERMINE" class="qa-item qa-4">
+          <div class="qa-ico"><i class="fas fa-flag-checkered"></i></div><span>Terminés</span>
+        </a>
+      </div>
+    </div>
+
+    <p class="s-head" style="margin-top:1.2rem"><i class="fas fa-chart-bar" style="color:#a855f7"></i>Distribution scores</p>
+    <div class="c-card">
+      <canvas id="chartScore" style="max-height:180px"></canvas>
+    </div>
+  </div>
+</div>
+
+{# ── Filter sidebar (standard pattern) ── #}
+<div class="filter-sidebar-panel js-filter-sidebar">
+  <div class="card card-secondary">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h3 class="card-title">Filtres</h3>
+      <button type="button" class="btn btn-tool js-filter-close" aria-label="Fermer">✕</button>
+    </div>
+    <div class="card-body">
+      <form method="get">
+
+        <div class="form-group">
+          <label>Société</label>
+          <select name="societe" class="form-control select2">
+            <option value="">Toutes les sociétés</option>
+            {% for s in societes %}
+              <option value="{{ s.pk }}" {% if f_societe == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Section</label>
+          <select name="section" class="form-control select2">
+            <option value="">Toutes les sections</option>
+            {% for sec in sections %}
+              <option value="{{ sec.pk }}" {% if f_section == sec.pk|stringformat:'s' %}selected{% endif %}>{{ sec.Nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Type d'audit</label>
+          <select name="type" class="form-control select2">
+            <option value="">Tous les types</option>
+            {% for val, label in type_choices %}
+              <option value="{{ val }}" {% if f_type == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Statut</label>
+          <select name="statut" class="form-control select2">
+            <option value="">Tous les statuts</option>
+            {% for val, label in statut_choices %}
+              <option value="{{ val }}" {% if f_statut == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Année</label>
+          <select name="annee" class="form-control select2">
+            <option value="">Toutes les années</option>
+            {% for y in annee_choices %}
+              <option value="{{ y }}" {% if f_annee == y|stringformat:'s' %}selected{% endif %}>{{ y }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-actions">
+          <button class="btn btn-primary btn-sm" type="submit">Appliquer</button>
+          <a href="{% url 'audit:dashboard' %}" class="btn btn-default btn-sm">Réinitialiser</a>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  Chart.defaults.font.family = "'Nunito','Segoe UI',sans-serif";
+  Chart.defaults.color = '#6b7280';
+
+  new Chart(document.getElementById('chartStatut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Brouillon','Planifié','En cours','Terminé'],
+      datasets:[{ data:[{{ nb_brouillon }},{{ nb_planifie }},{{ nb_en_cours }},{{ nb_termine }}],
+        backgroundColor:['#e5e7eb','#93c5fd','#6ee7b7','#fde68a'],
+        borderColor:['#9ca3af','#60a5fa','#10b981','#f59e0b'],
+        borderWidth:1.5, hoverOffset:6 }]
+    },
+    options:{ cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{ boxWidth:11, padding:9, font:{size:10} } },
+        tooltip:{ callbacks:{ label: c=>' '+c.label+': '+c.parsed } } }
+    }
+  });
+
+  new Chart(document.getElementById('chartType'), {
+    type: 'bar',
+    data:{
+      labels:[{% for t in by_type %}'{{ t.label }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+      datasets:[{ label:'Audits',
+        data:[{% for t in by_type %}{{ t.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        backgroundColor:['#818cf8','#34d399','#fbbf24','#f87171','#22d3ee'],
+        borderRadius:6, borderSkipped:false }]
+    },
+    options:{ plugins:{ legend:{ display:false } },
+      scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 }, grid:{ color:'#f3f4f6' } },
+               x:{ grid:{ display:false }, ticks:{ font:{size:10} } } }
+    }
+  });
+
+  new Chart(document.getElementById('chartScore'), {
+    type: 'bar',
+    data:{
+      labels:['0–25%','25–50%','50–75%','75–100%'],
+      datasets:[{ label:'Audits',
+        data:[{{ score_dist.0 }},{{ score_dist.1 }},{{ score_dist.2 }},{{ score_dist.3 }}],
+        backgroundColor:['#f87171','#fbbf24','#34d399','#059669'],
+        borderRadius:5, borderSkipped:false }]
+    },
+    options:{ plugins:{ legend:{ display:false } },
+      scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 }, grid:{ color:'#f3f4f6' } },
+               x:{ grid:{ display:false }, ticks:{ font:{size:10} } } }
+    }
+  });
+})();
+</script>
+{% endblock %}

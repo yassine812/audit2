@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <title>Nouvel accident déclaré</title>
+</head>
+
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
+    <div
+        style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+        <div style="background:#dc3545;color:#fff;padding:20px 24px">
+            <h2 style="margin:0">🚨 Nouvel accident de travail déclaré</h2>
+        </div>
+        <div style="padding:24px">
+            <p>Un nouvel accident de travail vient d'être enregistré :</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Référence</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.reference }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Type</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.get_type_accident_display }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Victime</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.victime_nom_prenom }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Date</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.date_accident|date:"d/m/Y" }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Société</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.societe }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Section</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.section|default:"—" }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Échéance analyse
+                        48h</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.echeance_48h|date:"d/m/Y H:i" }}</td>
+                </tr>
+            </table>
+            <p style="color:#6c757d;font-size:.85em">Module Accidents de Travail — ERP Industriel</p>
+        </div>
+    </div>
+</body>
+
+</html>

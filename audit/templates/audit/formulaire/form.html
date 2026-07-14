@@ -1,0 +1,483 @@
+{% extends 'audit/base.html' %}
+
+{% block extra_css %}
+<style>
+  /* ── Page layout ── */
+  .formulaire-header-card {
+    background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+    border-radius: .5rem;
+    color: #fff;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .formulaire-header-card h2 { font-size: 1.25rem; font-weight: 700; margin: 0; }
+  .formulaire-header-card .subtitle { font-size: .875rem; opacity: .85; margin-top: .2rem; }
+
+  /* ── Meta fields (titre / site / type) ── */
+  .meta-card { border: 1px solid #dee2e6; border-radius: .5rem; padding: 1.25rem 1.5rem; background: #fff; margin-bottom: 1.5rem; }
+  .meta-card .section-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #6c757d; margin-bottom: .75rem; }
+
+  /* ── Critères table section ── */
+  .criteres-card { border: 1px solid #dee2e6; border-radius: .5rem; background: #fff; overflow: hidden; }
+  .criteres-card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    padding: .85rem 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+  .criteres-card-header h5 { font-size: .95rem; font-weight: 700; margin: 0; color: #343a40; }
+  .criteres-card-body { padding: 0; }
+
+  /* ── Table ── */
+  #lignes-table { margin: 0; border-collapse: separate; border-spacing: 0; }
+  #lignes-table thead th {
+    background: #1a73e8;
+    color: #fff;
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    padding: .65rem .85rem;
+    border: none;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  #lignes-table thead th:first-child { border-radius: 0; }
+  #lignes-table tbody tr { transition: background .15s; }
+  #lignes-table tbody tr:hover { background: #f0f7ff !important; }
+  #lignes-table tbody td {
+    padding: .55rem .85rem;
+    border-top: 1px solid #e9ecef;
+    border-bottom: none;
+    vertical-align: middle;
+    font-size: .875rem;
+    line-height: 1.45;
+  }
+  #lignes-table tbody tr:nth-child(even) { background: #fafbfc; }
+
+  /* num column */
+  .td-num { font-weight: 700; color: #1a73e8; text-align: center; width: 40px; }
+
+  /* theme select cell */
+  .td-theme { min-width: 180px; }
+  .td-theme .select2-container { width: 100% !important; }
+  .select2-container--default .select2-selection--single {
+    border-color: #ced4da; border-radius: .375rem; height: 34px;
+    display: flex; align-items: center;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 1.4; padding: 0 2rem 0 .6rem; }
+  .select2-container--default .select2-selection--single .select2-selection__arrow { height: 32px; }
+
+  /* auto-fill cells */
+  .td-auto { min-width: 160px; }
+  .td-auto .auto-value { color: #343a40; }
+  .td-auto .auto-empty { color: #adb5bd; font-style: italic; font-size: .8rem; }
+  .td-preuves .badge-preuve {
+    display: inline-block; background: #e8f5e9; color: #2e7d32;
+    border-radius: .25rem; padding: .15rem .4rem; font-size: .72rem; margin: .1rem .1rem .1rem 0;
+  }
+
+  /* remove button */
+  .btn-remove-row {
+    width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #dc3545;
+    background: transparent; color: #dc3545; font-size: 1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .18s; flex-shrink: 0;
+  }
+  .btn-remove-row:hover { background: #dc3545; color: #fff; }
+  .td-action { width: 78px; text-align: center; }
+  .btn-move-row {
+    width: 22px; height: 22px; border-radius: .2rem; border: 1px solid #ced4da;
+    background: transparent; color: #6c757d; font-size: .65rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .15s; flex-shrink: 0; padding: 0;
+  }
+  .btn-move-row:hover:not(:disabled) { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+  .btn-move-row:disabled { opacity: .25; cursor: default; }
+
+  /* placeholder row */
+  #empty-placeholder td { color: #adb5bd; font-style: italic; text-align: center; padding: 2.5rem; }
+
+  /* row enter animation */
+  @keyframes rowIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .ligne-row { animation: rowIn .2s ease; }
+
+  /* Action bar */
+  .form-action-bar {
+    display: flex; justify-content: flex-end; gap: .6rem; flex-wrap: wrap;
+    margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #dee2e6;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .meta-card { padding: 1rem; }
+    .formulaire-header-card { padding: 1rem; }
+    .form-action-bar { justify-content: stretch; }
+    .form-action-bar .btn { flex: 1; text-align: center; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="formulaire-form" novalidate>
+{% csrf_token %}
+
+{# ── Gradient header ── #}
+<div class="formulaire-header-card d-flex align-items-center justify-content-between flex-wrap" style="gap:.5rem">
+  <div>
+    <h2>{% if object %}Modifier le formulaire d'audit{% else %}Nouveau formulaire d'audit{% endif %}</h2>
+    <div class="subtitle">Renseignez les informations générales puis composez le formulaire critère par critère.</div>
+  </div>
+  <a href="{% url 'audit:formulaire-list' %}" class="btn btn-light btn-sm font-weight-600">
+    <i class="fas fa-arrow-left mr-1"></i> Retour à la liste
+  </a>
+</div>
+
+{# ── Meta fields ── #}
+<div class="meta-card">
+  <div class="section-label"><i class="fas fa-info-circle mr-1"></i> Informations générales</div>
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger py-2">{{ form.non_field_errors }}</div>
+  {% endif %}
+  <div class="row">
+    <div class="col-lg-6 col-md-12">
+      <div class="form-group mb-3">
+        <label class="font-weight-600" for="{{ form.titre.id_for_label }}">{{ form.titre.label }}</label>
+        {{ form.titre }}
+        {% if form.titre.errors %}<div class="invalid-feedback d-block">{{ form.titre.errors }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="col-lg-3 col-sm-6 col-12">
+      <div class="form-group mb-3">
+        <label class="font-weight-600" for="{{ form.section.id_for_label }}">{{ form.section.label }}</label>
+        {{ form.section }}
+        {% if form.section.errors %}<div class="invalid-feedback d-block">{{ form.section.errors }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="col-lg-3 col-sm-6 col-12">
+      <div class="form-group mb-0">
+        <label class="font-weight-600" for="{{ form.type_audit.id_for_label }}">{{ form.type_audit.label }}</label>
+        {{ form.type_audit }}
+        {% if form.type_audit.errors %}<div class="invalid-feedback d-block">{{ form.type_audit.errors }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Critères section ── #}
+<div class="criteres-card">
+  <div class="criteres-card-header">
+    <h5><i class="fas fa-list-check mr-2" style="color:#1a73e8"></i> Critères d'évaluation</h5>
+    <button type="button" id="btn-add-ligne" class="btn btn-success btn-sm px-3">
+      <i class="fas fa-plus mr-1"></i> Ajouter une ligne
+    </button>
+  </div>
+  <div class="criteres-card-body">
+    <div class="table-responsive">
+      <table id="lignes-table" class="table">
+        <thead>
+          <tr>
+            <th class="text-center" style="width:40px">N°</th>
+            <th style="min-width:185px">Thème / Activité</th>
+            <th style="min-width:230px">Critère d'évaluation</th>
+            <th style="min-width:190px">Preuves attendues</th>
+            <th style="min-width:140px">Norme</th>
+            <th style="min-width:170px">Chapitre (référence)</th>
+            <th style="width:78px" class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="lignes-body">
+          <tr id="empty-placeholder">
+            <td colspan="7">
+              <i class="fas fa-inbox fa-2x d-block mb-2 mx-auto" style="color:#dee2e6"></i>
+              Aucune ligne. Cliquez sur <strong>Ajouter une ligne</strong> pour commencer.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# Hidden critere_ids — injected by JS before submit #}
+<div id="critere-ids-container"></div>
+
+<div class="form-action-bar">
+  <a href="{% url 'audit:formulaire-list' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-times mr-1"></i> Annuler
+  </a>
+  <button type="submit" class="btn btn-primary px-4">
+    <i class="fas fa-save mr-1"></i>
+    {% if object %}Enregistrer les modifications{% else %}Créer le formulaire{% endif %}
+  </button>
+</div>
+
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+  'use strict';
+
+  const AJAX_URL  = '{% url "audit:formulaire-ajax-theme-data" %}';
+  const EXIST_IDS = {{ existing_critere_ids|default:"[]"|safe }};
+
+  let themesData = [];
+  const addedCritereIds = new Set();   /* tracks which critere IDs are already in the table */
+
+  /* ── Escape HTML ── */
+  function h(s){ return $('<div>').text(s || '').html(); }
+
+  /* ── Load themes once ── */
+  function loadThemes(cb){
+    if (themesData.length){ cb(); return; }
+    $.getJSON(AJAX_URL, function(resp){
+      themesData = resp.themes || [];
+      cb();
+    }).fail(function(){
+      Swal.fire({ icon:'error', title:'Erreur réseau', text:'Impossible de charger les thèmes.' });
+    });
+  }
+
+  /* ── Build select2-themed <select> for a row ── */
+  function buildThemeSelect(selectedId){
+    var $sel = $('<select class="form-control form-control-sm theme-row-select">');
+    $sel.append('<option value="">— Choisir un thème —</option>');
+    themesData.forEach(function(t){
+      var $opt = $('<option>').val(t.id).text(t.texte);
+      if (t.id == selectedId) $opt.prop('selected', true);
+      $sel.append($opt);
+    });
+    return $sel;
+  }
+
+  /* ── Render the auto-fill cells HTML for a critere ── */
+  function renderCells(theme, critere){
+    /* Preuves */
+    var preuveHtml = critere.preuves.length
+      ? critere.preuves.map(function(p){
+          var label = p.code ? '[' + h(p.code) + '] ' + h(p.libelle) : h(p.libelle);
+          return '<span class="badge-preuve">' + label + '</span>';
+        }).join(' ')
+      : '<span class="auto-empty">Aucune</span>';
+
+    /* Normes */
+    var normeHtml = critere.normes.length
+      ? '<span class="auto-value">' + critere.normes.map(function(n){ return h(n.nom); }).join('<br>') + '</span>'
+      : '<span class="auto-empty">—</span>';
+
+    /* Chapitres */
+    var chapHtml = critere.chapitres.length
+      ? '<span class="auto-value">' + critere.chapitres.map(function(c){ return '<strong>' + h(c.reference) + '</strong> – ' + h(c.intitule); }).join('<br>') + '</span>'
+      : '<span class="auto-empty">—</span>';
+
+    return { preuve: preuveHtml, norme: normeHtml, chap: chapHtml };
+  }
+
+  /* ── Create one <tr> for a given theme+critere ── */
+  function createRow(theme, critere){
+    if (addedCritereIds.has(critere.id)) return null;
+    addedCritereIds.add(critere.id);
+
+    var cells = renderCells(theme, critere);
+
+    var $tr = $('<tr class="ligne-row">').attr('data-critere-id', critere.id);
+
+    /* N° */
+    $tr.append($('<td class="td-num row-num">'));
+
+    /* Theme select */
+    var $themeTd = $('<td class="td-theme">');
+    var $sel = buildThemeSelect(theme.id);
+    $themeTd.append($sel);
+    $tr.append($themeTd);
+
+    /* Critère text */
+    $tr.append($('<td class="td-auto">').html('<span class="auto-value small">' + h(critere.texte) + '</span>'));
+
+    /* Preuves */
+    $tr.append($('<td class="td-auto td-preuves small">').html(cells.preuve));
+
+    /* Norme */
+    $tr.append($('<td class="td-auto small">').html(cells.norme));
+
+    /* Chapitre */
+    $tr.append($('<td class="td-auto small">').html(cells.chap));
+
+    /* Move + Remove actions */
+    var $upBtn   = $('<button type="button" class="btn-move-row btn-move-up"   title="Monter">&#9650;</button>');
+    var $downBtn = $('<button type="button" class="btn-move-row btn-move-down" title="Descendre">&#9660;</button>');
+    var $rmBtn   = $('<button type="button" class="btn-remove-row" title="Retirer cette ligne">&#xD7;</button>');
+    $upBtn.on('click',   function(){ moveRowUp($tr); });
+    $downBtn.on('click', function(){ moveRowDown($tr); });
+    $rmBtn.on('click',   function(){ removeCritereRow($tr, critere.id); });
+    var $actionTd = $('<td class="td-action">')
+      .css({display:'flex', alignItems:'center', justifyContent:'center', gap:'3px'});
+    $actionTd.append(
+      $('<div class="d-flex flex-column" style="gap:2px">').append($upBtn, $downBtn),
+      $rmBtn
+    );
+    $tr.append($actionTd);
+
+    /* When user changes the theme in this row: swap critère content ── */
+    $sel.on('change', function(){
+      var newThemeId = $(this).val();
+      if (!newThemeId){ return; }
+      var newTheme = themesData.find(function(t){ return t.id == newThemeId; });
+      if (!newTheme || !newTheme.criteres.length){
+        Swal.fire({ icon:'info', title:'Thème vide', text:'Ce thème ne possède aucun critère.' });
+        $(this).val(theme.id);  /* revert */
+        return;
+      }
+      /* If only 1 critère, replace current row's data in place */
+      if (newTheme.criteres.length === 1){
+        var nc = newTheme.criteres[0];
+        if (addedCritereIds.has(nc.id) && nc.id !== critere.id){
+          Swal.fire({ icon:'info', title:'Déjà présent', text:'Ce critère est déjà dans le tableau.' });
+          $(this).val(theme.id); return;
+        }
+        addedCritereIds.delete(critere.id);
+        addedCritereIds.add(nc.id);
+        critere = nc; theme = newTheme;
+        $tr.attr('data-critere-id', nc.id);
+        var nc_cells = renderCells(newTheme, nc);
+        $tr.find('td').eq(2).html('<span class="auto-value small">' + h(nc.texte) + '</span>');
+        $tr.find('td').eq(3).html(nc_cells.preuve);
+        $tr.find('td').eq(4).html(nc_cells.norme);
+        $tr.find('td').eq(5).html(nc_cells.chap);
+        $rmBtn.off('click').on('click', function(){ removeCritereRow($tr, nc.id); });
+      } else {
+        /* Multiple critères: remove this row then add all new theme's critères */
+        addedCritereIds.delete(critere.id);
+        var $next = $tr.next();
+        $tr.remove();
+        addThemeRows(newTheme, $next.length ? $next : null);
+      }
+      renumber();
+    });
+
+    return $tr;
+  }
+
+  /* ── Add all critères of a theme (insert before $anchor or at end) ── */
+  function addThemeRows(theme, $anchor){
+    var inserted = 0;
+    theme.criteres.forEach(function(critere){
+      var $tr = createRow(theme, critere);
+      if (!$tr) return;
+      if ($anchor && $anchor.length) $tr.insertBefore($anchor);
+      else $('#lignes-body').append($tr);
+      inserted++;
+    });
+    if (inserted === 0){
+      Swal.fire({ icon:'info', title:'Déjà ajoutés', text:'Tous les critères de ce thème sont déjà dans le tableau.' });
+    }
+    updateEmptyPlaceholder();
+    renumber();
+  }
+
+  /* ── Remove a row ── */
+  function removeCritereRow($tr, critereId){
+    addedCritereIds.delete(critereId);
+    $tr.remove();
+    renumber();
+    updateEmptyPlaceholder();
+  }
+
+  /* ── Reorder helpers ── */
+  function moveRowUp($tr){
+    var $prev = $tr.prevAll('.ligne-row').first();
+    if ($prev.length){ $prev.before($tr); renumber(); }
+  }
+  function moveRowDown($tr){
+    var $next = $tr.nextAll('.ligne-row').first();
+    if ($next.length){ $next.after($tr); renumber(); }
+  }
+
+  /* ── Renumber + refresh move button states ── */
+  function renumber(){
+    var $rows = $('#lignes-body .ligne-row');
+    $rows.each(function(i){
+      $(this).find('.row-num').text(i + 1);
+      $(this).find('.btn-move-up').prop('disabled',  i === 0);
+      $(this).find('.btn-move-down').prop('disabled', i === $rows.length - 1);
+    });
+  }
+
+  /* ── Show/hide empty placeholder ── */
+  function updateEmptyPlaceholder(){
+    var hasRows = $('#lignes-body .ligne-row').length > 0;
+    if (hasRows) $('#empty-placeholder').hide();
+    else $('#empty-placeholder').show();
+  }
+
+  /* ── "Ajouter une ligne" button ── */
+  $('#btn-add-ligne').on('click', function(){
+    loadThemes(function(){
+      /* Show a theme picker modal using SweetAlert2 */
+      var options = themesData.map(function(t){ return '<option value="' + t.id + '">' + h(t.texte) + '</option>'; }).join('');
+      Swal.fire({
+        title: '<span style="font-size:1rem;font-weight:700">Sélectionner un thème</span>',
+        html: '<select id="swal-theme-select" class="form-control mt-2">' +
+              '<option value="">— Choisir un thème —</option>' + options + '</select>',
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-plus mr-1"></i> Ajouter',
+        cancelButtonText: 'Annuler',
+        confirmButtonColor: '#1a73e8',
+        focusConfirm: false,
+        preConfirm: function(){
+          var v = document.getElementById('swal-theme-select').value;
+          if (!v){ Swal.showValidationMessage('Veuillez sélectionner un thème.'); }
+          return v;
+        }
+      }).then(function(result){
+        if (!result.isConfirmed || !result.value) return;
+        var theme = themesData.find(function(t){ return t.id == result.value; });
+        if (!theme) return;
+        if (!theme.criteres.length){
+          Swal.fire({ icon:'info', title:'Thème sans critères', text:'Ce thème ne possède aucun critère.' });
+          return;
+        }
+        addThemeRows(theme, null);
+      });
+    });
+  });
+
+  /* ── Collect critere_ids before submit ── */
+  $('#formulaire-form').on('submit', function(){
+    var $c = $('#critere-ids-container').empty();
+    /* Iterate DOM rows in their current visual order, NOT the Set (which keeps insertion order) */
+    $('#lignes-body .ligne-row').each(function(){
+      var cid = $(this).attr('data-critere-id');
+      if (cid) $c.append($('<input>').attr({type:'hidden', name:'critere_ids[]'}).val(cid));
+    });
+  });
+
+  /* ── Pre-populate on edit ── */
+  $(function(){
+    updateEmptyPlaceholder();
+    if (!EXIST_IDS.length) return;
+    loadThemes(function(){
+      EXIST_IDS.forEach(function(critereId){
+        themesData.forEach(function(t){
+          var c = t.criteres.find(function(x){ return x.id == critereId; });
+          if (c){
+            var $tr = createRow(t, c);
+            if ($tr) $('#lignes-body').append($tr);
+          }
+        });
+      });
+      renumber();
+      updateEmptyPlaceholder();
+    });
+  });
+})();
+</script>
+{% endblock %}

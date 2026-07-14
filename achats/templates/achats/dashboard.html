@@ -1,0 +1,507 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Dashboard Achats{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 16px;
+    padding: 1.25rem;
+  }
+  .hero-card,
+  .kpi-card,
+  .chart-card,
+  .forecast-card,
+  .section-card {
+    border: 1px solid #dfe6f5;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+  .hero-card {
+    padding: 1.2rem;
+    background: linear-gradient(135deg, #f8fbff 0%, #edf4ff 100%);
+    margin-bottom: 1rem;
+  }
+  .hero-title {
+    margin: 0;
+    color: #1f2a44;
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+  .hero-subtitle {
+    margin: .4rem 0 0;
+    color: #64748b;
+    max-width: 760px;
+  }
+  .hero-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .55rem;
+    margin-top: 1rem;
+  }
+  .hero-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    border-radius: 999px;
+    padding: .45rem .75rem;
+    background: rgba(29, 78, 216, .08);
+    color: #1d4ed8;
+    font-size: .8rem;
+    font-weight: 700;
+  }
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .content-grid {
+    display: grid;
+    grid-template-columns: 1.35fr .95fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .kpi-card {
+    padding: 1rem;
+  }
+  .kpi-label {
+    color: #64748b;
+    font-size: .76rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-weight: 700;
+  }
+  .kpi-value {
+    color: #0f172a;
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin-top: .45rem;
+  }
+  .kpi-note {
+    margin-top: .45rem;
+    color: #64748b;
+    font-size: .82rem;
+  }
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem;
+  }
+  .forecast-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .forecast-card,
+  .section-card,
+  .chart-card {
+    padding: 1rem;
+  }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    border-radius: 999px;
+    padding: .35rem .65rem;
+    font-size: .76rem;
+    font-weight: 700;
+    margin-bottom: .75rem;
+  }
+  .status-pill.brouillon { background: #e5e7eb; color: #374151; }
+  .status-pill.soumise { background: #dbeafe; color: #1d4ed8; }
+  .status-pill.en_cours_devis { background: #cffafe; color: #0f766e; }
+  .status-pill.en_validation_n1,
+  .status-pill.en_validation_n2 { background: #ede9fe; color: #6d28d9; }
+  .status-pill.validee { background: #dcfce7; color: #15803d; }
+  .status-pill.refusee { background: #fee2e2; color: #b91c1c; }
+  .status-pill.commandee { background: #fef3c7; color: #b45309; }
+  .status-pill.receptionnee { background: #d1fae5; color: #047857; }
+  .status-pill.cloturee { background: #e2e8f0; color: #0f172a; }
+  .status-count {
+    color: #0f172a;
+    font-size: 1.5rem;
+    font-weight: 800;
+  }
+  .status-sub,
+  .forecast-note,
+  .section-subtitle {
+    color: #64748b;
+    font-size: .82rem;
+  }
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .chart-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .chart-title,
+  .section-title {
+    color: #1f2a44;
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: .75rem;
+  }
+  .chart-canvas-wrap {
+    position: relative;
+    height: 320px;
+    min-height: 320px;
+    max-height: 320px;
+    width: 100%;
+  }
+  .chart-canvas-wrap canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+  }
+  .forecast-value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .forecast-current {
+    margin-top: .35rem;
+    color: #1d4ed8;
+    font-size: .84rem;
+    font-weight: 700;
+  }
+  .panel-title {
+    color: #1f2a44;
+    font-size: 1rem;
+    font-weight: 800;
+    margin-bottom: .3rem;
+  }
+  .panel-subtitle {
+    color: #64748b;
+    font-size: .82rem;
+    margin-bottom: .9rem;
+  }
+  .mini-kpi-list {
+    display: grid;
+    gap: .75rem;
+  }
+  .mini-kpi-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: .8rem .9rem;
+    border-radius: 12px;
+    background: #f8fbff;
+    border: 1px solid #dbe6f5;
+  }
+  .mini-kpi-label {
+    color: #334155;
+    font-weight: 700;
+  }
+  .mini-kpi-sub {
+    color: #64748b;
+    font-size: .78rem;
+  }
+  .mini-kpi-value {
+    color: #0f172a;
+    font-size: 1.2rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .section-table {
+    margin-bottom: 0;
+  }
+  .section-table thead th {
+    background: #f1f5ff;
+    color: #1e3a8a;
+    border-bottom: 1px solid #dbe3f1;
+    font-weight: 700;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .section-table td {
+    vertical-align: middle;
+  }
+  @media (max-width: 1100px) {
+    .kpi-grid,
+    .content-grid,
+    .status-grid,
+    .forecast-grid,
+    .chart-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 768px) {
+    .page-shell {
+      padding: .8rem;
+    }
+    .kpi-grid,
+    .content-grid,
+    .status-grid,
+    .forecast-grid,
+    .chart-grid {
+      grid-template-columns: 1fr;
+    }
+    .chart-canvas-wrap {
+      height: 260px;
+      min-height: 260px;
+      max-height: 260px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="hero-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-start">
+      <div>
+        <h3 class="hero-title">Dashboard Achats</h3>
+        <p class="hero-subtitle">Vue de pilotage du module pour suivre la charge, les statuts, les montants engagés et une prévision indicative des demandes par statut.</p>
+      </div>
+      <div class="d-flex flex-wrap mt-2 mt-md-0">
+        {% if can_manage_validation_config %}
+        <a href="{% url 'achats:validation_config_section' %}" class="btn btn-outline-secondary mr-2 mb-2">Config validation</a>
+        {% endif %}
+        <a href="{% url 'achats:demande_create' %}" class="btn btn-primary mb-2">Nouvelle demande</a>
+      </div>
+    </div>
+    <div class="hero-chips">
+      <span class="hero-chip"><i class="fas fa-layer-group"></i>Périmètre : {{ dashboard_scope }}</span>
+      <span class="hero-chip"><i class="fas fa-chart-pie"></i>Répartition par statut</span>
+      <span class="hero-chip"><i class="fas fa-chart-line"></i>Tendance 6 mois</span>
+      <span class="hero-chip"><i class="fas fa-lightbulb"></i>Prévision indicative</span>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Demandes totales</div>
+      <div class="kpi-value">{{ total_demandes }}</div>
+      <div class="kpi-note">Volume total visible sur votre périmètre.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Montant année</div>
+      <div class="kpi-value">{{ montant_annee|default:0 }}</div>
+      <div class="kpi-note">Total HT sur l'année courante.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Montant en cours</div>
+      <div class="kpi-value">{{ montant_en_cours|default:0 }}</div>
+      <div class="kpi-note">Demandes en traitement, validation ou commande.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Statuts suivis</div>
+      <div class="kpi-value">{{ status_cards|length }}</div>
+      <div class="kpi-note">Étapes de workflow suivies dans le dashboard.</div>
+    </div>
+  </div>
+
+  <div class="content-grid">
+    <div class="chart-grid">
+      <div class="chart-card">
+        <div class="chart-title">Répartition actuelle des demandes</div>
+        <div class="panel-subtitle">Vue synthétique du portefeuille courant par statut.</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="statusPieChart"></canvas>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Évolution mensuelle utile</div>
+        <div class="panel-subtitle">Courbe limitée aux statuts actifs pour garder une lecture claire.</div>
+        <div class="chart-canvas-wrap">
+          <canvas id="trendLineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="panel-title">Demandes à surveiller</div>
+      <div class="panel-subtitle">Focus sur les statuts qui aident le plus à piloter la charge achat.</div>
+      <div class="status-grid mb-4">
+        {% for card in status_cards %}
+          {% if card.statut == 'soumise' or card.statut == 'en_cours_devis' or card.statut == 'validee' or card.statut == 'commandee' %}
+          <div class="forecast-card p-3">
+            <div class="status-pill {{ card.statut }}">{{ card.label }}</div>
+            <div class="status-count">{{ card.count }}</div>
+            <div class="status-sub">Volume actuel sur cette étape clé.</div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      <div class="panel-title">Prévisions indicatives</div>
+      <div class="panel-subtitle">Projection simple sur le prochain cycle mensuel, basée sur les 3 derniers mois.</div>
+      <div class="forecast-grid">
+        {% for forecast in forecast_cards %}
+          {% if forecast.statut == 'soumise' or forecast.statut == 'en_cours_devis' or forecast.statut == 'validee' or forecast.statut == 'commandee' %}
+          <div class="forecast-card p-3">
+            <div class="status-pill {{ forecast.statut }}">{{ forecast.label }}</div>
+            <div class="forecast-value">{{ forecast.forecast }}</div>
+            <div class="forecast-note">Prévision pour le prochain mois.</div>
+            <div class="forecast-current">Actuellement : {{ forecast.current }} demande{{ forecast.current|pluralize }}</div>
+          </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="content-grid">
+    <div class="section-card">
+      <div class="section-title">Sections les plus demandeuses</div>
+      <div class="section-subtitle mb-3">Classement rapide pour repérer les sections qui génèrent le plus de demandes et de montants.</div>
+      <div class="table-responsive">
+        <table class="table table-hover section-table">
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th>Demandes</th>
+              <th>Montant HT</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for section in top_sections %}
+            <tr>
+              <td>{{ section.section_analytique__Nom|default:'Non renseignée' }}</td>
+              <td>{{ section.total }}</td>
+              <td>{% if section.montant %}{{ section.montant }} €{% else %}-{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-4">Aucune donnée disponible pour le moment.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="panel-title">Lecture rapide</div>
+      <div class="panel-subtitle">Synthèse courte pour orienter les prochaines actions du service achat.</div>
+      <div class="mini-kpi-list">
+        <div class="mini-kpi-item">
+          <div>
+            <div class="mini-kpi-label">Demandes soumises</div>
+            <div class="mini-kpi-sub">À prendre en charge rapidement.</div>
+          </div>
+          <div class="mini-kpi-value">{{ status_counts.soumise }}</div>
+        </div>
+        <div class="mini-kpi-item">
+          <div>
+            <div class="mini-kpi-label">Devis en cours</div>
+            <div class="mini-kpi-sub">Consultations fournisseurs actives.</div>
+          </div>
+          <div class="mini-kpi-value">{{ status_counts.en_cours_devis }}</div>
+        </div>
+        <div class="mini-kpi-item">
+          <div>
+            <div class="mini-kpi-label">Demandes validées</div>
+            <div class="mini-kpi-sub">Prêtes pour émission de commande.</div>
+          </div>
+          <div class="mini-kpi-value">{{ status_counts.validee }}</div>
+        </div>
+        <div class="mini-kpi-item">
+          <div>
+            <div class="mini-kpi-label">Commandes en attente</div>
+            <div class="mini-kpi-sub">À suivre jusqu'à la réception.</div>
+          </div>
+          <div class="mini-kpi-value">{{ status_counts.commandee }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ month_labels|json_script:"achats-month-labels" }}
+{{ chart_series|json_script:"achats-chart-series" }}
+{{ status_cards|json_script:"achats-status-cards" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const monthLabels = JSON.parse(document.getElementById('achats-month-labels').textContent);
+    const chartSeries = JSON.parse(document.getElementById('achats-chart-series').textContent);
+    const statusCards = JSON.parse(document.getElementById('achats-status-cards').textContent);
+
+    const palette = [
+      '#64748b', '#2563eb', '#0891b2', '#7c3aed', '#16a34a',
+      '#dc2626', '#d97706', '#059669', '#0f172a'
+    ];
+    const activeSeries = chartSeries
+      .filter((serie) => Array.isArray(serie.data) && serie.data.some((value) => value > 0))
+      .sort((left, right) => {
+        const sumLeft = left.data.reduce((total, value) => total + value, 0);
+        const sumRight = right.data.reduce((total, value) => total + value, 0);
+        return sumRight - sumLeft;
+      })
+      .slice(0, 4);
+    const activeStatusCards = statusCards.filter((item) => item.count > 0);
+
+    const pieCtx = document.getElementById('statusPieChart');
+    if (pieCtx) {
+      new Chart(pieCtx, {
+        type: 'doughnut',
+        data: {
+          labels: activeStatusCards.map((item) => item.label),
+          datasets: [{
+            data: activeStatusCards.map((item) => item.count),
+            backgroundColor: palette,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    const trendCtx = document.getElementById('trendLineChart');
+    if (trendCtx) {
+      new Chart(trendCtx, {
+        type: 'line',
+        data: {
+          labels: monthLabels,
+          datasets: activeSeries.map((serie, index) => ({
+            label: serie.label,
+            data: serie.data,
+            borderColor: palette[index % palette.length],
+            backgroundColor: palette[index % palette.length],
+            tension: 0.3,
+            fill: false
+          }))
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Alerte Accident de Travail</title>
+</head>
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0">
+<div style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)">
+
+    {% if evenement == "creation" %}
+    <div style="background:#dc3545;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">🚨 Nouvel accident de travail déclaré</h2>
+    </div>
+    <div style="padding:24px">
+        <p>Un <strong>nouvel accident de travail</strong> vient d'être enregistré dans le système.{% if acteur %} Déclaré par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %}</p>
+    {% elif evenement == "soumission_24h" %}
+    <div style="background:#fd7e14;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">✅ Déclaration 24h soumise</h2>
+    </div>
+    <div style="padding:24px">
+        <p>La <strong>déclaration 24h</strong> de l'accident ci-dessous a été soumise et validée.{% if acteur %} Soumis par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %} L'analyse 48h peut désormais commencer.</p>
+    {% elif evenement == "modification_24h" %}
+    <div style="background:#6c757d;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">✏️ Déclaration 24h modifiée</h2>
+    </div>
+    <div style="padding:24px">
+        <p>La <strong>déclaration 24h</strong> de l'accident ci-dessous a été mise à jour.{% if acteur %} Modifié par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %}</p>
+    {% elif evenement == "soumission_48h" %}
+    <div style="background:#17a2b8;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">✅ Analyse 48h soumise</h2>
+    </div>
+    <div style="padding:24px">
+        <p>L'<strong>analyse 48h</strong> de l'accident ci-dessous a été soumise.{% if acteur %} Soumis par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %} Le LAP 8 jours peut désormais commencer.</p>
+    {% elif evenement == "modification_48h" %}
+    <div style="background:#6c757d;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">✏️ Analyse 48h mise à jour</h2>
+    </div>
+    <div style="padding:24px">
+        <p>L'<strong>analyse 48h</strong> de l'accident ci-dessous a été mise à jour.{% if acteur %} Modifié par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %}</p>
+    {% elif evenement == "cloture" %}
+    <div style="background:#28a745;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">🔒 Accident clôturé</h2>
+    </div>
+    <div style="padding:24px">
+        <p>L'accident ci-dessous a été <strong>clôturé</strong>.{% if acteur %} Clôturé par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %}</p>
+    {% else %}
+    <div style="background:#343a40;color:#fff;padding:20px 24px">
+        <h2 style="margin:0;font-size:18px">ℹ️ Mise à jour — Accident de travail</h2>
+    </div>
+    <div style="padding:24px">
+        <p>Une mise à jour a été effectuée sur l'accident ci-dessous.{% if acteur %} Par <strong>{{ acteur.get_full_name|default:acteur.username }}</strong>.{% endif %}</p>
+    {% endif %}
+
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa;width:40%">Référence</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;color:#dc3545">{{ accident.reference }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Type</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.get_type_accident_display }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Victime</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.victime_nom_prenom }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Date de l'accident</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.date_accident|date:"d/m/Y" }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Société</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.societe|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Section</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.section|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Statut</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.get_statut_display }}</td>
+            </tr>
+            {% if accident.echeance_48h %}
+            <tr>
+                <td style="padding:8px 12px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Échéance analyse 48h</td>
+                <td style="padding:8px 12px;border:1px solid #dee2e6">{{ accident.echeance_48h|date:"d/m/Y H:i" }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <p style="color:#6c757d;font-size:.82em;margin-top:20px;border-top:1px solid #dee2e6;padding-top:12px">
+            Ce message est envoyé automatiquement par le module <strong>Accidents de Travail</strong> — ERP Industriel.<br>
+            Ne pas répondre à cet email.
+        </p>
+    </div>
+</div>
+</body>
+</html>

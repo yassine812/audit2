@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4; margin: 12mm 10mm 12mm 10mm; }
+        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #334155; }
+        h2 { font-size: 14px; margin: 0 0 8px; color: #0f172a; }
+
+        .header-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 8px; }
+        .header-table td { padding: 6px 8px; vertical-align: middle; border: none; }
+        .header-left { width: 20%; text-align: center; }
+        .header-title { width: 52%; text-align: center; font-size: 18px; font-weight: bold; color: #000; }
+        .header-right { width: 28%; text-align: left; }
+        .header-right small { line-height: 1.2; display: inline-block; }
+        .logo { width: 90px; height: auto; }
+        .divider { height: 1px; background: #cbd5e1; margin: 6px 0 10px; }
+
+        .section-title { font-size: 16px; font-weight: bold; text-align: center; margin: 8px 0 2px; color: #1f5e3b; }
+        .section-sub { font-size: 11px; text-align: right; color: #64748b; margin-bottom: 10px; }
+
+        .card { border: 1px solid #cbd5e1; border-radius: 2px; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; }
+
+        .metric { margin: 8px 0; page-break-inside: avoid; }
+        .metric-head { width: 100%; border-collapse: collapse; }
+        .metric-title { font-weight: bold; }
+        .metric-value { text-align: right; font-size: 11px; color: #111827; }
+        .metric-head td { padding: 0 0 4px 0; }
+
+        .kpi-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .kpi-table td { padding: 6px 8px; border: 1px solid #e2e8f0; }
+        .kpi-label { width: 55%; font-weight: bold; background: #f8fafc; color: #0f172a; }
+        .kpi-value { width: 45%; text-align: right; font-weight: bold; color: #0f172a; }
+        .range-table { width: 170mm; table-layout: fixed; border-collapse: collapse; border: 1px solid #cbd5e1; height: 16px; }
+        .range-cell { height: 16px; padding: 0; }
+        .range-meta { font-size: 11px; color: #475569; margin-top: 4px; }
+
+        .pct-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
+        .pct-table td { border: 1px solid #e2e8f0; background: #f8fafc; padding: 6px 6px; text-align: center; vertical-align: middle; }
+        .pct-label { font-size: 10px; color: #475569; margin-bottom: 2px; }
+        .pct-val { font-size: 11px; font-weight: bold; }
+        .pct-swatch { display: inline-block; width: 8px; height: 8px; border: 1px solid #94a3b8; margin-right: 4px; vertical-align: middle; }
+
+        .legend { font-size: 11px; color: #334155; margin-top: 6px; }
+        .legend-item { display: inline-block; margin-right: 10px; }
+        .legend-swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid #94a3b8; margin-right: 4px; vertical-align: middle; }
+
+        .chart-img { width: 170mm; height: auto; border: 1px solid #e2e8f0; }
+
+        .bar-row { margin: 6px 0; page-break-inside: avoid; }
+        .bar-label { font-weight: bold; margin-bottom: 4px; }
+        .bar-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+        .avoid-break { page-break-inside: avoid; }
+    </style>
+</head>
+<body>
+
+<table class="header-table">
+    <tr>
+        <td class="header-left">
+            {% if logo_data_uri %}
+              <img src="{{ logo_data_uri }}" alt="AB Serve Logo" class="logo">
+            {% elif logo_uri %}
+              <img src="{{ logo_uri }}" alt="AB Serve Logo" class="logo">
+            {% else %}
+              <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve Logo" class="logo">
+            {% endif %}
+        </td>
+        <td class="header-title">Analytique globale des enquêtes</td>
+        <td class="header-right">
+            <small>
+                AB Serve
+                <br>53 route de Rombas l 57140 Woippy l France
+                <br>T +33(0)3 87 58 98 98|contact@ab-serve.com
+                <br><a style="color:#000;font-weight:bold;text-decoration:none;" href="http://www.ab-serve.com">www.ab-serve.com</a>
+            </small>
+        </td>
+    </tr>
+</table>
+<div class="divider"></div>
+
+<div class="section-sub">{{ now }}</div>
+
+<div class="card">
+    <h2>Taux de réponse</h2>
+    <div class="metric">
+        <table class="kpi-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="kpi-label">Total enquêtes</td>
+                <td class="kpi-value">{{ response_stats.total }}</td>
+            </tr>
+        </table>
+        <table class="range-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="range-cell" style="width: {{ response_stats.responded_mm|default:0 }}mm; background-color:#66BB6A;"></td>
+                <td class="range-cell" style="width: {{ response_stats.not_responded_mm|default:0 }}mm; background-color:#EF5350;"></td>
+            </tr>
+        </table>
+        <table class="pct-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="width: 50%;">
+                    <div class="pct-label"><span class="pct-swatch" style="background-color:#66BB6A;"></span>Répondu ({{ response_stats.responded|default:0 }})</div>
+                    <div class="pct-val" style="color:#2e7d32;">{{ response_stats.responded_pct|default:0|floatformat:1 }}%</div>
+                </td>
+                <td style="width: 50%;">
+                    <div class="pct-label"><span class="pct-swatch" style="background-color:#EF5350;"></span>Non répondu ({{ response_stats.not_responded|default:0 }})</div>
+                    <div class="pct-val" style="color:#d32f2f;">{{ response_stats.not_responded_pct|default:0|floatformat:1 }}%</div>
+                </td>
+            </tr>
+        </table>
+        <div class="range-meta">Taux de réponse global: {{ response_stats.response_rate_pct|default:0|floatformat:1 }}%</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Comparatif</h2>
+    <div class="metric">
+        <table class="kpi-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="kpi-label">Envois / Rappels / Retours</td>
+                <td class="kpi-value">{{ enquete_counts.sent }} / {{ enquete_counts.reminders }} / {{ enquete_counts.returns }}</td>
+            </tr>
+        </table>
+        <table class="range-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td class="range-cell" style="width: {{ comparatif_mm.sent|default:0 }}mm; background-color:#42A5F5;"></td>
+                <td class="range-cell" style="width: {{ comparatif_mm.reminders|default:0 }}mm; background-color:#FFB74D;"></td>
+                <td class="range-cell" style="width: {{ comparatif_mm.returns|default:0 }}mm; background-color:#66BB6A;"></td>
+            </tr>
+        </table>
+        <table class="pct-table" cellspacing="0" cellpadding="0">
+            <tr>
+                <td style="width: 33.33%;">
+                    <div class="pct-label"><span class="pct-swatch" style="background-color:#42A5F5;"></span>Envois ({{ enquete_counts.sent|default:0 }})</div>
+                    <div class="pct-val" style="color:#1e88e5;">{{ comparatif_pct.sent|default:0|floatformat:1 }}%</div>
+                </td>
+                <td style="width: 33.33%;">
+                    <div class="pct-label"><span class="pct-swatch" style="background-color:#FFB74D;"></span>Rappels ({{ enquete_counts.reminders|default:0 }})</div>
+                    <div class="pct-val" style="color:#ef6c00;">{{ comparatif_pct.reminders|default:0|floatformat:1 }}%</div>
+                </td>
+                <td style="width: 33.33%;">
+                    <div class="pct-label"><span class="pct-swatch" style="background-color:#66BB6A;"></span>Retours ({{ enquete_counts.returns|default:0 }})</div>
+                    <div class="pct-val" style="color:#2e7d32;">{{ comparatif_pct.returns|default:0|floatformat:1 }}%</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Sentiment des commentaires</h2>
+    <div class="metric">
+            <table class="range-table" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td class="range-cell" style="width: {{ sentiment_mm.pos|default:0 }}mm; background-color:#66BB6A;"></td>
+                    <td class="range-cell" style="width: {{ sentiment_mm.neu|default:0 }}mm; background-color:#9E9E9E;"></td>
+                    <td class="range-cell" style="width: {{ sentiment_mm.neg|default:0 }}mm; background-color:#EF5350;"></td>
+                </tr>
+            </table>
+            <table class="pct-table" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td style="width: 33.33%;">
+                        <div class="pct-label"><span class="pct-swatch" style="background-color:#66BB6A;"></span>Positif ({{ sentiment.pos|default:0 }})</div>
+                        <div class="pct-val" style="color:#2e7d32;">{{ sentiment.pos_pct|default:0|floatformat:1 }}%</div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="pct-label"><span class="pct-swatch" style="background-color:#9E9E9E;"></span>Neutre ({{ sentiment.neu|default:0 }})</div>
+                        <div class="pct-val" style="color:#64748b;">{{ sentiment.neu_pct|default:0|floatformat:1 }}%</div>
+                    </td>
+                    <td style="width: 33.33%;">
+                        <div class="pct-label"><span class="pct-swatch" style="background-color:#EF5350;"></span>Négatif ({{ sentiment.neg|default:0 }})</div>
+                        <div class="pct-val" style="color:#d32f2f;">{{ sentiment.neg_pct|default:0|floatformat:1 }}%</div>
+                    </td>
+                </tr>
+            </table>
+
+            <div class="range-meta" style="margin-top:8px;">Score moyen: {% if sentiment.avg is not None %}{{ sentiment.avg|floatformat:3 }}{% else %}-{% endif %} | Commentaires analysés: {{ sentiment.total|default:0 }}</div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,99 @@
+{% extends 'base_global.html' %}
+
+{% block title %}{% if devis %}Modifier{% else %}Ajouter{% endif %} un devis{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+  .required-label::after { content: ' *'; color: #dc2626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="panel-card p-3 p-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div>
+        <h3 class="mb-1">{% if devis %}Modifier{% else %}Ajouter{% endif %} un devis</h3>
+        <div class="text-muted">Demande {{ demande.numero }} - Ligne : {% if ligne.article_catalogue %}{{ ligne.article_catalogue.designation }}{% else %}{{ ligne.nouvelle_designation }}{% endif %}</div>
+      </div>
+      <a href="{% url 'achats:devis_manage' demande.pk %}" class="btn btn-outline-secondary">Retour aux devis</a>
+    </div>
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="row">
+        <div class="col-12 col-md-6 mb-3">
+          <label class="required-label" for="{{ form.fournisseur.id_for_label }}">{{ form.fournisseur.label }}</label>
+          {{ form.fournisseur }}
+          {% if form.fournisseur.errors %}<div class="text-danger small mt-1">{{ form.fournisseur.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <label class="required-label" for="{{ form.prix_propose.id_for_label }}">{{ form.prix_propose.label }}</label>
+          {{ form.prix_propose }}
+          {% if form.prix_propose.help_text %}<small class="form-text text-muted">{{ form.prix_propose.help_text }}</small>{% endif %}
+          {% if form.prix_propose.errors %}<div class="text-danger small mt-1">{{ form.prix_propose.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <label for="{{ form.reference_fournisseur.id_for_label }}">{{ form.reference_fournisseur.label }}</label>
+          {{ form.reference_fournisseur }}
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <label for="{{ form.delai_livraison_propose.id_for_label }}">{{ form.delai_livraison_propose.label }}</label>
+          {{ form.delai_livraison_propose }}
+        </div>
+        <div class="col-12 mb-3">
+          <label for="{{ form.document.id_for_label }}">{{ form.document.label }}</label>
+          {{ form.document }}
+        </div>
+        <div class="col-12 mb-3">
+          <div class="form-check">
+            {{ form.est_choisi }}
+            <label class="form-check-label" for="{{ form.est_choisi.id_for_label }}">{{ form.est_choisi.label }}</label>
+          </div>
+          {% if form.est_choisi.help_text %}<small class="form-text text-muted">{{ form.est_choisi.help_text }}</small>{% endif %}
+        </div>
+      </div>
+      <div class="d-flex flex-wrap justify-content-end">
+        <button type="submit" class="btn btn-primary mr-2 mb-2">Enregistrer</button>
+        <a href="{% url 'achats:devis_manage' demande.pk %}" class="btn btn-outline-secondary mb-2">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('form');
+    const fournisseurSelect = document.querySelector('.js-fournisseur-select');
+    const referenceInput = document.querySelector('input[name="reference_fournisseur"]');
+
+    function updateSupplierReference() {
+      if (!fournisseurSelect || !referenceInput) {
+        return;
+      }
+
+      const selectedOption = fournisseurSelect.options[fournisseurSelect.selectedIndex];
+      referenceInput.value = selectedOption && fournisseurSelect.value
+        ? (selectedOption.dataset.referenceFournisseur || '')
+        : '';
+    }
+
+    if (fournisseurSelect) {
+      fournisseurSelect.addEventListener('change', updateSupplierReference);
+      updateSupplierReference();
+    }
+
+    if (form) {
+      form.addEventListener('submit', function () {
+        form.querySelectorAll('.js-auto-filled-field').forEach(function (field) {
+          field.disabled = false;
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

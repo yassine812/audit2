@@ -1,0 +1,18 @@
+<nav class="mt-2">
+  <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu">
+    <li class="nav-item"><a href="{% url 'audit:dashboard' %}" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:list' %}" class="nav-link"><i class="nav-icon fas fa-clipboard-list"></i><p>Audits</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:formulaire-list' %}" class="nav-link"><i class="nav-icon fas fa-file-alt"></i><p>Formulaires</p></a></li>
+
+    {% if user.is_superuser or user.is_auditeur %}
+    <li class="nav-header">RÉFÉRENTIEL</li>
+    <li class="nav-item"><a href="{% url 'audit:norme-list' %}" class="nav-link"><i class="nav-icon fas fa-book"></i><p>Normes</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:chapitre-list' %}" class="nav-link"><i class="nav-icon fas fa-bookmark"></i><p>Chapitres</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:theme-list' %}" class="nav-link"><i class="nav-icon fas fa-layer-group"></i><p>Thèmes</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:critere-list' %}" class="nav-link"><i class="nav-icon fas fa-list-check"></i><p>Critères</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:bareme-list' %}" class="nav-link"><i class="nav-icon fas fa-star-half-alt"></i><p>Barèmes</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:niveaux-list' %}" class="nav-link"><i class="nav-icon fas fa-chart-line"></i><p>Niveaux attendus</p></a></li>
+    <li class="nav-item"><a href="{% url 'audit:preuve-list' %}" class="nav-link"><i class="nav-icon fas fa-paperclip"></i><p>Preuves attendues</p></a></li>
+    {% endif %}
+  </ul>
+</nav>

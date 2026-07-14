@@ -1,0 +1,93 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Devis {{ demande.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card, .line-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+  .line-card { padding: 1rem; margin-bottom: 1rem; }
+  .meta { color: #64748b; font-size: .82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="panel-card p-3 p-md-4 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center">
+      <div>
+        <h3 class="mb-1">Gestion des devis - {{ demande.numero }}</h3>
+        <div class="meta">Complétez les offres fournisseur par ligne puis retenez un devis avant de lancer la validation.</div>
+      </div>
+      <div class="d-flex flex-wrap">
+        <a href="{% url 'achats:demande_detail' demande.pk %}" class="btn btn-outline-secondary mr-2 mb-2">Retour à la demande</a>
+        {% if peut_lancer_validation %}
+        <form method="post" action="{% url 'achats:demande_launch_validation' demande.pk %}" class="mb-2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">Lancer la validation</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% for ligne in demande.lignes.all %}
+  <div class="line-card">
+    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+      <div>
+        <h5 class="mb-1">
+          {% if ligne.article_catalogue %}
+            {{ ligne.article_catalogue.designation }}
+          {% else %}
+            {{ ligne.nouvelle_designation }}
+          {% endif %}
+        </h5>
+        <div class="meta">Quantité : {{ ligne.quantite }} | Stock : {{ ligne.qte_stock }} | Fournisseur retenu : {{ ligne.fournisseur_retenu|default:'-' }}</div>
+      </div>
+      <a href="{% url 'achats:devis_create' ligne.pk %}" class="btn btn-outline-primary btn-sm mt-2 mt-md-0">Ajouter un devis</a>
+    </div>
+    {% if ligne.nouvelle_description %}<p class="text-muted">{{ ligne.nouvelle_description }}</p>{% endif %}
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Fournisseur</th>
+            <th>Prix HT</th>
+            <th>Référence</th>
+            <th>Délai</th>
+            <th>Pièce</th>
+            <th>Retenu</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for devis in ligne.devis.all %}
+          <tr>
+            <td>{{ devis.fournisseur.nom }}</td>
+            <td>{{ devis.prix_propose }} €</td>
+            <td>{{ devis.reference_fournisseur|default:'-' }}</td>
+            <td>{{ devis.delai_livraison_propose|default:'-' }}</td>
+            <td>{% if devis.document %}<a href="{{ devis.document.url }}" target="_blank">Ouvrir</a>{% else %}-{% endif %}</td>
+            <td>{% if devis.est_choisi %}<span class="badge badge-success">Oui</span>{% else %}<span class="badge badge-secondary">Non</span>{% endif %}</td>
+            <td>
+              <div class="d-flex flex-wrap">
+                <a href="{% url 'achats:devis_update' devis.pk %}" class="btn btn-outline-secondary btn-sm mr-2 mb-2">Modifier</a>
+                {% if not devis.est_choisi %}
+                <form method="post" action="{% url 'achats:devis_choose' devis.pk %}" class="mr-2 mb-2">{% csrf_token %}<button type="submit" class="btn btn-outline-success btn-sm">Retenir</button></form>
+                {% endif %}
+                <form method="post" action="{% url 'achats:devis_delete' devis.pk %}" class="mb-2">{% csrf_token %}<button type="submit" class="btn btn-outline-danger btn-sm">Supprimer</button></form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-3">Aucun devis saisi pour cette ligne.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

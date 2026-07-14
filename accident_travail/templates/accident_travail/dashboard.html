@@ -1,0 +1,301 @@
+{% extends "accident_travail/base.html" %}
+{% load at_tags %}
+
+{% block title %}Accidents de Travail{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block nav_liste %}active{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-tachometer-alt mr-2 text-danger"></i>Tableau de bord AT</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="#">Accueil</a></li>
+            <li class="breadcrumb-item active">Accidents de Travail</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="row">
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ kpis.total_mois }}</h3>
+                <p>Accidents ce mois</p>
+            </div>
+            <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3>{{ kpis.avec_arret }}</h3>
+                <p>Avec arrêt de travail</p>
+            </div>
+            <div class="icon"><i class="fas fa-user-injured"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ kpis.sans_arret }}</h3>
+                <p>Sans arrêt de travail</p>
+            </div>
+            <div class="icon"><i class="fas fa-band-aid"></i></div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-6">
+        <div class="small-box bg-primary">
+            <div class="inner">
+                <h3>{{ kpis.en_cours }}</h3>
+                <p>Accidents en cours</p>
+            </div>
+            <div class="icon"><i class="fas fa-spinner"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- Raccourci Analyse des causes -->
+<div class="row mb-2">
+    <div class="col-12">
+        <div class="alert alert-light border d-flex align-items-center justify-content-between py-2">
+            <span><i class="fas fa-project-diagram text-danger mr-2"></i><strong>Analyse des causes :</strong> consultez les causes les plus fréquentes identifiées dans le questionnaire 48h et les arbres des causes.</span>
+            <a href="{% url 'at:at_causes_globales' %}" class="btn btn-sm btn-danger ml-3 text-nowrap">
+                <i class="fas fa-chart-bar mr-1"></i>Voir l'analyse
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Graphique 12 mois -->
+    <div class="col-md-8">
+        <div class="card card-outline card-primary collapsed-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-chart-bar mr-2"></i>Accidents par mois (12 derniers mois)</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Plier / Déplier">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" style="display:none">
+                <canvas id="chartMois" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Répartition par type -->
+    <div class="col-md-4">
+        <div class="card card-outline card-danger collapsed-card">
+            <div class="card-header">
+                <h3 class="card-title"><i class="fas fa-chart-pie mr-2"></i>Répartition par type</h3>
+                <div class="card-tools">
+                    <button type="button" class="btn btn-tool" data-card-widget="collapse" title="Plier / Déplier">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" style="display:none">
+                <canvas id="chartType" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Liste complète des accidents -->
+<div class="card card-outline card-secondary mt-3">
+    <div class="card-header d-flex align-items-center flex-wrap" style="gap:.5rem">
+        <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i>Accidents de travail
+            <span class="badge badge-secondary ml-1">{{ paginator.count }}</span>
+            {% if en_retard %}<span class="badge badge-danger ml-1" title="{{ en_retard|length }} en retard"><i class="fas fa-clock mr-1"></i>{{ en_retard|length }} en retard</span>{% endif %}
+        </h3>
+        <div class="card-tools ml-auto d-flex align-items-center flex-wrap" style="gap:.4rem">
+            <button type="button" class="btn btn-outline-secondary btn-sm js-filter-toggle">
+                <i class="fas fa-filter mr-1"></i>Filtres{% if q or statut_filtre or type_filtre %} <span class="badge badge-warning">!</span>{% endif %}
+            </button>
+            <a href="{% url 'at:at_create_quick' %}" class="btn btn-warning btn-sm">
+                <i class="fas fa-plus mr-1"></i>Ajouter
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Référence</th>
+                        <th>Victime</th>
+                        <th>Date</th>
+                        <th>Société</th>
+                        <th>Section</th>
+                        <th>Type</th>
+                        <th>Conséquence</th>
+                        <th>Statut</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for accident in accidents %}
+                    <tr class="{% if accident.est_en_retard %}table-danger{% endif %}">
+                        <td>
+                            <a href="{% url 'at:at_detail' accident.pk %}"><strong>{{ accident.reference }}</strong></a>
+                            {% if accident.est_en_retard %}<span class="badge badge-danger ml-1" title="Échéance dépassée"><i class="fas fa-clock"></i></span>{% endif %}
+                        </td>
+                        <td>{{ accident.victime_nom_prenom }}</td>
+                        <td class="text-nowrap">{{ accident.date_accident|date:"d/m/Y" }}</td>
+                        <td>{{ accident.societe }}</td>
+                        <td>{{ accident.section|default:"—" }}</td>
+                        <td>{{ accident.get_type_accident_display }}</td>
+                        <td>{% if accident.consequence %}{{ accident.get_consequence_display }}{% else %}—{% endif %}</td>
+                        <td>{% statut_badge accident %}</td>
+                        <td class="text-center text-nowrap">
+                            <a href="{% url 'at:at_detail' accident.pk %}" class="btn btn-xs btn-info" title="Voir"><i class="fas fa-eye"></i></a>
+                            {% if accident.statut != 'cloture' %}
+                            <a href="{% url 'at:at_update_24h' accident.pk %}" class="btn btn-xs btn-warning" title="Modifier"><i class="fas fa-edit"></i></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>Aucun accident trouvé.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if is_paginated %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination pagination-sm mb-0 justify-content-center flex-wrap">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1&q={{ q }}&statut={{ statut_filtre }}&type_accident={{ type_filtre }}">&laquo;&laquo;</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&statut={{ statut_filtre }}&type_accident={{ type_filtre }}">&laquo;</a></li>
+                {% endif %}
+                <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} / {{ paginator.num_pages }}</span></li>
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&statut={{ statut_filtre }}&type_accident={{ type_filtre }}">&raquo;</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}&q={{ q }}&statut={{ statut_filtre }}&type_accident={{ type_filtre }}">&raquo;&raquo;</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- FAB Mobile -->
+<a href="{% url 'at:at_create_quick' %}" class="btn btn-warning fab" title="Nouvel accident">
+    <i class="fas fa-plus fa-lg"></i>
+</a>
+
+<!-- Sidebar filtre -->
+<div class="filter-sidebar-backdrop js-filter-backdrop"></div>
+<div class="filter-sidebar-panel js-filter-sidebar">
+    <div class="filter-sidebar-inner">
+        <div class="filter-sidebar-header">
+            <span><i class="fas fa-filter mr-2"></i>Filtres</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary js-filter-close" aria-label="Fermer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="get" class="filter-sidebar-body">
+            {% if q or statut_filtre or type_filtre %}
+            <a href="{% url 'at:at_dashboard' %}" class="btn btn-sm btn-outline-danger btn-block mb-3">
+                <i class="fas fa-times mr-1"></i>Effacer tous les filtres
+            </a>
+            {% endif %}
+            <div class="filter-group">
+                <label class="filter-label"><i class="fas fa-search mr-1"></i>Recherche</label>
+                <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Référence, victime…" autofocus>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label"><i class="fas fa-tag mr-1"></i>Statut</label>
+                <select name="statut" class="form-control form-control-sm">
+                    <option value="">Tous les statuts</option>
+                    {% for val, label in statuts %}
+                    <option value="{{ val }}" {% if statut_filtre == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label"><i class="fas fa-car-crash mr-1"></i>Type d'accident</label>
+                <select name="type_accident" class="form-control form-control-sm">
+                    <option value="">Tous les types</option>
+                    {% for val, label in types %}
+                    <option value="{{ val }}" {% if type_filtre == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-search mr-1"></i>Appliquer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // Attendre que Chart.js soit chargé
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof Chart === 'undefined') {
+            console.error('Chart.js n\'est pas chargé !');
+            return;
+        }
+
+        const chartLabels = {{ chart_labels|safe }};
+        const chartData = {{ chart_data|safe }};
+        const typeData = {{ type_data|safe }};
+
+        let _chartMoisInit = false;
+        let _chartTypeInit = false;
+
+        function initChartMois() {
+            if (_chartMoisInit) return;
+            _chartMoisInit = true;
+            new Chart(document.getElementById('chartMois'), {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{ label: 'Accidents', data: chartData, backgroundColor: 'rgba(220,53,69,.7)', borderColor: '#dc3545', borderWidth: 1 }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        function initChartType() {
+            if (_chartTypeInit) return;
+            _chartTypeInit = true;
+            new Chart(document.getElementById('chartType'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Accident travail', 'Accident trajet'],
+                    datasets: [{ data: [typeData.travail, typeData.trajet], backgroundColor: ['#dc3545', '#fd7e14'] }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
+        // Initialiser les charts à la première ouverture de la carte (AdminLTE collapsed-card)
+        document.querySelectorAll('[data-card-widget="collapse"]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var card = this.closest('.card');
+                if (card.classList.contains('collapsed-card')) {
+                    setTimeout(function() {
+                        if (card.querySelector('#chartMois')) initChartMois();
+                        if (card.querySelector('#chartType')) initChartType();
+                    }, 50);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

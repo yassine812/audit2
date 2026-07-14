@@ -1,0 +1,259 @@
+{% extends 'base_global.html' %}
+
+{% block title %}{% if object %}Modifier{% else %}Ajouter{% endif %} un article{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .form-section {
+    background: #fff;
+    border: 1px solid #dfe6f5;
+    border-radius: 0.9rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  }
+  .form-section h5 {
+    color: #1e3a8a;
+    font-weight: 600;
+    font-size: 1rem;
+  }
+  .page-intro {
+    color: #64748b;
+    margin-bottom: 1rem;
+  }
+  .field-help {
+    color: #64748b;
+    font-size: .78rem;
+    margin-top: .35rem;
+  }
+  .offre-title {
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: .8rem;
+  }
+  .form-control, .form-select {
+    border-radius: 0.55rem;
+    border: 1px solid #cfd8ea;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.02);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    min-height: 42px;
+    line-height: 1.4;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 0.2rem rgba(29,78,216,0.15);
+  }
+  textarea.form-control {
+    min-height: 110px;
+    height: auto;
+    resize: vertical;
+  }
+  input[type="file"].form-control-file {
+    width: 100%;
+    padding: .38rem .5rem;
+    line-height: 1.4;
+    border: 1px dashed #cfd8ea;
+    border-radius: 0.55rem;
+    background: #f8fafc;
+  }
+  .form-label {
+    margin-bottom: 0.4rem;
+    color: #334155;
+    font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .required-label::after {
+    content: " *";
+    color: #dc2626;
+    font-weight: 700;
+  }
+  .offre-form {
+    background: #f8fbff;
+    border: 1px solid #dbe6fb;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .required-legend {
+    color: #b91c1c;
+    font-size: .82rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 768px) {
+    .page-shell {
+      padding: .8rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-primary text-white">
+    <h3 class="card-title mb-0"><i class="fas fa-box-open mr-2"></i>{% if object %}Modifier{% else %}Ajouter{% endif %} un article du catalogue</h3>
+  </div>
+  <div class="card-body p-3 p-md-4">
+    <form method="post" enctype="multipart/form-data" id="article-form">
+      {% csrf_token %}
+      <p class="page-intro">Commencez par définir clairement l'article, puis rattachez si besoin les offres fournisseurs déjà connues.</p>
+      <div class="required-legend">Les champs marqués d'un astérisque sont obligatoires. Dans une offre fournisseur commencée, le fournisseur et le tarif HT doivent être renseignés.</div>
+      <div class="form-section">
+        <h5 class="mb-3">Informations générales</h5>
+        <div class="row g-3">
+          {{ form.non_field_errors }}
+          <div class="col-12 col-md-6">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold required-label" for="{{ form.reference.id_for_label }}">{{ form.reference.label }}</label>
+              {{ form.reference }}
+              {% if form.reference.help_text %}<div class="field-help">{{ form.reference.help_text }}</div>{% endif %}
+              {% if form.reference.errors %}<div class="text-danger small mt-1">{{ form.reference.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-md-8">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold required-label" for="{{ form.designation.id_for_label }}">{{ form.designation.label }}</label>
+              {{ form.designation }}
+              {% if form.designation.help_text %}<div class="field-help">{{ form.designation.help_text }}</div>{% endif %}
+              {% if form.designation.errors %}<div class="text-danger small mt-1">{{ form.designation.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold" for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+              {{ form.description }}
+              {% if form.description.help_text %}<div class="field-help">{{ form.description.help_text }}</div>{% endif %}
+              {% if form.description.errors %}<div class="text-danger small mt-1">{{ form.description.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h5 class="mb-3">Classification, stock et visuel</h5>
+        <div class="row g-3">
+          <div class="col-12 col-md-4">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold required-label" for="{{ form.type_article.id_for_label }}">{{ form.type_article.label }}</label>
+              {{ form.type_article }}
+              {% if form.type_article.errors %}<div class="text-danger small mt-1">{{ form.type_article.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold required-label" for="{{ form.categorie.id_for_label }}">{{ form.categorie.label }}</label>
+              {{ form.categorie }}
+              {% if form.categorie.errors %}<div class="text-danger small mt-1">{{ form.categorie.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold required-label" for="{{ form.stock_disponible.id_for_label }}">{{ form.stock_disponible.label }}</label>
+              {{ form.stock_disponible }}
+              {% if form.stock_disponible.help_text %}<div class="field-help">{{ form.stock_disponible.help_text }}</div>{% endif %}
+              {% if form.stock_disponible.errors %}<div class="text-danger small mt-1">{{ form.stock_disponible.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold" for="{{ form.prix_reference_ht.id_for_label }}">{{ form.prix_reference_ht.label }}</label>
+              {{ form.prix_reference_ht }}
+              {% if form.prix_reference_ht.help_text %}<div class="field-help">{{ form.prix_reference_ht.help_text }}</div>{% endif %}
+              {% if form.prix_reference_ht.errors %}<div class="text-danger small mt-1">{{ form.prix_reference_ht.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <div class="d-flex flex-column">
+              <label class="form-label fw-semibold" for="{{ form.photo.id_for_label }}">{{ form.photo.label }}</label>
+              {{ form.photo }}
+              {% if form.photo.help_text %}<div class="field-help">{{ form.photo.help_text }}</div>{% endif %}
+              {% if form.photo.errors %}<div class="text-danger small mt-1">{{ form.photo.errors|striptags }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Offres fournisseurs</h5>
+          <button type="button" class="btn btn-outline-primary btn-sm" id="add-offre"><i class="fas fa-plus mr-1"></i>Ajouter un fournisseur</button>
+        </div>
+        {{ formset.management_form }}
+        <div id="offre-formset">
+          {% for form in formset %}
+          <div class="offre-form">
+            <div class="offre-title">Offre fournisseur {{ forloop.counter }}</div>
+            <div class="row g-3">
+              {{ form.id }}
+              <div class="col-12 col-md-4">
+                <div class="d-flex flex-column">
+                  <label class="form-label fw-semibold required-label" for="{{ form.fournisseur.id_for_label }}">{{ form.fournisseur.label }}</label>
+                  {{ form.fournisseur }}
+                  {% if form.fournisseur.errors %}<div class="text-danger small mt-1">{{ form.fournisseur.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="d-flex flex-column">
+                  <label class="form-label fw-semibold required-label" for="{{ form.tarif_propose.id_for_label }}">{{ form.tarif_propose.label }}</label>
+                  {{ form.tarif_propose }}
+                  {% if form.tarif_propose.help_text %}<div class="field-help">{{ form.tarif_propose.help_text }}</div>{% endif %}
+                  {% if form.tarif_propose.errors %}<div class="text-danger small mt-1">{{ form.tarif_propose.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="col-12 col-md-4">
+                <div class="d-flex flex-column">
+                  <label class="form-label fw-semibold" for="{{ form.reference_chez_fournisseur.id_for_label }}">{{ form.reference_chez_fournisseur.label }}</label>
+                  {{ form.reference_chez_fournisseur }}
+                  {% if form.reference_chez_fournisseur.errors %}<div class="text-danger small mt-1">{{ form.reference_chez_fournisseur.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-end mt-4">
+        <a href="{% url 'achats:catalogue_list' %}" class="btn btn-outline-secondary mr-2 mb-2">Retour à la liste</a>
+        <button type="submit" class="btn btn-primary mr-2 mb-2"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+        <a href="{% url 'achats:catalogue_list' %}" class="btn btn-outline-secondary mb-2">Annuler</a>
+      </div>
+    </form>
+  </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const formsetContainer = document.getElementById('offre-formset');
+    const addButton = document.getElementById('add-offre');
+    const totalForms = document.getElementById('id_offres-TOTAL_FORMS');
+
+    addButton.addEventListener('click', function () {
+      const forms = formsetContainer.querySelectorAll('.offre-form');
+      const formCount = forms.length;
+      const template = forms[0] ? forms[0].outerHTML : '';
+      if (!template) {
+        return;
+      }
+      const newForm = template.replace(/offres-0/g, `offres-${formCount}`).replace(/id_offres-0/g, `id_offres-${formCount}`);
+      const wrapper = document.createElement('div');
+      wrapper.className = 'border rounded p-3 mb-3 offre-form';
+      wrapper.innerHTML = newForm;
+      formsetContainer.appendChild(wrapper);
+      totalForms.value = String(formCount + 1);
+    });
+  });
+</script>
+{% endblock %}

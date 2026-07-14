@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <style>
+        @page { size: A4; margin: 12mm 10mm 12mm 10mm; }
+        body { font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; color: #334155; }
+        h2 { font-size: 14px; margin: 0 0 8px; color: #0f172a; }
+
+        .header-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-bottom: 8px; }
+        .header-table td { padding: 6px 8px; vertical-align: middle; border: none; }
+        .header-left { width: 20%; text-align: center; }
+        .header-title { width: 52%; text-align: center; font-size: 18px; font-weight: bold; color: #000; }
+        .header-right { width: 28%; text-align: left; }
+        .header-right small { line-height: 1.2; display: inline-block; }
+        .logo { width: 90px; height: auto; }
+        .divider { height: 1px; background: #cbd5e1; margin: 6px 0 10px; }
+
+        .section-title { font-size: 16px; font-weight: bold; text-align: center; margin: 8px 0 2px; color: #1f5e3b; }
+        .section-sub { font-size: 11px; text-align: right; color: #64748b; margin-bottom: 8px; }
+
+        .qblock { border: 1px solid #cbd5e1; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; }
+        .qtitle { font-weight: bold; margin-bottom: 6px; color: #0f172a; }
+        .qmeta { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+
+        .range-table { width: 275mm; table-layout: fixed; border-collapse: collapse; border: 1px solid #cbd5e1; height: 16px; }
+        .range-cell { height: 16px; padding: 0; }
+        .range-meta { font-size: 10px; color: #475569; margin-top: 6px; }
+
+        .legend { font-size: 11px; color: #334155; margin: 4px 0 10px; }
+        .legend-item { display: inline-block; margin-right: 10px; }
+        .legend-swatch { display: inline-block; width: 10px; height: 10px; border: 1px solid #94a3b8; margin-right: 4px; vertical-align: middle; }
+
+        .sat-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; }
+        .sat-table td { width: 25%; border: 1px solid #e2e8f0; background: #f8fafc; padding: 6px 6px; text-align: center; vertical-align: middle; }
+        .sat-label { font-size: 10px; color: #475569; margin-bottom: 2px; }
+        .sat-pct { font-size: 11px; font-weight: bold; }
+        .sat-swatch { display: inline-block; width: 8px; height: 8px; border: 1px solid #94a3b8; margin-right: 4px; vertical-align: middle; }
+        .sat-ts { color: #2e7d32; }
+        .sat-s { color: #1e88e5; }
+        .sat-ps { color: #ef6c00; }
+        .sat-ns { color: #d32f2f; }
+
+        .avoid-break { page-break-inside: avoid; }
+    </style>
+</head>
+<body>
+
+<table class="header-table">
+    <tr>
+        <td class="header-left">
+            {% if logo_data_uri %}
+              <img src="{{ logo_data_uri }}" alt="AB Serve Logo" class="logo">
+            {% elif logo_uri %}
+              <img src="{{ logo_uri }}" alt="AB Serve Logo" class="logo">
+            {% else %}
+              <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve Logo" class="logo">
+            {% endif %}
+        </td>
+        <td class="header-title">Réponses détaillées par question</td>
+        <td class="header-right">
+            <small>
+                AB Serve
+                <br>53 route de Rombas l 57140 Woippy l France
+                <br>T +33(0)3 87 58 98 98|contact@ab-serve.com
+                <br><a style="color:#000;font-weight:bold;text-decoration:none;" href="http://www.ab-serve.com">www.ab-serve.com</a>
+            </small>
+        </td>
+    </tr>
+</table>
+<div class="divider"></div>
+
+<div class="section-sub">{{ now }}</div>
+
+<table cellspacing="0" cellpadding="0" style="border-collapse:collapse; margin: 4px 0 10px;">
+    <tr>
+        <td style="width: 10px; height: 10px; border: 1px solid #94a3b8; background-color:#66BB6A;"></td>
+        <td style="padding: 0 12px 0 6px; font-size: 14px; color:#334155;">Très satisfait</td>
+        <td style="width: 10px; height: 10px; border: 1px solid #94a3b8; background-color:#42A5F5;"></td>
+        <td style="padding: 0 12px 0 6px; font-size: 14px; color:#334155;">Satisfait</td>
+        <td style="width: 10px; height: 10px; border: 1px solid #94a3b8; background-color:#FFA726;"></td>
+        <td style="padding: 0 12px 0 6px; font-size: 14px; color:#334155;">Peu satisfait</td>
+        <td style="width: 10px; height: 10px; border: 1px solid #94a3b8; background-color:#EF5350;"></td>
+        <td style="padding: 0 0 0 6px; font-size: 14px; color:#334155;">Pas du tout satisfait</td>
+    </tr>
+</table>
+
+{% if not question_stats %}
+    <div class="qblock">Aucune donnée de réponse disponible pour les questions fermées.</div>
+{% else %}
+    {% for q in question_stats %}
+        <div class="qblock">
+            <div class="qtitle">{{ forloop.counter }}. {{ q.question_text }}</div>
+            <div class="qmeta">{{ q.total_responses }} réponses</div>
+
+            <table class="range-table" cellspacing="0" cellpadding="0" style="width: {{ q.bar_w_mm|default:184 }}mm;">
+                <tr>
+                    <td class="range-cell" style="width: {{ q.bar_mm.tres_satisfait|default:0 }}mm; background-color:#66BB6A;"></td>
+                    <td class="range-cell" style="width: {{ q.bar_mm.satisfait|default:0 }}mm; background-color:#42A5F5;"></td>
+                    <td class="range-cell" style="width: {{ q.bar_mm.peu_satisfait|default:0 }}mm; background-color:#FFA726;"></td>
+                    <td class="range-cell" style="width: {{ q.bar_mm.non_satisfait|default:0 }}mm; background-color:#EF5350;"></td>
+                </tr>
+            </table>
+            <table class="sat-table" cellspacing="0" cellpadding="0">
+                <tr>
+                    <td>
+                        <div class="sat-label"><span class="sat-swatch" style="background-color:#66BB6A;"></span>Très satisfait</div>
+                        <div class="sat-pct sat-ts">{{ q.response_percentages_safe.tres_satisfait|default:0 }}%</div>
+                    </td>
+                    <td>
+                        <div class="sat-label"><span class="sat-swatch" style="background-color:#42A5F5;"></span>Satisfait</div>
+                        <div class="sat-pct sat-s">{{ q.response_percentages_safe.satisfait|default:0 }}%</div>
+                    </td>
+                    <td>
+                        <div class="sat-label"><span class="sat-swatch" style="background-color:#FFA726;"></span>Peu satisfait</div>
+                        <div class="sat-pct sat-ps">{{ q.response_percentages_safe.peu_satisfait|default:0 }}%</div>
+                    </td>
+                    <td>
+                        <div class="sat-label"><span class="sat-swatch" style="background-color:#EF5350;"></span>Pas du tout satisfait</div>
+                        <div class="sat-pct sat-ns">{{ q.response_percentages_safe.non_satisfait|default:0 }}%</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    {% endfor %}
+{% endif %}
+
+</body>
+</html>

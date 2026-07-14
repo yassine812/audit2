@@ -1,0 +1,514 @@
+{% extends 'audit/base.html' %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+<style>
+/* ── Hero banner ── */
+.detail-hero {
+  background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+  border-radius: .6rem;
+  color: #fff;
+  padding: 1.4rem 1.75rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.detail-hero .hero-title { font-size: 1.3rem; font-weight: 700; margin: 0 0 .35rem; }
+.detail-hero .hero-meta { font-size: .85rem; opacity: .9; display: flex; flex-wrap: wrap; gap: .5rem .75rem; }
+.detail-hero .hero-meta .sep { opacity: .45; }
+.detail-hero .hero-meta .badge { font-size: .75rem; vertical-align: middle; }
+.detail-hero .hero-actions { display: flex; gap: .5rem; flex-wrap: wrap; align-items: flex-start; flex-shrink: 0; }
+.detail-hero .btn-hero { border-color: rgba(255,255,255,.55); color: #fff; background: rgba(255,255,255,.12); font-size: .8rem; }
+.detail-hero .btn-hero:hover { background: rgba(255,255,255,.25); border-color: #fff; }
+.detail-hero .btn-hero-solid { background: #fff; color: #1a73e8; font-size: .8rem; font-weight: 600; }
+.detail-hero .btn-hero-solid:hover { background: #e8f0fe; }
+
+/* ── Stats pills row ── */
+.detail-stats { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.stat-pill {
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: .5rem;
+  padding: .6rem 1.1rem;
+  display: flex; align-items: center; gap: .55rem;
+  font-size: .875rem; color: #343a40;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+.stat-pill .stat-icon { font-size: 1rem; }
+.stat-pill .stat-label { font-size: .72rem; color: #6c757d; text-transform: uppercase; letter-spacing: .05em; }
+.stat-pill .stat-value { font-weight: 700; font-size: 1rem; }
+
+/* ── Critères card ── */
+.criteres-card { border: 1px solid #dee2e6; border-radius: .55rem; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 1.5rem; }
+.criteres-card-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  padding: .85rem 1.25rem;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
+}
+.criteres-card-header h5 { font-size: .95rem; font-weight: 700; margin: 0; color: #343a40; }
+
+/* ── Table ── */
+#detail-table { margin: 0; border-collapse: separate; border-spacing: 0; }
+#detail-table thead th {
+  background: #1a73e8;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  padding: .65rem .85rem;
+  border: none;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+#detail-table tbody tr { transition: background .12s; }
+#detail-table tbody tr:hover { background: #f0f7ff !important; }
+#detail-table tbody td {
+  padding: .55rem .85rem;
+  border-top: 1px solid #e9ecef;
+  border-bottom: none;
+  vertical-align: middle;
+  font-size: .86rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+#detail-table tbody tr:nth-child(even) { background: #fafbfc; }
+.td-num { font-weight: 700; color: #1a73e8; text-align: center; width: 40px; white-space: nowrap; }
+.td-theme { min-width: 155px; font-weight: 600; color: #343a40; }
+.td-critere { min-width: 220px; }
+.td-preuves { min-width: 190px; }
+.td-norme { min-width: 120px; }
+.td-chap { min-width: 180px; }
+.td-texte { min-width: 160px; color: #6c757d; }
+.badge-preuve {
+  display: inline-block; background: #e8f5e9; color: #2e7d32;
+  border-radius: .25rem; padding: .15rem .4rem; font-size: .7rem; margin: .1rem .1rem .1rem 0;
+}
+.badge-code {
+  display: inline-block; background: #e3f2fd; color: #0d47a1;
+  border-radius: .25rem; padding: .1rem .35rem; font-size: .68rem; font-weight: 600; margin-right: .25rem;
+}
+
+/* DataTables override */
+div.dataTables_wrapper div.dataTables_filter { padding: .5rem 1rem; }
+div.dataTables_wrapper div.dataTables_filter input { border: 1px solid #ced4da; border-radius: .375rem; padding: .25rem .6rem; font-size: .875rem; }
+table.dataTable.no-footer { border-bottom: none; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 3rem 1rem; color: #adb5bd; }
+.empty-state i { font-size: 2.5rem; margin-bottom: .75rem; }
+
+/* ── Reorder buttons ── */
+.btn-move { padding: 1px 5px; font-size: .7rem; line-height: 1.2; border-radius: .2rem; }
+.btn-move:disabled { opacity: .25; cursor: default; }
+.td-ordre { width: 56px; text-align: center; white-space: nowrap; }
+
+/* Print */
+@media print {
+  .detail-hero .hero-actions, .dataTables_filter, .dataTables_wrapper .dataTables_length { display: none !important; }
+  .detail-hero { background: none !important; color: #000 !important; border: 2px solid #000; }
+  .criteres-card { box-shadow: none !important; }
+  #detail-table thead th { background: #eee !important; color: #000 !important; }
+}
+
+/* Responsive */
+@media (max-width: 576px) {
+  .detail-hero { padding: 1rem; }
+  .detail-hero .hero-title { font-size: 1.05rem; }
+  .stat-pill { flex: 1 1 calc(50% - .75rem); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# ── Hero ── #}
+<div class="detail-hero">
+  <div>
+    <p class="hero-title"><i class="fas fa-clipboard-list mr-2" style="opacity:.8"></i>{{ object.titre }}</p>
+    <div class="hero-meta">
+      <span><i class="fas fa-sitemap mr-1" style="opacity:.7"></i>{{ object.section.nom|default:"Section non définie" }}</span>
+      <span class="sep">|</span>
+      <span><i class="fas fa-tag mr-1" style="opacity:.7"></i>{{ object.get_type_audit_display }}</span>
+      <span class="sep">|</span>
+      <span>
+        {% if object.actif %}
+          <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Actif</span>
+        {% else %}
+          <span class="badge badge-secondary"><i class="fas fa-pause-circle mr-1"></i>Inactif</span>
+        {% endif %}
+      </span>
+      {% if object.cree_le %}
+      <span class="sep">|</span>
+      <span><i class="fas fa-calendar-alt mr-1" style="opacity:.7"></i>{{ object.cree_le|date:"d/m/Y" }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <div class="hero-actions">
+    <a href="{% url 'audit:formulaire-edit' object.pk %}" class="btn btn-sm btn-hero-solid">
+      <i class="fas fa-edit mr-1"></i> Modifier
+    </a>
+    <button id="btn-export-excel" class="btn btn-sm btn-hero">
+      <i class="fas fa-file-excel mr-1"></i> Exporter Excel
+    </button>
+    <a href="{% url 'audit:formulaire-list' %}" class="btn btn-sm btn-hero">
+      <i class="fas fa-arrow-left mr-1"></i> Retour
+    </a>
+  </div>
+</div>
+
+{# ── Stats ── #}
+<div class="detail-stats">
+  {% with count=object.lignes.count %}
+  <div class="stat-pill">
+    <span class="stat-icon text-primary"><i class="fas fa-list-check"></i></span>
+    <div>
+      <div class="stat-label">Critères</div>
+      <div class="stat-value">{{ count }}</div>
+    </div>
+  </div>
+  {% endwith %}
+  {% with themes_count=object.lignes.all|length %}
+  <div class="stat-pill">
+    <span class="stat-icon text-success"><i class="fas fa-layer-group"></i></span>
+    <div>
+      <div class="stat-label">Section</div>
+      <div class="stat-value" style="font-size:.85rem;font-weight:600">{{ object.section.nom|default:"—" }}</div>
+    </div>
+  </div>
+  {% endwith %}
+  <div class="stat-pill">
+    <span class="stat-icon text-warning"><i class="fas fa-folder-open"></i></span>
+    <div>
+      <div class="stat-label">Type d'audit</div>
+      <div class="stat-value" style="font-size:.85rem;font-weight:600">{{ object.get_type_audit_display }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Critères table ── #}
+<div class="criteres-card">
+  <div class="criteres-card-header">
+    <h5><i class="fas fa-table mr-2" style="color:#1a73e8"></i> Critères d'évaluation <span class="badge badge-primary ml-1">{{ object.lignes.count }}</span></h5>
+  </div>
+  <div class="table-responsive">
+    <table id="detail-table" class="table" style="width:100%">
+      <thead>
+        <tr>
+          <th class="text-center" style="width:40px">N°</th>
+          <th>Thème / Activité</th>
+          <th>Critère d'évaluation</th>
+          <th>Preuves attendues</th>
+          <th>Norme</th>
+          <th>Chapitre (référence)</th>
+          <th>Texte référence</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in object.lignes.all %}
+        {% with critere=ligne.critere theme=ligne.critere.theme %}
+        <tr>
+          <td class="td-num">{{ forloop.counter }}</td>
+          <td class="td-theme">{{ theme.texte|default:"—" }}</td>
+          <td class="td-critere">{{ critere.texte }}</td>
+          <td class="td-preuves">
+            {% for preuve in critere.preuves_attendues.all %}
+              <span class="badge-preuve">
+                {% if preuve.code %}<span class="badge-code">{{ preuve.code }}</span>{% endif %}
+                {{ preuve.libelle }}
+              </span>
+            {% empty %}
+              <em class="text-muted" style="font-size:.8rem">Aucune</em>
+            {% endfor %}
+          </td>
+          <td class="td-norme small">
+            {% for chap in critere.chapitre_norme.all %}
+                {{ chap.norme.nom }}{% if not forloop.last %}<br>{% endif %}
+              {% empty %}<em class="text-muted">—</em>{% endfor %}
+          </td>
+          <td class="td-chap small">
+            {% for chap in critere.chapitre_norme.all %}
+                <strong>{{ chap.reference }}</strong>{% if chap.intitule %} – {{ chap.intitule }}{% endif %}{% if not forloop.last %}<br>{% endif %}
+              {% empty %}<em class="text-muted">—</em>{% endfor %}
+          </td>
+          <td class="td-texte small">
+            {% for chap in critere.chapitre_norme.all %}
+                {% if chap.num_page %}p.&nbsp;{{ chap.num_page }}{% else %}<em class="text-muted">—</em>{% endif %}{% if not forloop.last %}<br>{% endif %}
+              {% empty %}<em class="text-muted">—</em>{% endfor %}
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <i class="fas fa-inbox d-block"></i>
+              Aucun critère dans ce formulaire.
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script>
+$(function(){
+  var rowCount = $('#detail-table tbody .td-num').length;
+  if (rowCount > 0) {
+    $('#detail-table').DataTable({
+      scrollX: true,
+      autoWidth: false,
+      lengthChange: true,
+      pageLength: 25,
+      searching: true,
+      paging: rowCount > 25,
+      info: rowCount > 25,
+      columnDefs: [{ orderable: false, targets: [3,4,5,6] }],
+      language: {
+        search: '<i class="fas fa-search"></i>',
+        searchPlaceholder: 'Rechercher un critère…',
+        zeroRecords: 'Aucun résultat.',
+        lengthMenu: '_MENU_ lignes par page',
+        info: '_START_–_END_ sur _TOTAL_ critères',
+        infoEmpty: 'Aucun critère',
+        paginate: { previous: '‹', next: '›' }
+      }
+    });
+  }
+
+  /* ── Reorder rows ── */
+  var REORDER_URL = '{% url "audit:ligne-reorder" %}';
+
+  function updateMoveButtons() {
+    var $rows = $('#detail-table tbody tr[data-ligne-id]');
+    $rows.each(function(i) {
+      $(this).find('.btn-move-up').prop('disabled', i === 0);
+      $(this).find('.btn-move-down').prop('disabled', i === $rows.length - 1);
+    });
+  }
+
+  function renumberRows() {
+    $('#detail-table tbody tr[data-ligne-id]').each(function(i) {
+      $(this).find('.td-num').text(i + 1);
+    });
+  }
+
+  function saveOrder() {
+    var ids = [];
+    $('#detail-table tbody tr[data-ligne-id]').each(function() {
+      ids.push(parseInt($(this).data('ligne-id'), 10));
+    });
+    $.ajax({
+      url: REORDER_URL,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ids: ids}),
+      headers: {'X-CSRFToken': '{{ csrf_token }}'},
+      error: function() { alert('Erreur lors de la sauvegarde de l\'ordre.'); }
+    });
+  }
+
+  $(document).on('click', '.btn-move-up', function() {
+    var $row = $(this).closest('tr');
+    var $prev = $row.prev('tr[data-ligne-id]');
+    if ($prev.length) {
+      $prev.before($row);
+      renumberRows();
+      updateMoveButtons();
+      saveOrder();
+    }
+  });
+
+  $(document).on('click', '.btn-move-down', function() {
+    var $row = $(this).closest('tr');
+    var $next = $row.next('tr[data-ligne-id]');
+    if ($next.length) {
+      $next.after($row);
+      renumberRows();
+      updateMoveButtons();
+      saveOrder();
+    }
+  });
+
+  updateMoveButtons();
+
+  /* ── Excel export (ExcelJS) ── */
+  $('#btn-export-excel').on('click', async function(){
+    var titre  = '{{ object.titre|escapejs }}';
+    var section = '{{ object.section.nom|default:"-"|escapejs }}';
+    var typeA  = '{{ object.get_type_audit_display|escapejs }}';
+    var dateEx = new Date().toLocaleDateString('fr-FR');
+    var filename = 'formulaire_' + titre.replace(/\s+/g,'_').substring(0,40) + '_' + dateEx.replace(/\//g,'-') + '.xlsx';
+
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Audit App';
+    wb.created = new Date();
+
+    /* ══════════════════════════════════════════
+       FEUILLE 1 — Critères
+    ══════════════════════════════════════════ */
+    const ws = wb.addWorksheet('Critères', { views: [{ state: 'frozen', ySplit: 5 }] });
+
+    /* Column widths */
+    ws.columns = [
+      { key:'num',     width: 6  },
+      { key:'theme',   width: 30 },
+      { key:'critere', width: 48 },
+      { key:'preuves', width: 42 },
+      { key:'norme',   width: 24 },
+      { key:'chap',    width: 34 },
+      { key:'texte',   width: 20 },
+    ];
+
+    /* ── Title banner (row 1 — merged A1:G1) ── */
+    ws.mergeCells('A1:G1');
+    var titleCell = ws.getCell('A1');
+    titleCell.value = "FORMULAIRE D'AUDIT";
+    titleCell.font  = { name:'Calibri', bold:true, size:16, color:{argb:'FFFFFFFF'} };
+    titleCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A73E8'} };
+    titleCell.alignment = { horizontal:'center', vertical:'middle' };
+    ws.getRow(1).height = 32;
+
+    /* ── Meta info (rows 2-3) ── */
+    function metaRow(rowNum, label, value){
+      ws.mergeCells('C'+rowNum+':G'+rowNum);
+      var lCell = ws.getCell('A'+rowNum);
+      var vCell = ws.getCell('C'+rowNum);
+      lCell.value = label;
+      lCell.font  = { bold:true, size:10, color:{argb:'FF0D47A1'} };
+      lCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE8F0FE'} };
+      lCell.alignment = { vertical:'middle', indent:1 };
+      ws.mergeCells('A'+rowNum+':B'+rowNum);
+      vCell.value = value;
+      vCell.font  = { size:10 };
+      vCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF8F9FA'} };
+      vCell.alignment = { vertical:'middle', indent:1 };
+      ws.getRow(rowNum).height = 18;
+    }
+    metaRow(2, 'Titre', titre);
+    metaRow(3, 'Section', section);
+    metaRow(4, "Type d'audit  |  Date d'export", typeA + '   |   ' + dateEx);
+
+    /* ── Header row (row 5) ── */
+    var headers = [];
+    $('#detail-table thead th').each(function(){ headers.push($(this).text().trim()); });
+    var headerRow = ws.addRow(headers);
+    headerRow.height = 22;
+    headerRow.eachCell(function(cell){
+      cell.font      = { name:'Calibri', bold:true, size:10, color:{argb:'FFFFFFFF'} };
+      cell.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:'FF0D47A1'} };
+      cell.alignment = { horizontal:'center', vertical:'middle', wrapText:true };
+      cell.border    = {
+        top:    {style:'thin', color:{argb:'FF0D47A1'}},
+        bottom: {style:'medium', color:{argb:'FFFFFFFF'}},
+        left:   {style:'thin', color:{argb:'FF1A73E8'}},
+        right:  {style:'thin', color:{argb:'FF1A73E8'}}
+      };
+    });
+
+    /* ── Data rows ── */
+    var dataRows = [];
+    $('#detail-table tbody tr').each(function(){
+      var $tds = $(this).find('td');
+      if ($tds.length === 1 && $tds.eq(0).attr('colspan')) return;
+      var row = [];
+      $tds.each(function(){
+        var html = $(this).html().replace(/<br\s*\/?>/gi, '\n');
+        row.push($('<div>').html(html).text().trim().replace(/[ \t]+/g,' ').replace(/\n /g,'\n'));
+      });
+      dataRows.push(row);
+    });
+
+    dataRows.forEach(function(rowData, idx){
+      var dr = ws.addRow(rowData);
+      var isEven = idx % 2 === 1;
+      var bgArgb = isEven ? 'FFF0F7FF' : 'FFFFFFFF';
+      dr.height = 40;
+      dr.eachCell(function(cell, colNum){
+        cell.font      = { name:'Calibri', size:10 };
+        cell.fill      = { type:'pattern', pattern:'solid', fgColor:{argb:bgArgb} };
+        cell.alignment = { vertical:'top', wrapText:true,
+                           horizontal: colNum === 1 ? 'center' : 'left' };
+        cell.border    = {
+          top:    {style:'hair', color:{argb:'FFD0D8E4'}},
+          bottom: {style:'hair', color:{argb:'FFD0D8E4'}},
+          left:   {style:'hair', color:{argb:'FFD0D8E4'}},
+          right:  {style:'hair', color:{argb:'FFD0D8E4'}}
+        };
+      });
+      /* N° cell special style */
+      var numCell = dr.getCell(1);
+      numCell.font = { bold:true, size:10, color:{argb:'FF1A73E8'} };
+    });
+
+    /* ── Footer row ── */
+    ws.addRow([]);
+    var footerRowNum = ws.rowCount + 1;
+    ws.mergeCells('A'+footerRowNum+':G'+footerRowNum);
+    var footerCell = ws.getCell('A'+footerRowNum);
+    footerCell.value = 'Exporté le ' + dateEx + '  —  ' + rowCount + ' critère(s)';
+    footerCell.font  = { italic:true, size:9, color:{argb:'FF6C757D'} };
+    footerCell.alignment = { horizontal:'right', vertical:'middle' };
+    ws.getRow(footerRowNum).height = 16;
+
+    /* ══════════════════════════════════════════
+       FEUILLE 2 — Informations
+    ══════════════════════════════════════════ */
+    const wsInfo = wb.addWorksheet('Informations');
+    wsInfo.columns = [{ width:26 },{ width:50 }];
+
+    var infoTitle = wsInfo.addRow(["INFORMATIONS DU FORMULAIRE"]);
+    wsInfo.mergeCells('A1:B1');
+    var itCell = wsInfo.getCell('A1');
+    itCell.font  = { bold:true, size:13, color:{argb:'FFFFFFFF'} };
+    itCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb:'FF1A73E8'} };
+    itCell.alignment = { horizontal:'center', vertical:'middle' };
+    wsInfo.getRow(1).height = 28;
+
+    var infoData = [
+      ["Titre du formulaire", titre],
+      ["Section", section],
+      ["Type d'audit", typeA],
+      ["Nombre de critères", rowCount],
+      ["Date d'export", dateEx],
+    ];
+    infoData.forEach(function(r, i){
+      var ir = wsInfo.addRow(r);
+      ir.height = 20;
+      var labelCell = ir.getCell(1);
+      var valueCell = ir.getCell(2);
+      labelCell.font  = { bold:true, size:10, color:{argb:'FF0D47A1'} };
+      labelCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb:'FFE8F0FE'} };
+      labelCell.alignment = { vertical:'middle', indent:1 };
+      valueCell.font  = { size:10 };
+      valueCell.fill  = { type:'pattern', pattern:'solid', fgColor:{argb: i%2===0 ? 'FFFFFFFF' : 'FFF8F9FA'} };
+      valueCell.alignment = { vertical:'middle', indent:1 };
+      [labelCell, valueCell].forEach(function(c){
+        c.border = {
+          top:{style:'hair',color:{argb:'FFD0D8E4'}}, bottom:{style:'hair',color:{argb:'FFD0D8E4'}},
+          left:{style:'thin',color:{argb:'FFD0D8E4'}}, right:{style:'thin',color:{argb:'FFD0D8E4'}}
+        };
+      });
+    });
+
+    /* ── Generate & download ── */
+    const buf = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buf], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), filename);
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,597 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rapport — {{ accident.reference }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        /* ── Screen styles ── */
+        body { font-size: 13px; font-family: 'Segoe UI', Arial, sans-serif; background: #f4f4f4; }
+        .rapport-wrapper { max-width: 960px; margin: 20px auto; padding: 0 15px 60px; }
+        .no-print { margin-bottom: 16px; }
+
+        /* ── Shared ── */
+        .rapport-header {
+            border: 2px solid #343a40;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            background: #fff;
+            border-radius: 6px;
+        }
+        .section-title {
+            background: #343a40;
+            color: #fff;
+            padding: 10px 18px;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: .03em;
+            border-radius: 4px 4px 0 0;
+            margin-bottom: 0;
+        }
+        .section-title.bg-warning { background: #ffc107!important; color: #212529!important; }
+        .section-title.bg-info { background: #17a2b8!important; }
+        .section-title.bg-primary { background: #007bff!important; }
+        .report-card {
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 0 0 6px 6px;
+            margin-bottom: 28px;
+            padding: 16px 20px;
+        }
+        .subsection-title {
+            font-size: .85rem;
+            font-weight: 700;
+            color: #495057;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            border-bottom: 2px solid #dee2e6;
+            padding-bottom: 4px;
+            margin: 16px 0 10px;
+        }
+        .field-row {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px dotted #e9ecef;
+            font-size: .85rem;
+        }
+        .field-row:last-child { border-bottom: none; }
+        .field-label {
+            font-weight: 600;
+            color: #495057;
+            min-width: 200px;
+            flex-shrink: 0;
+        }
+        .field-value { flex: 1; word-break: break-word; }
+        .field-empty { color: #adb5bd; font-style: italic; }
+        .badge-oui { background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: .75rem; }
+        .badge-non { background: #28a745; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: .75rem; }
+        .badge-na  { background: #6c757d; color: #fff; padding: 2px 8px; border-radius: 10px; font-size: .75rem; }
+        .badge-statut { padding: 3px 10px; border-radius: 10px; font-size: .8rem; font-weight: 600; }
+        .questionnaire-item { padding: 3px 0; font-size: .82rem; }
+        .questionnaire-item.sous-question { padding-left: 1.25rem; color: #6c757d; }
+        .progress-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin-bottom: 20px;
+        }
+        .progress-step { text-align: center; flex: 1; }
+        .progress-step .step-icon { font-size: 1.3rem; }
+        .progress-step.done .step-icon { color: #28a745; }
+        .progress-step.active .step-icon { color: #007bff; }
+        .progress-step.pending .step-icon { color: #dee2e6; }
+        .progress-step .step-label { font-size: .7rem; display: block; margin-top: 2px; }
+
+        /* ── Print styles ── */
+        @media print {
+            body { background: #fff; font-size: 11px; }
+            .no-print { display: none!important; }
+            .rapport-wrapper { max-width: none; margin: 0; padding: 0; }
+            .report-card { border: 1px solid #ccc; box-shadow: none; }
+            .page-break { page-break-before: always; }
+            a { color: inherit; text-decoration: none; }
+        }
+
+        @media screen {
+            .report-card { box-shadow: 0 2px 8px rgba(0,0,0,.07); }
+        }
+    </style>
+</head>
+<body>
+<div class="rapport-wrapper">
+
+    <!-- Toolbar (screen only) -->
+    <div class="no-print d-flex justify-content-between align-items-center py-2 px-3 bg-white border rounded mb-3 shadow-sm">
+        <a href="{% url 'at:at_detail' accident.pk %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Retour à la fiche
+        </a>
+        <div>
+            <a href="{% url 'at:at_export_excel' accident.pk %}" class="btn btn-success btn-sm mr-2">
+                <i class="fas fa-file-excel mr-1"></i>Télécharger Excel
+            </a>
+            <button onclick="window.print()" class="btn btn-primary btn-sm">
+                <i class="fas fa-print mr-1"></i>Imprimer / Télécharger PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- ── En-tête du rapport ── -->
+    <div class="rapport-header">
+        <div class="row align-items-center">
+            <div class="col-7">
+                <h4 class="mb-1 font-weight-bold">
+                    <i class="fas fa-first-aid text-danger mr-2"></i>RAPPORT D'ACCIDENT DE TRAVAIL
+                </h4>
+                <p class="mb-0 text-muted">Référence : <strong class="text-dark">{{ accident.reference }}</strong></p>
+                <p class="mb-0 text-muted small">Victime : <strong>{{ accident.victime_nom_prenom }}</strong></p>
+            </div>
+            <div class="col-5 text-right">
+                <p class="mb-0 small"><strong>Société :</strong> {{ accident.societe }}</p>
+                {% if accident.section %}<p class="mb-0 small"><strong>Section :</strong> {{ accident.section }}</p>{% endif %}
+                <p class="mb-0 small"><strong>Date accident :</strong> {{ accident.date_accident|date:"d/m/Y" }}</p>
+                <p class="mb-0 small"><strong>Statut :</strong>
+                    <span class="badge-statut bg-{{ accident.statut_color }} text-white">{{ accident.get_statut_display }}</span>
+                </p>
+                <p class="mb-0 small text-muted">Généré le {{ now|date:"d/m/Y à H:i" }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progression -->
+    <div class="progress-section mb-4">
+        <div class="progress-step {% if accident.statut == 'brouillon' %}active{% elif accident.statut != 'brouillon' %}done{% endif %}">
+            <span class="step-icon"><i class="fas fa-bolt"></i></span>
+            <span class="step-label">Brouillon</span>
+        </div>
+        <div style="flex:0;color:#dee2e6;font-size:.9rem">›</div>
+        <div class="progress-step {% if accident.statut == '24h' %}active{% elif accident.statut == '48h' or accident.statut == '8j' or accident.statut == 'cloture' %}done{% else %}pending{% endif %}">
+            <span class="step-icon"><i class="fas fa-file-alt"></i></span>
+            <span class="step-label">24h</span>
+        </div>
+        <div style="flex:0;color:#dee2e6;font-size:.9rem">›</div>
+        <div class="progress-step {% if accident.statut == '48h' %}active{% elif accident.statut == '8j' or accident.statut == 'cloture' %}done{% else %}pending{% endif %}">
+            <span class="step-icon"><i class="fas fa-search"></i></span>
+            <span class="step-label">48h</span>
+        </div>
+        <div style="flex:0;color:#dee2e6;font-size:.9rem">›</div>
+        <div class="progress-step {% if accident.statut == '8j' %}active{% elif accident.statut == 'cloture' %}done{% else %}pending{% endif %}">
+            <span class="step-icon"><i class="fas fa-tasks"></i></span>
+            <span class="step-label">8 jours</span>
+        </div>
+        <div style="flex:0;color:#dee2e6;font-size:.9rem">›</div>
+        <div class="progress-step {% if accident.statut == 'cloture' %}done{% else %}pending{% endif %}">
+            <span class="step-icon"><i class="fas fa-check-circle"></i></span>
+            <span class="step-label">Clôturé</span>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION 1 — FORMULAIRE 24H
+    ══════════════════════════════════════════════════════════ -->
+    <div class="section-title bg-warning">
+        <i class="fas fa-file-alt mr-2"></i>FORMULAIRE 24H — DÉCLARATION D'ACCIDENT
+    </div>
+    <div class="report-card">
+
+        <!-- Identification -->
+        <div class="subsection-title">Identification</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Référence</span><span class="field-value">{{ accident.reference }}</span></div>
+                <div class="field-row"><span class="field-label">Type d'accident</span><span class="field-value">{{ accident.get_type_accident_display }}</span></div>
+                <div class="field-row"><span class="field-label">Société</span><span class="field-value">{{ accident.societe }}</span></div>
+                <div class="field-row"><span class="field-label">Section</span><span class="field-value">{{ accident.section|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Site</span><span class="field-value">{{ accident.site|default:"—" }}</span></div>
+                {% if accident.qr_hse %}<div class="field-row"><span class="field-label">QR HSE</span><span class="field-value">{{ accident.qr_hse }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Date de l'accident</span><span class="field-value">{{ accident.date_accident|date:"d/m/Y" }}</span></div>
+                <div class="field-row"><span class="field-label">Heure</span><span class="field-value">{% if accident.heure_accident %}{{ accident.heure_accident|time:"H:i" }}{% else %}<span class="field-empty">—</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Lieu</span><span class="field-value">{{ accident.lieu_accident|default:"—" }}</span></div>
+                {% if accident.lieu_precisions %}<div class="field-row"><span class="field-label">Précisions lieu</span><span class="field-value">{{ accident.lieu_precisions }}</span></div>{% endif %}
+                <div class="field-row"><span class="field-label">Type de lieu</span><span class="field-value">{{ accident.get_lieu_type_display|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Conséquence</span><span class="field-value">{{ accident.get_consequence_display|default:"—" }}</span></div>
+            </div>
+        </div>
+
+        <!-- Horaires -->
+        {% if accident.horaire_debut1 or accident.horaire_debut2 %}
+        <div class="subsection-title">Horaires de travail le jour de l'accident</div>
+        <div class="row">
+            <div class="col-md-6">
+                {% if accident.horaire_debut1 %}<div class="field-row"><span class="field-label">Vacation 1 (de)</span><span class="field-value">{{ accident.horaire_debut1|time:"H:i" }}</span></div>{% endif %}
+                {% if accident.horaire_fin1 %}<div class="field-row"><span class="field-label">Vacation 1 (à)</span><span class="field-value">{{ accident.horaire_fin1|time:"H:i" }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if accident.horaire_debut2 %}<div class="field-row"><span class="field-label">Vacation 2 (de)</span><span class="field-value">{{ accident.horaire_debut2|time:"H:i" }}</span></div>{% endif %}
+                {% if accident.horaire_fin2 %}<div class="field-row"><span class="field-label">Vacation 2 (à)</span><span class="field-value">{{ accident.horaire_fin2|time:"H:i" }}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Constatation -->
+        {% if accident.accident_constate_le or accident.accident_constate_par %}
+        <div class="subsection-title">Constatation de l'accident</div>
+        <div class="row">
+            <div class="col-md-6">
+                {% if accident.accident_constate_le %}<div class="field-row"><span class="field-label">Constaté le</span><span class="field-value">{{ accident.accident_constate_le|date:"d/m/Y" }}{% if accident.accident_constate_heure %} à {{ accident.accident_constate_heure|time:"H:i" }}{% endif %}</span></div>{% endif %}
+                {% if accident.accident_constate_par %}<div class="field-row"><span class="field-label">Constaté par</span><span class="field-value">{{ accident.get_accident_constate_par_display }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if accident.accident_connu_le %}<div class="field-row"><span class="field-label">Accident connu le</span><span class="field-value">{{ accident.accident_connu_le|date:"d/m/Y" }}</span></div>{% endif %}
+                {% if accident.registre_benins_date %}<div class="field-row"><span class="field-label">Registre bénins</span><span class="field-value">Le {{ accident.registre_benins_date|date:"d/m/Y" }}{% if accident.registre_benins_numero %} — N° {{ accident.registre_benins_numero }}{% endif %}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Victime -->
+        <div class="subsection-title">La victime</div>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="field-row"><span class="field-label">Nom et prénom</span><span class="field-value"><strong>{{ accident.victime_nom_prenom }}</strong></span></div>
+            </div>
+        </div>
+
+        <!-- Circonstances -->
+        <div class="subsection-title">Circonstances &amp; Description</div>
+        <div class="field-row"><span class="field-label">Activité de la victime</span><span class="field-value">{{ accident.activite_victime|default:"—"|linebreaksbr }}</span></div>
+        <div class="field-row"><span class="field-label">Nature de l'accident</span><span class="field-value">{{ accident.nature_accident|default:"—"|linebreaksbr }}</span></div>
+        <div class="field-row"><span class="field-label">Objet ou substance</span><span class="field-value">{{ accident.objet_contact|default:"—" }}</span></div>
+        <div class="field-row"><span class="field-label">Circonstances détaillées</span><span class="field-value">{{ accident.circonstances_detaillees|default:"—"|linebreaksbr }}</span></div>
+
+        <!-- Lésions & EPI -->
+        <div class="subsection-title">Lésions &amp; EPI</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Éléments matériels</span><span class="field-value">{% if accident.elements_materiels %}{{ accident.elements_materiels|join:", " }}{% else %}<span class="field-empty">—</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Nature des lésions</span><span class="field-value">{% if accident.nature_lesions %}{{ accident.nature_lesions|join:", " }}{% else %}<span class="field-empty">—</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Siège des lésions</span><span class="field-value">{% if accident.siege_lesions %}{{ accident.siege_lesions|join:", " }}{% else %}<span class="field-empty">—</span>{% endif %}</span></div>
+            </div>
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">EPI endommagé</span><span class="field-value">{% if accident.epi_endommage is None %}<span class="field-empty">—</span>{% elif accident.epi_endommage %}<span class="badge-oui">Oui</span>{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                {% if accident.epi_endommage %}<div class="field-row"><span class="field-label">Précisions EPI</span><span class="field-value">{{ accident.epi_precisions|default:"—" }}</span></div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Réserves -->
+        {% if accident.reserves %}
+        <div class="field-row"><span class="field-label">Réserves motivées</span><span class="field-value">{{ accident.reserves|linebreaksbr }}</span></div>
+        {% endif %}
+
+        <!-- Soins & conséquences -->
+        <div class="subsection-title">Soins &amp; Conséquences</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Premiers soins dispensés</span><span class="field-value">{% if accident.premiers_soins is None %}—{% elif accident.premiers_soins %}<span class="badge-oui">Oui</span>{% if accident.premiers_soins_par %} — {{ accident.premiers_soins_par }}{% endif %}{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                {% if accident.premiers_soins_lesquels %}<div class="field-row"><span class="field-label" style="padding-left:1rem">↳ Lesquels</span><span class="field-value">{{ accident.premiers_soins_lesquels }}</span></div>{% endif %}
+                <div class="field-row"><span class="field-label">Consultation médecin</span><span class="field-value">{% if accident.consultation_medecin is None %}—{% elif accident.consultation_medecin %}<span class="badge-oui">Oui</span>{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                {% if accident.consultation_medecin_info %}<div class="field-row"><span class="field-label" style="padding-left:1rem">↳ Info complémentaire</span><span class="field-value">{{ accident.consultation_medecin_info }}</span></div>{% endif %}
+                <div class="field-row"><span class="field-label">Transport hôpital</span><span class="field-value">{% if accident.transport_hopital is None %}—{% elif accident.transport_hopital %}<span class="badge-oui">Oui</span>{% if accident.transport_hopital_nom %} — {{ accident.transport_hopital_nom }}{% endif %}{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+            </div>
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Rapport de police</span><span class="field-value">{% if accident.rapport_police is None %}—{% elif accident.rapport_police %}<span class="badge-oui">Oui</span>{% if accident.rapport_police_par %} — par {{ accident.rapport_police_par }}{% endif %}{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Autres victimes</span><span class="field-value">{% if accident.autres_victimes is None %}—{% elif accident.autres_victimes %}<span class="badge-oui">Oui</span>{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Tiers impliqué</span><span class="field-value">{% if accident.tiers_implique is None %}—{% elif accident.tiers_implique %}<span class="badge-oui">Oui</span>{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+            </div>
+        </div>
+
+        <!-- Tiers -->
+        {% if accident.tiers_implique %}
+        <div class="subsection-title">Le tiers</div>
+        <div class="row">
+            <div class="col-md-6">
+                {% if accident.tiers_nom_adresse %}<div class="field-row"><span class="field-label">Nom &amp; adresse</span><span class="field-value">{{ accident.tiers_nom_adresse|linebreaksbr }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if accident.tiers_assurance %}<div class="field-row"><span class="field-label">Assurance</span><span class="field-value">{{ accident.tiers_assurance }}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Témoin / Première personne avisée -->
+        {% if accident.temoin_nom_prenom %}
+        <div class="subsection-title">
+            {% if accident.temoin_ou_premiere_personne == "temoin" %}Témoin{% else %}1ère personne avisée{% endif %}
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Nom et prénom</span><span class="field-value">{{ accident.temoin_nom_prenom }}</span></div>
+            </div>
+            <div class="col-md-6">
+                {% if accident.temoin_adresse %}<div class="field-row"><span class="field-label">Adresse</span><span class="field-value">{{ accident.temoin_adresse }}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions correctives immédiates -->
+        {% if actions_immediates %}
+        <div class="subsection-title">Actions correctives immédiates</div>
+        <table class="table table-sm table-bordered" style="font-size:.82rem">
+            <thead class="thead-light">
+                <tr><th>Description</th><th>Pilote</th><th>Délai</th><th>Statut</th></tr>
+            </thead>
+            <tbody>
+                {% for action in actions_immediates %}
+                <tr>
+                    <td>{{ action.description }}</td>
+                    <td>{{ action.pilote|default:"—" }}</td>
+                    <td>{{ action.delai|date:"d/m/Y"|default:"—" }}</td>
+                    <td>{{ action.get_statut_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION 2 — ANALYSE 48H
+    ══════════════════════════════════════════════════════════ -->
+    {% if has_analyse %}
+    <div class="page-break">
+    <div class="section-title bg-info">
+        <i class="fas fa-search mr-2"></i>ANALYSE 48H
+        {% if analyse.soumis_le %}<small class="ml-3 font-weight-normal">Soumise le {{ analyse.soumis_le|date:"d/m/Y H:i" }}{% if analyse.soumis_en_retard %} — <span style="background:rgba(255,255,255,.25);padding:1px 6px;border-radius:4px">EN RETARD</span>{% endif %}</small>{% endif %}
+    </div>
+    <div class="report-card">
+
+        <!-- En-tête analyse -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="field-row"><span class="field-label">Date de l'analyse</span><span class="field-value">{% if analyse.date_analyse %}{{ analyse.date_analyse|date:"d/m/Y" }}{% else %}—{% endif %}</span></div>
+            </div>
+            <div class="col-md-4">
+                <div class="field-row"><span class="field-label">Validé par</span><span class="field-value">{{ analyse.valide_par|default:"—" }}</span></div>
+            </div>
+            <div class="col-md-4">
+                <div class="field-row"><span class="field-label">Emplacement</span><span class="field-value">{{ analyse.get_emplacement_interieur_exterieur_display|default:"—" }}</span></div>
+            </div>
+        </div>
+
+        <!-- Milieu -->
+        {% if analyse.poste_travail_habituel is not None or analyse.emplacement_connu_victime is not None or analyse.lieu_depart %}
+        <div class="subsection-title">Milieu de travail</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Poste de travail habituel</span><span class="field-value">{% if analyse.poste_travail_habituel is None %}—{% elif analyse.poste_travail_habituel %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Emplacement connu de la victime</span><span class="field-value">{% if analyse.emplacement_connu_victime is None %}—{% elif analyse.emplacement_connu_victime %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}</span></div>
+            </div>
+            <div class="col-md-6">
+                {% if analyse.lieu_depart %}<div class="field-row"><span class="field-label">Lieu de départ</span><span class="field-value">{{ analyse.lieu_depart }}</span></div>{% endif %}
+                {% if analyse.lieu_arrivee %}<div class="field-row"><span class="field-label">Lieu d'arrivée</span><span class="field-value">{{ analyse.lieu_arrivee }}</span></div>{% endif %}
+                {% if analyse.motif_deplacement %}<div class="field-row"><span class="field-label">Motif du déplacement</span><span class="field-value">{{ analyse.motif_deplacement }}</span></div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Nuisances -->
+        {% if analyse.nuisances %}
+        <div class="subsection-title">Nuisances physiques / chimiques</div>
+        <div class="row">
+            {% for key, val in analyse.nuisances.items %}
+            {% if val %}
+            <div class="col-md-4">
+                <div class="field-row"><span class="field-label">{{ key|capfirst }}</span><span class="field-value"><span class="badge-oui">Présent</span></span></div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% if analyse.nuisances_precisions %}<div class="field-row"><span class="field-label">Précisions nuisances</span><span class="field-value">{{ analyse.nuisances_precisions }}</span></div>{% endif %}
+        {% endif %}
+        <!-- Participants -->
+        <div class="subsection-title">Participants à l'analyse</div>
+        <div class="row">
+            <div class="col-md-6">
+                {% if analyse.participants_exploitation %}<div class="field-row"><span class="field-label">Exploitation</span><span class="field-value">{{ analyse.participants_exploitation }}</span></div>{% endif %}
+                {% if analyse.participants_cssct %}<div class="field-row"><span class="field-label">CSSCT</span><span class="field-value">{{ analyse.participants_cssct }}</span></div>{% endif %}
+                {% if analyse.participants_rh %}<div class="field-row"><span class="field-label">RH</span><span class="field-value">{{ analyse.participants_rh }}</span></div>{% endif %}
+                {% if analyse.participants_qse %}<div class="field-row"><span class="field-label">QSE</span><span class="field-value">{{ analyse.participants_qse }}</span></div>{% endif %}
+                {% if analyse.participants_direction %}<div class="field-row"><span class="field-label">Direction</span><span class="field-value">{{ analyse.participants_direction }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if analyse.participants_finance %}<div class="field-row"><span class="field-label">Finance</span><span class="field-value">{{ analyse.participants_finance }}</span></div>{% endif %}
+                {% if analyse.participants_achat %}<div class="field-row"><span class="field-label">Achat</span><span class="field-value">{{ analyse.participants_achat }}</span></div>{% endif %}
+                {% if analyse.participants_commercial %}<div class="field-row"><span class="field-label">Commercial</span><span class="field-value">{{ analyse.participants_commercial }}</span></div>{% endif %}
+                {% if analyse.participants_autre %}<div class="field-row"><span class="field-label">Autre</span><span class="field-value">{{ analyse.participants_autre }}</span></div>{% endif %}
+                {% if analyse.participants_client %}<div class="field-row"><span class="field-label">Client</span><span class="field-value">{{ analyse.participants_client }}</span></div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Victime compléments -->
+        <div class="subsection-title">Victime — informations complémentaires</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Âge</span><span class="field-value">{{ analyse.victime_age|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Sexe</span><span class="field-value">{{ analyse.get_victime_sexe_display|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Dernière visite médicale</span><span class="field-value">{% if analyse.victime_date_visite_medicale %}{{ analyse.victime_date_visite_medicale|date:"d/m/Y" }}{% else %}—{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">Restriction d'aptitude</span><span class="field-value">{% if analyse.victime_restriction_aptitude is None %}—{% elif analyse.victime_restriction_aptitude %}<span class="badge-oui">Oui</span>{% else %}<span class="badge-non">Non</span>{% endif %}</span></div>
+                {% if analyse.victime_restriction_precisions %}<div class="field-row"><span class="field-label" style="padding-left:1rem">↳ Précisions</span><span class="field-value">{{ analyse.victime_restriction_precisions }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Horaire de travail</span><span class="field-value">{{ analyse.horaire_travail|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Poste occupé au moment de l'accident</span><span class="field-value">{{ analyse.victime_poste_occupe|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Ancienneté au poste</span><span class="field-value">{{ analyse.victime_anciennete_poste_analyse|default:"—" }}</span></div>
+                <div class="field-row"><span class="field-label">Poste conforme FP</span><span class="field-value">{% if analyse.victime_poste_conforme is None %}—{% elif analyse.victime_poste_conforme %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}</span></div>
+            </div>
+        </div>
+
+        <!-- Formations -->
+        {% if analyse.formations %}
+        <div class="subsection-title">Formations &amp; Compétences</div>
+        <table class="table table-sm table-bordered" style="font-size:.82rem">
+            <thead class="thead-light">
+                <tr><th>Formation</th><th>Réalisée</th><th>Date</th><th>Commentaires</th></tr>
+            </thead>
+            <tbody>
+                {% for f in analyse.formations %}
+                <tr>
+                    <td>{{ f.nom|default:"—" }}</td>
+                    <td>
+                        {% if f.realise == "O" %}<span class="badge-non">Oui</span>
+                        {% elif f.realise == "N" %}<span class="badge-oui">Non</span>
+                        {% elif f.realise == "NA" %}<span class="badge-na">N/A</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>{{ f.date|default:"—" }}</td>
+                    <td>{{ f.commentaire|default:"" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- Description activité -->
+        {% if analyse.description_activite %}
+        <div class="subsection-title">Description de l'activité</div>
+        <p style="font-size:.85rem">{{ analyse.description_activite|linebreaksbr }}</p>
+        {% endif %}
+
+        <!-- Questionnaire 48h -->
+        {% if questionnaire_sections %}
+        <div class="subsection-title">Questionnaire d'analyse 48h</div>
+        {% for section, items in questionnaire_sections.items %}
+        <div class="mb-3">
+            <div style="background:#f1f3f5;padding:5px 10px;font-weight:700;font-size:.8rem;border-radius:4px;margin-bottom:6px">{{ section }}</div>
+            {% for item in items %}
+            <div class="questionnaire-item {% if item.est_sous_question %}sous-question{% endif %}">
+                <span class="mr-2">
+                    {% if item.reponse == 'O' %}<span class="badge-oui">Oui</span>
+                    {% elif item.reponse == 'N' %}<span class="badge-non">Non</span>
+                    {% elif item.reponse == 'NA' %}<span class="badge-na">N/A</span>
+                    {% else %}<span style="color:#adb5bd;font-size:.75rem">—</span>{% endif %}
+                </span>
+                <code style="font-size:.75rem;color:#6c757d">{{ item.code }}</code>
+                <span class="ml-1">{{ item.question }}</span>
+                {% if item.precisions %}<br><small class="text-muted ml-3">↳ {{ item.precisions }}</small>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Causes racines (5 Pourquoi) -->
+        {% if causes %}
+        <div class="subsection-title">Analyse des causes — 5 Pourquoi</div>
+        <div style="background:#fff8f8;border:1px solid #f5c6cb;border-radius:6px;padding:12px 16px;">
+            <div style="display:flex;align-items:center;padding:6px 0;font-weight:700;font-size:.85rem;border-bottom:2px solid #f5c6cb;margin-bottom:8px">
+                <span style="background:#dc3545;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;margin-right:10px">AT</span>
+                {{ accident.circonstances_detaillees|default:accident.nature_accident|default:"Événement déclencheur" }}
+            </div>
+            {% for cause in causes %}
+            <div style="display:flex;align-items:flex-start;padding:5px 0;padding-left:{% widthratio cause.ordre 1 24 %}px;border-bottom:1px dotted #f5c6cb;">
+                <span style="background:#c82333;color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:.65rem;flex-shrink:0;margin-right:8px">{{ forloop.counter }}</span>
+                <span style="font-size:.85rem"><strong>Pourquoi {{ forloop.counter }} :</strong> {{ cause.texte }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+    </div>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════════════════════════
+         SECTION 3 — LAP 8 JOURS
+    ══════════════════════════════════════════════════════════ -->
+    {% if has_lap %}
+    <div class="page-break">
+    <div class="section-title bg-primary">
+        <i class="fas fa-tasks mr-2"></i>LAP 8 JOURS — LISTE D'ACTIONS DE PROGRÈS
+        {% if lap.soumis_le %}<small class="ml-3 font-weight-normal">Soumise le {{ lap.soumis_le|date:"d/m/Y H:i" }}{% if lap.soumis_en_retard %} — <span style="background:rgba(255,255,255,.25);padding:1px 6px;border-radius:4px">EN RETARD</span>{% endif %}</small>{% endif %}
+    </div>
+    <div class="report-card">
+
+        <!-- Participants -->
+        <div class="subsection-title">Participants</div>
+        <div class="row">
+            <div class="col-md-6">
+                {% if lap.participants_exploitation %}<div class="field-row"><span class="field-label">Exploitation</span><span class="field-value">{{ lap.participants_exploitation }}</span></div>{% endif %}
+                {% if lap.participants_cssct %}<div class="field-row"><span class="field-label">CSSCT</span><span class="field-value">{{ lap.participants_cssct }}</span></div>{% endif %}
+                {% if lap.participants_rh %}<div class="field-row"><span class="field-label">RH</span><span class="field-value">{{ lap.participants_rh }}</span></div>{% endif %}
+                {% if lap.participants_qse %}<div class="field-row"><span class="field-label">QSE</span><span class="field-value">{{ lap.participants_qse }}</span></div>{% endif %}
+                {% if lap.participants_direction %}<div class="field-row"><span class="field-label">Direction</span><span class="field-value">{{ lap.participants_direction }}</span></div>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {% if lap.participants_finance %}<div class="field-row"><span class="field-label">Finance</span><span class="field-value">{{ lap.participants_finance }}</span></div>{% endif %}
+                {% if lap.participants_achat %}<div class="field-row"><span class="field-label">Achat</span><span class="field-value">{{ lap.participants_achat }}</span></div>{% endif %}
+                {% if lap.participants_commercial %}<div class="field-row"><span class="field-label">Commercial</span><span class="field-value">{{ lap.participants_commercial }}</span></div>{% endif %}
+                {% if lap.participants_autre %}<div class="field-row"><span class="field-label">Autre</span><span class="field-value">{{ lap.participants_autre }}</span></div>{% endif %}
+                {% if lap.participants_client %}<div class="field-row"><span class="field-label">Client</span><span class="field-value">{{ lap.participants_client }}</span></div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Communication & suivi -->
+        <div class="subsection-title">Communication &amp; Mise à jour</div>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Alerte sécurité communiquée</span><span class="field-value">{% if lap.communication_alerte_securite is None %}—{% elif lap.communication_alerte_securite %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}{% if lap.communication_date %} — {{ lap.communication_date|date:"d/m/Y" }}{% endif %}</span></div>
+                <div class="field-row"><span class="field-label">DUER mis à jour</span><span class="field-value">{% if lap.mise_a_jour_duer is None %}—{% elif lap.mise_a_jour_duer %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}{% if lap.duer_date %} — {{ lap.duer_date|date:"d/m/Y" }}{% endif %}</span></div>
+            </div>
+            <div class="col-md-6">
+                <div class="field-row"><span class="field-label">Transversalisé au groupe</span><span class="field-value">{% if lap.transversalisation_groupe is None %}—{% elif lap.transversalisation_groupe %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}</span></div>
+                {% if lap.transversalisation_valide_par %}<div class="field-row"><span class="field-label">Validé par</span><span class="field-value">{{ lap.transversalisation_valide_par }}</span></div>{% endif %}
+            </div>
+        </div>
+
+        <!-- Actions correctives -->
+        {% if actions_correctives %}
+        <div class="subsection-title">Actions correctives / préventives</div>
+        <table class="table table-sm table-bordered" style="font-size:.8rem">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Cause racine</th>
+                    <th>Action</th>
+                    <th>Pilote</th>
+                    <th>Délai</th>
+                    <th>Statut</th>
+                    <th>Efficace</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for action in actions_correctives %}
+                <tr>
+                    <td>{{ action.cause_racine }}</td>
+                    <td>{{ action.description }}</td>
+                    <td>{{ action.pilote|default:"—" }}</td>
+                    <td>{{ action.delai|date:"d/m/Y"|default:"—" }}</td>
+                    <td>{{ action.get_statut_display }}</td>
+                    <td>{% if action.efficace is None %}—{% elif action.efficace %}<span class="badge-non">Oui</span>{% else %}<span class="badge-oui">Non</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small">Aucune action corrective enregistrée.</p>
+        {% endif %}
+
+        <!-- Signatures -->
+        <div class="row mt-4">
+            <div class="col-4 text-center">
+                <div style="border-top:1px solid #343a40;padding-top:4px;font-size:.8rem">Responsable HSE</div>
+            </div>
+            <div class="col-4 text-center">
+                <div style="border-top:1px solid #343a40;padding-top:4px;font-size:.8rem">Directeur d'exploitation</div>
+            </div>
+            <div class="col-4 text-center">
+                <div style="border-top:1px solid #343a40;padding-top:4px;font-size:.8rem">DRH</div>
+            </div>
+        </div>
+    </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div style="font-size:.75rem;color:#adb5bd;text-align:center;margin-top:12px;border-top:1px solid #dee2e6;padding-top:8px">
+        Rapport généré le {{ now|date:"d/m/Y à H:i" }} — {{ accident.reference }} — Confidentiel
+    </div>
+
+</div>
+</body>
+</html>

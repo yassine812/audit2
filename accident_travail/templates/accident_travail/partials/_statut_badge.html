@@ -1,0 +1,6 @@
+{% load at_tags %}
+{% with color=accident.statut_color %}
+<span class="badge badge-{{ color }} statut-badge">
+    {{ accident.get_statut_display }}
+</span>
+{% endwith %}

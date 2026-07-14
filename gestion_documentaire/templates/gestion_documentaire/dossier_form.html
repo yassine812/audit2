@@ -1,0 +1,139 @@
+{% extends 'gestion_documentaire/base_gestion_documentaire.html' %}
+{% block title %}Paramètres · {{ dossier.nom }}{% endblock %}
+{% block extra_css %}{{ block.super }}
+<style>
+  .settings-layout { display:grid; grid-template-columns:220px minmax(0,1fr); gap:1.25rem; }
+  .settings-nav { padding:1rem; align-self:start; position:sticky; top:1rem; }
+  .settings-nav a { display:block; padding:.7rem .8rem; border-radius:9px; color:#526078; font-weight:600; }
+  .settings-nav a:hover { background:#eef4ff; color:#1d4ed8; text-decoration:none; }
+  .settings-section { padding:1.5rem; margin-bottom:1rem; scroll-margin-top:1rem; }
+  .section-heading { display:flex; gap:.9rem; align-items:flex-start; padding-bottom:1rem; border-bottom:1px solid #e8edf5; margin-bottom:1.25rem; }
+  .section-icon { width:42px; height:42px; border-radius:11px; background:#edf4ff; color:#2563eb; display:grid; place-items:center; flex:none; }
+  .access-switch { display:flex; align-items:center; justify-content:space-between; padding:1rem; border:1px solid #dbe4f1; border-radius:12px; background:#f8fafc; }
+  .folder-preview { width:64px; height:64px; display:grid; place-items:center; font-size:3rem; }
+  @media(max-width:767px){.settings-layout{grid-template-columns:1fr}.settings-nav{display:none}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="gd-shell">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div><div class="gd-breadcrumb mb-2"><a href="{% if dossier.parent %}{% url 'gestion_documentaire:dossier_detail' dossier.parent.pk %}{% else %}{% url 'gestion_documentaire:bibliotheque_racine' %}{% endif %}">Bibliothèque</a><span>/</span><span>{{ dossier.nom }}</span></div><h3 class="gd-title">Paramètres du dossier</h3><p class="gd-subtitle">Nom, apparence et règles d’accès.</p></div>
+    <a class="btn btn-outline-secondary" href="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}"><i class="fas fa-times mr-1"></i>Fermer</a>
+  </div>
+  <form method="post">{% csrf_token %}
+    <div class="settings-layout">
+      <nav class="gd-card settings-nav"><a href="#general"><i class="fas fa-folder mr-2"></i>Informations</a><a href="#apparence"><i class="fas fa-palette mr-2"></i>Apparence</a><a href="#acces"><i class="fas fa-shield-alt mr-2"></i>Gestion des accès</a></nav>
+      <main>
+        {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+        <section class="gd-card settings-section" id="general">
+          <div class="section-heading"><span class="section-icon"><i class="fas fa-info"></i></span><div><h5 class="mb-1">Informations générales</h5><small class="text-muted">Identifiez clairement le contenu de ce dossier.</small></div></div>
+          <div class="form-group"><label class="gd-form-label">Nom du dossier</label>{{ form.nom }}{% if form.nom.errors %}<div class="text-danger small">{{ form.nom.errors }}</div>{% endif %}</div>
+          <div class="form-group mb-0"><label class="gd-form-label">Description</label>{{ form.description }}</div>
+        </section>
+        <section class="gd-card settings-section" id="apparence">
+          <div class="section-heading"><span class="section-icon"><i class="fas fa-palette"></i></span><div><h5 class="mb-1">Apparence</h5><small class="text-muted">Choisissez une couleur facilement reconnaissable.</small></div></div>
+          <div class="d-flex align-items-center">
+            <span class="folder-preview mr-4"><i id="folderPreview" class="fas fa-folder" style="color:{{ dossier.couleur }}"></i></span>
+            <div><label class="gd-form-label d-block">Couleur du dossier</label>{{ form.couleur }}</div>
+          </div>
+        </section>
+        <section class="gd-card settings-section" id="acces">
+          <div class="section-heading"><span class="section-icon"><i class="fas fa-shield-alt"></i></span><div><h5 class="mb-1">Gestion des accès</h5><small class="text-muted">Ces règles sont automatiquement héritées par les sous-dossiers.</small></div></div>
+          <div class="access-switch mb-3"><div><strong>Limiter l’accès</strong><small class="d-block text-muted">Désactivé : tous les profils autorisés au module peuvent consulter.</small></div><div>{{ form.acces_restreint }}</div></div>
+          <div id="accessOptions">
+            <div class="alert alert-info"><i class="fas fa-info-circle mr-1"></i>Configurez une audience différente pour chaque action. Une correspondance avec un rôle, une société, une section ou un utilisateur autorise l’action concernée.</div>
+            {{ regles_formset.management_form }}
+            <div id="accessRules">
+            {% for regle in regles_formset %}
+            <div class="gd-card p-3 mb-3 border access-rule-card">
+              {{ regle.id }}<span class="d-none">{{ regle.DELETE }}</span>
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0 text-primary"><i class="fas fa-key mr-2"></i>Règle d’accès</h6>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-access-rule"><i class="fas fa-trash-alt mr-1"></i>Retirer</button>
+              </div>
+              <div class="form-group">
+                <label class="gd-form-label">Actions concernées</label>
+                <div class="access-role-grid">
+                  {% for choice in regle.actions_autorisees %}
+                  <label class="access-role-card" for="{{ choice.id_for_label }}">{{ choice.tag }}<i class="fas fa-tasks"></i><span>{{ choice.choice_label }}</span></label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="gd-form-label">Rôles autorisés pour cette action</label>
+                <div class="access-role-grid">
+                  {% for choice in regle.roles_autorises %}
+                  <label class="access-role-card" for="{{ choice.id_for_label }}">{{ choice.tag }}<i class="fas fa-user-tag"></i><span>{{ choice.choice_label }}</span></label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-12 col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title"><i class="fas fa-building text-primary"></i>Sociétés</div><input type="search" class="form-control access-list-search mb-2" data-target="{{ regle.societes_autorisees.id_for_label }}" placeholder="Rechercher une société…">{{ regle.societes_autorisees }}</div></div>
+                <div class="col-12 col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title"><i class="fas fa-sitemap text-primary"></i>Sections</div><input type="search" class="form-control access-list-search mb-2" data-target="{{ regle.sections_autorisees.id_for_label }}" placeholder="Rechercher une section…">{{ regle.sections_autorisees }}</div></div>
+                <div class="col-12 col-lg-4 mb-2"><div class="access-scope-card"><div class="access-scope-title"><i class="fas fa-user-check text-primary"></i>Utilisateurs</div><input type="search" class="form-control access-list-search mb-2" data-target="{{ regle.utilisateurs_autorises.id_for_label }}" placeholder="Rechercher un utilisateur…">{{ regle.utilisateurs_autorises }}</div></div>
+              </div>
+              {% if regle.errors %}<div class="alert alert-danger mt-2">{{ regle.errors }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            </div>
+            <button type="button" id="addAccessRule" class="btn btn-outline-primary mb-2"><i class="fas fa-plus mr-1"></i>Ajouter une règle d’accès</button>
+          </div>
+        </section>
+        <div class="d-flex justify-content-end"><a class="btn btn-light mr-2" href="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}">Annuler</a><button class="btn btn-primary px-4"><i class="fas fa-save mr-1"></i>Enregistrer</button></div>
+      </main>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block extra_js %}{{ block.super }}
+<script>
+(function(){
+  const checkbox=document.getElementById('{{ form.acces_restreint.id_for_label }}');
+  const options=document.getElementById('accessOptions');
+  const color=document.getElementById('{{ form.couleur.id_for_label }}');
+  const preview=document.getElementById('folderPreview');
+  function toggle(){options.style.display=checkbox.checked?'block':'none'}
+  checkbox.addEventListener('change',toggle); toggle();
+  color.addEventListener('input',function(){preview.style.color=this.value});
+  function bindSearch(input) {
+    input.addEventListener('input', function() {
+      const query=this.value.toLocaleLowerCase();
+      const select=document.getElementById(this.dataset.target);
+      Array.from(select.options).forEach(function(option) {
+        option.hidden=!option.text.toLocaleLowerCase().includes(query);
+      });
+    });
+  }
+  document.querySelectorAll('.access-list-search').forEach(bindSearch);
+  const rulesContainer=document.getElementById('accessRules');
+  const totalForms=document.getElementById('id_regles_acces-TOTAL_FORMS');
+  function bindRemove(button) {
+    button.addEventListener('click', function() {
+      const card=this.closest('.access-rule-card');
+      const deleteInput=card.querySelector('input[name$="-DELETE"]');
+      if(deleteInput){ deleteInput.checked=true; card.style.display='none'; }
+    });
+  }
+  document.querySelectorAll('.remove-access-rule').forEach(bindRemove);
+  document.getElementById('addAccessRule').addEventListener('click', function() {
+    const cards=rulesContainer.querySelectorAll('.access-rule-card');
+    if(!cards.length) return;
+    const index=parseInt(totalForms.value,10);
+    const clone=cards[cards.length-1].cloneNode(true);
+    clone.innerHTML=clone.innerHTML.replace(/regles_acces-(\d+)-/g,'regles_acces-'+index+'-');
+    clone.style.display='';
+    clone.querySelectorAll('input').forEach(function(input){
+      if(input.name.endsWith('-id')) input.value='';
+      else input.checked=false;
+    });
+    clone.querySelectorAll('select').forEach(function(select){
+      Array.from(select.options).forEach(function(option){option.selected=false; option.hidden=false;});
+    });
+    clone.querySelectorAll('.access-list-search').forEach(function(search){search.value=''; bindSearch(search);});
+    rulesContainer.appendChild(clone);
+    totalForms.value=index+1;
+    bindRemove(clone.querySelector('.remove-access-rule'));
+  });
+})();
+</script>
+{% endblock %}

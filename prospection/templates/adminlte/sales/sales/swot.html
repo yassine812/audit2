@@ -1,0 +1,1774 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+
+<div style="position: fixed; right: 20px; top: 40%; z-index: 999; display: flex; flex-direction: column; gap: 10px;">
+    <button class="btn btn-primary" id="openFilterBtn">
+        <i class="fas fa-filter"></i> Filtrer
+    </button>
+    <button class="btn btn-success" id="openRequestsBtn">
+        <i class="fas fa-list"></i> Requêtes
+    </button>
+</div>
+
+<div class="custom-sidebar" id="filterSidebar">
+    <div class="sidebar-header">
+        <button type="button" class="close-btn" id="closeFilterBtn" aria-label="Fermer">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">
+        <form method="GET" id="filterForm">
+            <!-- Filtre Type -->
+            <div class="form-group">
+                <label>Type</label>
+                <select name="type" class="form-control">
+                    <option value="">Tous les types</option>
+                    {% for value, label in type_choices.items %}
+                    <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre Axe -->
+            <div class="form-group">
+                <label>Axe</label>
+                <select name="axe" class="form-control">
+                    <option value="">Tous les axes</option>
+                    {% for value, label in axe_choices.items %}
+                    <option value="{{ value }}" {% if axe_filter == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if is_superuser or is_RO %}
+            <!-- Filtre Société -->
+            <div class="form-group">
+                <label>Filiale</label>
+                <select name="societe" class="form-control">
+                    <option value="">Toutes les filiales</option>
+                    {% for societe in societes %}
+                    <option value="{{ societe.id }}" {% if societe_filter == societe.id|stringformat:"s" %}selected{%endif %}>{{ societe.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <!-- Filtre Entreprise Concurrente -->
+            <div class="form-group">
+                <label>Concurrent</label>
+                <select name="entreprise" class="form-control">
+                    <option value="">Tous les concurrents</option>
+                    {% for entreprise in entreprises %}
+                    <option value="{{ entreprise.id }}" {% if entreprise_filter == entreprise.id|stringformat:"s"%}selected{% endif %}>
+                        {{ entreprise.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Filtre Date de création -->
+            <div class="form-group">
+                <label>Date de création</label>
+                <div class="row">
+                    <div class="col-6">
+                        <input type="date" name="created_from" class="form-control" placeholder="De"
+                            value="{{ created_date_from|default_if_none:'' }}">
+                    </div>
+                    <div class="col-6">
+                        <input type="date" name="created_to" class="form-control" placeholder="À"
+                            value="{{ created_date_to|default_if_none:'' }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtre Recherche -->
+            <div class="form-group">
+                <label>Recherche</label>
+                <input type="text" name="search" class="form-control" placeholder="Rechercher..."
+                    value="{{ search_query|default_if_none:'' }}">
+            </div>
+
+            <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap: 4px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Appliquer les filtres
+                </button>
+                <a href="{% url 'prospection:swot_list' %}" class="btn btn-default">
+                    <i class="fas fa-sync-alt"></i> Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Analyse SWOT Concurrentielle</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">SWOT</li>
+                </ol>
+            </div>
+        </div>
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addSwotModal">
+                    <i class="fas fa-plus"></i> Ajouter une SWOT
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6 ps-md-2">
+                <div class="card card-success collapsed-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Répartition par axe</h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool" data-card-widget="collapse" data-target="#card2">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body collapse" id="card2">
+                        <div style="position: relative; height: 400px;">
+                            <canvas id="axeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card card-info collapsed-card">
+                    <div class="card-header">
+                        <h3 class="card-title">Analyse SWOT par type</h3>
+                        <div class="card-tools">
+                            <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-9">
+                                <div style="position: relative; height: 500px;">
+                                    <canvas id="radarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header justify-content-between align-items-center">
+
+                            <div class="card-tools mx-auto" style="text-align: center;">
+                                <small style="font-size: 90%;">
+                                    {{ swots.start_index }} - {{ swots.end_index }} sur {{ swots.paginator.count }}
+                                </small>
+                                <ul class="pagination pagination-sm justify-content-center" style="margin-top:0">
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1
+                                        {% if type_filter %}&type={{ type_filter }}{% endif %}
+                                        {% if axe_filter %}&axe={{ axe_filter }}{% endif %}
+                                        {% if societe_filter %}&societe={{ societe_filter }}{% endif %}
+                                        {% if entreprise_filter %}&entreprise={{ entreprise_filter }}{% endif %}
+                                        {% if created_date_from %}&created_from={{ created_date_from }}{% endif %}
+                                        {% if created_date_to %}&created_to={{ created_date_to }}{% endif %}
+                                        {% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
+                                            &laquo;
+                                        </a>
+                                    </li>
+
+                                    {% for i in swots.paginator.page_range %}
+                                    <li class="page-item {% if swots.number == i %}active{% endif %}">
+                                        <a class="page-link" href="?page={{ i }}
+                                            {% if type_filter %}&type={{ type_filter }}{% endif %}
+                                            {% if axe_filter %}&axe={{ axe_filter }}{% endif %}
+                                            {% if societe_filter %}&societe={{ societe_filter }}{% endif %}
+                                            {% if entreprise_filter %}&entreprise={{ entreprise_filter }}{% endif %}
+                                            {% if created_date_from %}&created_from={{ created_date_from }}{% endif %}
+                                            {% if created_date_to %}&created_to={{ created_date_to }}{% endif %}
+                                            {% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
+                                            {{ i }}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ swots.paginator.num_pages }}
+                                        {% if type_filter %}&type={{ type_filter }}{% endif %}
+                                        {% if axe_filter %}&axe={{ axe_filter }}{% endif %}
+                                        {% if societe_filter %}&societe={{ societe_filter }}{% endif %}
+                                        {% if entreprise_filter %}&entreprise={{ entreprise_filter }}{% endif %}
+                                        {% if created_date_from %}&created_from={{ created_date_from }}{% endif %}
+                                        {% if created_date_to %}&created_to={{ created_date_to }}{% endif %}
+                                        {% if search_query %}&search={{ search_query|urlencode }}{% endif %}">
+                                            &raquo;
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <table id="swots" class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align:center">Type</th>
+                                        <th style="text-align:center">Description</th>
+                                        <th style="text-align:center">Axe</th>
+                                        <th style="text-align:center">Concurrent</th>
+                                        {% if is_superuser or is_RO %}
+                                        <th style="text-align:center">Filiale</th>
+                                        {% endif %}
+                                        <th style="text-align:center">Créé par</th>
+                                        <th style="text-align:center">Date</th>
+                                        <th style="text-align:center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for swot in swots %}
+                                    <tr style="text-align:center">
+                                        <td>
+                                            {% if swot.type == 'force' %}
+                                            <span class="badge badge-success">{{ swot.get_type_display }}</span>
+                                            {% elif swot.type == 'faiblesse' %}
+                                            <span class="badge badge-warning">{{ swot.get_type_display }}</span>
+                                            {% elif swot.type == 'opportunite' %}
+                                            <span class="badge badge-info">{{ swot.get_type_display }}</span>
+                                            {% else %}
+                                            <span class="badge badge-danger">{{ swot.get_type_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ swot.description|default:"--"|truncatechars:30 }}</td>
+                                        <td>
+                                            <span class="badge badge-secondary">{{ swot.get_axe_display }}</span>
+                                        </td>
+                                        <td>{{ swot.entreprise.nom|truncatechars:15 }}</td>
+                                        {% if is_superuser or is_RO %}
+                                        <td>{{ swot.societe.nom|default:"-"|truncatechars:15 }}</td>
+                                        {% endif %}
+                                        <td>{{ swot.created_by.username|truncatechars:15 }}</td>
+                                        <td>{{ swot.date|date:"d/m/Y" }}</td>
+                                        <td>
+                                            <button type="button" class="btn btn-outline-info btn-sm"
+                                                onclick="viewSwotDetails({{ swot.id }})" title="Voir détails">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                                data-toggle="modal" data-target="#editSwotModal{{ swot.id }}"
+                                                title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if is_superuser or swot.created_by == request.user or is_RO %}
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                onclick="confirmDeleteSwot({{ swot.id }})" title="Supprimer">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Modal Ajouter une SWOT -->
+<div class="modal fade" id="addSwotModal" tabindex="-1" role="dialog" aria-labelledby="addSwotModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title" id="addSwotModalLabel">Ajouter une nouvelle analyse SWOT</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addSwotForm" method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="addType">Type*</label>
+                                <select name="type" class="form-control" id="addType" required>
+                                    <option value="">Sélectionner un type</option>
+                                    {% for value, label in type_choices.items %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small id="type-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="addAxe">Axe*</label>
+                                <select name="axe" class="form-control" id="addAxe" required>
+                                    <option value="">Sélectionner un axe</option>
+                                    {% for value, label in axe_choices.items %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small id="axe-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if is_superuser or is_RO %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="addSociete">Filiale*</label>
+                                <select name="societe" class="form-control" id="addSociete" required>
+                                    <option value="">Sélectionner une filiale</option>
+                                    {% for societe in societes %}
+                                    <option value="{{ societe.id }}">
+                                        {{ societe.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="societe-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="societe" value="{{ request.user.societe.id }}">
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="addEntreprise">Concurrent*</label>
+                                <select name="entreprise" class="form-control" id="addEntreprise" required>
+                                    <option value="">Sélectionner un concurrent</option>
+                                    {% for entreprise in entreprises %}
+                                    <option value="{{ entreprise.id }}">
+                                        {{ entreprise.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="entreprise-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="addDescription">Description</label>
+                                <textarea name="description" class="form-control" id="addDescription" rows="3"
+                                    placeholder="Saisir une description"></textarea>
+                                <small id="description-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-success">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for swot in swots %}
+<!-- Modal Modifier une SWOT -->
+<div class="modal fade" id="editSwotModal{{ swot.id }}" tabindex="-1" role="dialog"
+    aria-labelledby="editSwotModalLabel{{ swot.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="editSwotModalLabel{{ swot.id }}">Modifier l'analyse SWOT</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editSwotForm{{ swot.id }}" method="post">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="editType{{ swot.id }}">Type*</label>
+                                <select name="type" class="form-control" id="editType{{ swot.id }}" required>
+                                    <option value="">Sélectionner un type</option>
+                                    {% for value, label in type_choices.items %}
+                                    <option value="{{ value }}" {% if swot.type == value %}selected{% endif %}>{{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="edit-type-error{{ swot.id }}" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="editAxe{{ swot.id }}">Axe*</label>
+                                <select name="axe" class="form-control" id="editAxe{{ swot.id }}" required>
+                                    <option value="">Sélectionner un axe</option>
+                                    {% for value, label in axe_choices.items %}
+                                    <option value="{{ value }}" {% if swot.axe == value %}selected{% endif %}>{{ label }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="edit-axe-error{{ swot.id }}" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if is_superuser or is_RO %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="editSociete{{ swot.id }}">Filiale*</label>
+                                <select name="societe" class="form-control" id="editSociete{{ swot.id }}" required>
+                                    <option value="">Sélectionner une filiale</option>
+                                    {% for societe in societes %}
+                                    <option value="{{ societe.id }}" {% if swot.societe and swot.societe.id == societe.id%}selected{% endif %}>
+                                        {{ societe.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="edit-societe-error{{ swot.id }}" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <input type="hidden" name="societe" value="{{ request.user.societe.id }}">
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="editEntreprise{{ swot.id }}">Concurrent*</label>
+                                <select name="entreprise" class="form-control" id="editEntreprise{{ swot.id }}"
+                                    required>
+                                    <option value="">Sélectionner un concurrent</option>
+                                    {% for entreprise in entreprises %}
+                                    <option value="{{ entreprise.id }}" {% if swot.entreprise.id == entreprise.id%}selected{% endif %}>
+                                        {{ entreprise.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small id="edit-entreprise-error{{ swot.id }}" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="editDescription{{ swot.id }}">Description</label>
+                                <textarea name="description" class="form-control" id="editDescription{{ swot.id }}"
+                                    rows="3" placeholder="Saisir une description">{{ swot.description }}</textarea>
+                                <small id="edit-description-error{{ swot.id }}" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal Détails de la SWOT -->
+<div class="modal fade" id="swotDetailsModal" tabindex="-1" role="dialog" aria-labelledby="swotDetailsModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content shadow-sm">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title" id="swotDetailsModalLabel"><i class="fas fa-chart-pie"></i> Détails de l'analyse
+                    SWOT</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="card p-3">
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <tbody>
+                                <tr>
+                                    <th><i class="fas fa-tag"></i> Type</th>
+                                    <td id="detailType"></td>
+                                    <th><i class="fas fa-calendar-alt"></i> Date</th>
+                                    <td id="detailDate"></td>
+                                </tr>
+                                <tr>
+                                    <th><i class="fas fa-chart-line"></i> Axe</th>
+                                    <td id="detailAxe"></td>
+                                    <th><i class="fas fa-building"></i> Filiale</th>
+                                    <td id="detailSociete"></td>
+                                </tr>
+                                <tr>
+                                    <th><i class="fas fa-user-tie"></i> Concurrent</th>
+                                    <td id="detailEntreprise"></td>
+                                    <th><i class="fas fa-user"></i> Créé par</th>
+                                    <td id="detailCreatedBy"></td>
+                                </tr>
+                                <tr>
+                                    <th colspan="4"><i class="fas fa-align-left"></i> Description</th>
+                                </tr>
+                                <tr>
+                                    <td colspan="4" id="detailDescription" class="text-justify"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-end">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fas fa-times"></i>
+                    Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Confirmation de suppression -->
+<div class="modal fade" id="deleteSwotModal" tabindex="-1" role="dialog" aria-labelledby="deleteSwotModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteSwotModalLabel">Confirmation de suppression</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cette analyse SWOT ? Cette action est irréversible.</p>
+                <input type="hidden" id="swotToDeleteId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="control-sidebar-bg control-sidebar-right"></div>
+<!-- Sidebar des requêtes -->
+<div class="custom-sidebar" id="requestsSidebar">
+    <div class="sidebar-header">
+        <h5>Requêtes</h5>
+        <button type="button" class="close-btn" id="closeRequestsBtn" aria-label="Fermer">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">
+        <!-- Bouton Analyse SWOT par concurrent -->
+        <div class="form-group">
+            <div class="alert alert-info mb-3" id="swotInfoMessage">
+                <i class="fas fa-info-circle"></i> <span id="swotInfoText">Affichera tous les SWOTs avec leurs concurrents</span>
+            </div>
+            <button id="analyseSwotBtn" class="btn btn-primary btn-block">
+                <i class="fas fa-chart-pie"></i> Analyse SWOT <span id="swotBtnSuffix">globale</span>
+            </button>
+        </div>
+    </div>
+</div>
+<!-- jQuery (doit venir avant tout ce qui en dépend) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- DataTables CSS et JS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" type="text/css"
+    href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap4.min.css">
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
+<script type="text/javascript"
+    src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript"
+    src="https://cdn.datatables.net/responsive/2.2.9/js/responsive.bootstrap4.min.js"></script>
+
+<!-- FullCalendar CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@4.4.0/main.min.css">
+
+<!-- html2pdf -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<!-- Toastr & SweetAlert -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+$(document).ready(function () {
+        $('#swots').DataTable({
+            "paging": false,
+            "lengthChange": false,
+            "searching": false,
+            "ordering": false,
+            "info": false,
+            "autoWidth": false,
+            "responsive": true,
+            "columnDefs": [
+                { "className": "dt-center", "targets": "_all" }
+            ],
+            "language": {
+                "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucune analyse SWOT trouvée</div>"
+            }
+        });
+
+        // NOTE: Ouverture/Fermeture de la sidebar de filtre gérées plus bas via openFilterSidebar/closeFilterSidebar
+
+        // Graphique de distribution par axe
+        const axeCtx = document.getElementById('axeChart').getContext('2d');
+        const axeLabels = [];
+        const axeData = [];
+
+        // {% for item in axe_distribution %}
+        axeLabels.push('{{ item.axe|title }}');
+        axeData.push({{ item.count }});
+        // {% endfor %}
+
+    const axeChart = new Chart(axeCtx, {
+        type: 'bar',
+        data: {
+            labels: axeLabels,
+            datasets: [{
+                label: 'Nombre de SWOT',
+                data: axeData,
+                backgroundColor: '#6c757d',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    const radarCtx = document.getElementById('radarChart');
+    const radarChart = new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+            labels: {{ radar_labels|safe }},
+            datasets: {{ radar_datasets|safe }}
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: {
+                        display: true
+                    },
+                    suggestedMin: 0,
+                    ticks: {
+                        stepSize: 1,
+                        showLabelBackdrop: false
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw}`;
+                        },
+                        title: function(context) {
+                            return `Axe: ${context[0].label}`;
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.1
+                }
+            }
+        }
+    });
+
+    // Ajout d'un SWOT
+    $('#addSwotForm').submit(function (e) {
+        e.preventDefault();
+        $.ajax({
+            url: "{% url 'prospection:add_swot_web' %}",
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function (response) {
+                if (response.success) {
+                    toastr.success(response.message);
+                    $('#addSwotModal').modal('hide');
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function (xhr) {
+                const errors = xhr.responseJSON;
+                $.each(errors, function (key, value) {
+                    $('#' + key + '-error').text(value);
+                });
+            }
+        });
+    });
+
+    // Édition d'un SWOT
+    $('[id^=editSwotForm]').submit(function (e) {
+        e.preventDefault();
+        const formId = $(this).attr('id');
+        const swotId = formId.replace('editSwotForm', '');
+
+        $.ajax({
+            url: "/prospection/swot/edit/" + swotId + "/",
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function (response) {
+                if (response.success) {
+                    toastr.success(response.message);
+                    $('#editSwotModal' + swotId).modal('hide');
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function (xhr) {
+                const errors = xhr.responseJSON;
+                $.each(errors, function (key, value) {
+                    $('#edit-' + key + '-error' + swotId).text(value);
+                });
+            }
+        });
+    });
+
+    // Affichage des détails d'un SWOT
+    window.viewSwotDetails = function (swotId) {
+        $.ajax({
+            url: "/prospection/swot/details/" + swotId + "/",
+            type: 'GET',
+            success: function (response) {
+                $('#detailType').html('<span class="badge ' +
+                    (response.type === 'force' ? 'badge-success' :
+                        response.type === 'faiblesse' ? 'badge-warning' :
+                            response.type === 'opportunite' ? 'badge-info' : 'badge-danger') +
+                    '">' + response.type_display + '</span>');
+                $('#detailAxe').text(response.axe_display);
+                $('#detailDescription').text(response.description);
+                $('#detailSociete').text(response.societe);
+                $('#detailEntreprise').text(response.entreprise);
+                $('#detailCreatedBy').text(response.created_by);
+                $('#detailDate').text(response.date);
+
+                $('#swotDetailsModal').modal('show');
+            },
+            error: function () {
+                toastr.error('Erreur lors du chargement des détails SWOT');
+            }
+        });
+    };
+
+    // Confirmation de suppression
+    window.confirmDeleteSwot = function (swotId) {
+        $('#swotToDeleteId').val(swotId);
+        $('#deleteSwotModal').modal('show');
+    };
+
+    $('#confirmDeleteBtn').click(function () {
+        const swotId = $('#swotToDeleteId').val();
+        $.ajax({
+            url: "/prospection/swot/delete/" + swotId + "/",
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function (response) {
+                if (response.success) {
+                    toastr.success(response.message);
+                    $('#deleteSwotModal').modal('hide');
+                    setTimeout(function () {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function () {
+                toastr.error('Erreur lors de la suppression de SWOT');
+            }
+        });
+    });
+}); // FERMETURE CORRECTE du $(document).ready() principal
+
+    // Fonction pour charger les données SWOT - DÉPLACÉE EN DEHORS du $(document).ready()
+    function loadSwotData(concurrentId, concurrentName) {
+        console.log('[SWOT] loadSwotData: start', { concurrentId, concurrentName });
+        
+        // Ouvrir une nouvelle fenêtre avec un nom unique
+        const windowName = 'AnalyseSWOT_' + Date.now();
+        const swotWindow = window.open('', windowName, 'width=1000,height=800,menubar=no,status=no,location=no,toolbar=no');
+        
+        // Vérifier si la fenêtre a été ouverte
+        if (!swotWindow || swotWindow.closed || typeof swotWindow.closed === 'undefined') {
+            console.error('Impossible d\'ouvrir la fenêtre popup. Les popups sont peut-être bloquées.');
+            alert('Veuillez autoriser les popups pour ce site pour afficher l\'analyse SWOT.');
+            return;
+        }
+        
+        // Afficher un message de chargement
+        console.log('[SWOT] loadSwotData: writing popup document');
+        swotWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Analyse SWOT - ${concurrentName}</title>
+            <meta charset="UTF-8">
+            <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+            <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+
+            <style>
+                @media print {
+                    body { padding: 10mm; margin: 0; }
+                    .no-print { display: none !important; }
+                    .print-only { display: block !important; }
+                    .swot-matrix { page-break-inside: avoid; }
+                    .page-header { margin-bottom: 20px; }
+                }
+
+                body { 
+                    padding: 20px; 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    background: #f4f6f9;
+                }
+                
+                .page-header {
+                    text-align: center;
+                    padding: 10px 0 0 0;
+                    margin-bottom: 10px;
+                    background: transparent;
+                }
+                .page-header h2 {
+                    margin: 0;
+                    font-size: 1.6rem;
+                    font-weight: 700;
+                    color: #333;
+                }
+
+                .swot-container {
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+                }
+
+                .swot-matrix { 
+                    display: grid; 
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 0;
+                    margin: 10px 0 0 0;
+                    border: 3px solid #333;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    background: #fff;
+                }
+
+                .swot-extra-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                    gap: 12px;
+                    margin-top: 14px;
+                }
+                
+                .swot-quadrant { 
+                    border: 1px solid #e6e6e6;
+                    min-height: 240px;
+                    display: flex;
+                    flex-direction: column;
+                    background: #fff;
+                }
+                
+                .swot-quadrant-header { 
+                    padding: 14px 16px; 
+                    color: #333; 
+                    font-weight: 700;
+                    font-size: 1.05rem;
+                    display: flex; 
+                    align-items: center; 
+                    gap: 10px;
+                    border-bottom: 1px solid #eee;
+                    background: #f9fafb;
+                }
+                
+                .swot-quadrant-body { 
+                    padding: 20px; 
+                    background: white;
+                    flex: 1;
+                }
+                
+                .swot-item { 
+                    padding: 12px 15px;
+                    margin-bottom: 10px;
+                    background: #fbfbfc;
+                    border-left: 4px solid transparent;
+                    border-radius: 4px;
+                    font-size: 0.95rem;
+                    line-height: 1.5;
+                    transition: all 0.2s;
+                }
+                
+                .swot-item:hover {
+                    transform: translateX(5px);
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                }
+                
+                /* Light color tags for types */
+                .tag-forces { --tag: #bfe7ce; --accent: #28a745; }
+                .tag-faiblesses { --tag: #f6c7cc; --accent: #dc3545; }
+                .tag-opportunites { --tag: #bfe3ec; --accent: #17a2b8; }
+                .tag-menaces { --tag: #ffe6b3; --accent: #ffc107; }
+                .swot-quadrant.tag-forces .swot-quadrant-header { background: var(--tag); }
+                .swot-quadrant.tag-faiblesses .swot-quadrant-header { background: var(--tag); }
+                .swot-quadrant.tag-opportunites .swot-quadrant-header { background: var(--tag); }
+                .swot-quadrant.tag-menaces .swot-quadrant-header { background: var(--tag); }
+                .swot-quadrant .swot-item { border-left-color: var(--accent); }
+                .swot-quadrant .swot-quadrant-header i { color: var(--accent); }
+                
+                .loading { 
+                    text-align: center; 
+                    padding: 50px;
+                }
+                
+                .empty-message {
+                    color: #6c757d;
+                    font-style: italic;
+                    padding: 20px;
+                    text-align: center;
+                }
+                
+                .btn-action {
+                    padding: 10px 20px;
+                    font-weight: 600;
+                    border-radius: 6px;
+                    transition: all 0.3s;
+                }
+                
+                .btn-action:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container-fluid">                
+                <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+                    <div>
+                        <button id="exportPdfBtn" class="btn btn-primary btn-action mr-2">
+                            <i class="fas fa-file-pdf"></i> Exporter en PDF
+                        </button>
+                        <button id="printBtn" class="btn btn-secondary btn-action">
+                            <i class="fas fa-print"></i> Imprimer
+                        </button>
+                    </div>
+                    <button class="btn btn-outline-danger btn-action" onclick="window.close()">
+                        <i class="fas fa-times"></i> Fermer
+                    </button>
+                </div>
+                
+                <div class="page-header no-print">
+                    <h2>Analyse SWOT - ${concurrentName}</h2>
+                </div>
+                <div class="print-only page-header" style="display: none;">
+                    <h1>Analyse SWOT - ${concurrentName}</h1>
+                    <p>Date: ${new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                </div>
+                
+                <div class="loading">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="sr-only">Chargement...</span>
+                    </div>
+                    <p class="mt-3" style="font-size: 1.1rem;">Chargement de l'analyse SWOT...</p>
+                </div>
+                
+                <div id="swotContent" class="swot-container" style="display: none;">
+                    <div class="swot-matrix">
+                        <div class="swot-quadrant tag-forces">
+                            <div class="swot-quadrant-header"><i class="fas fa-check-circle"></i> Forces</div>
+                            <div class="swot-quadrant-body" id="forcesBox"></div>
+                        </div>
+                        <div class="swot-quadrant tag-faiblesses">
+                            <div class="swot-quadrant-header"><i class="fas fa-times-circle"></i> Faiblesses</div>
+                            <div class="swot-quadrant-body" id="faiblessesBox"></div>
+                        </div>
+                        <div class="swot-quadrant tag-opportunites">
+                            <div class="swot-quadrant-header"><i class="fas fa-arrow-up"></i> Opportunités</div>
+                            <div class="swot-quadrant-body" id="opportunitesBox"></div>
+                        </div>
+                        <div class="swot-quadrant tag-menaces">
+                            <div class="swot-quadrant-header"><i class="fas fa-exclamation-triangle"></i> Menaces</div>
+                            <div class="swot-quadrant-body" id="menacesBox"></div>
+                        </div>
+                    </div>
+                    <div class="swot-extra-grid" id="swotExtra"></div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+        
+        // Fermer le document pour permettre le chargement
+        swotWindow.document.close();
+        console.log('[SWOT] loadSwotData: popup document closed');
+    
+        // Charger les bibliothèques JavaScript de manière dynamique
+        const loadScripts = () => {
+            return new Promise((resolve, reject) => {
+                const scripts = [
+                    'https://code.jquery.com/jquery-3.6.0.min.js',
+                    'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+                    'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+                ];
+                
+                let loadedCount = 0;
+                
+                scripts.forEach((src, index) => {
+                    const script = swotWindow.document.createElement('script');
+                    script.src = src;
+                    if (index === 2) {
+                        script.integrity = 'sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==';
+                        script.crossOrigin = 'anonymous';
+                    }
+                    
+                    script.onload = () => {
+                        loadedCount++;
+                        if (loadedCount === scripts.length) {
+                            resolve();
+                        }
+                    };
+                    
+                    script.onerror = () => {
+                        console.error('Erreur de chargement du script:', src);
+                        reject(new Error(`Impossible de charger: ${src}`));
+                    };
+                    
+                    swotWindow.document.head.appendChild(script);
+                });
+            });
+        };
+
+        // Ajouter les fonctions utilitaires à la fenêtre avant de charger le contenu
+        swotWindow.handleError = function(error) {
+            console.error('Erreur lors du chargement des données SWOT:', error);
+            const container = this.document.querySelector('.container') || this.document.body;
+            
+            const errorDiv = this.document.createElement('div');
+            errorDiv.className = 'alert alert-danger m-3';
+            errorDiv.innerHTML = `
+                <h4>Erreur lors du chargement des données</h4>
+                <p>${error.message || 'Une erreur inconnue est survenue'}</p>
+                <button onclick="window.location.reload()" class="btn btn-warning">Réessayer</button>
+            `;
+            
+            // Vider le contenu et ajouter le message d'erreur
+            container.innerHTML = '';
+            container.appendChild(errorDiv);
+            
+            console.error('Erreur détaillée:', error);
+        };
+        
+        // Fonction pour initialiser les boutons
+        swotWindow.initButtons = function() {
+            const printBtn = this.document.getElementById('printBtn');
+            const exportPdfBtn = this.document.getElementById('exportPdfBtn');
+            
+            if (printBtn) {
+                printBtn.onclick = () => {
+                    this.print();
+                };
+            }
+            
+            if (exportPdfBtn) {
+                exportPdfBtn.onclick = () => {
+                    this.exportToPdf();
+                };
+            }
+        };
+        
+        // Fonction d'export PDF pour le popup
+        swotWindow.exportToPdf = function() {
+            
+            const Swal = this.Swal;
+            if (!Swal) {
+                alert('Erreur: SweetAlert2 non chargé');
+                return;
+            }
+            
+            Swal.fire({
+                title: 'Génération du PDF',
+                html: 'Veuillez patienter...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            try {
+                if (typeof this.html2pdf === 'undefined') {
+                    throw new Error('La bibliothèque html2pdf n\'est pas chargée');
+                }
+                
+                const element = this.document.querySelector('.swot-container');
+                if (!element) {
+                    throw new Error('Contenu SWOT introuvable');
+                }
+                
+                const titleElement = this.document.querySelector('.page-header h1, .page-header h2');
+                const concurrentName = titleElement ? titleElement.textContent.replace('Analyse SWOT - ', '').trim() : 'export';
+                
+                const opt = {
+                    margin: 10,
+                    filename: `analyse_swot_${concurrentName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { 
+                        scale: 2,
+                        useCORS: true,
+                        logging: false
+                    },
+                    jsPDF: { 
+                        unit: 'mm', 
+                        format: 'a4', 
+                        orientation: 'portrait' 
+                    }
+                };
+                
+                // Construire un wrapper avec un titre centré + date puis le contenu SWOT
+                const wrapper = this.document.createElement('div');
+                const header = this.document.createElement('div');
+                header.style.textAlign = 'center';
+                header.style.marginBottom = '12px';
+                header.innerHTML = `
+                    <h1 style="margin:0; font-size: 20px;">Analyse SWOT - ${concurrentName}</h1>
+                    <div style="font-size: 12px; color: #555;">${new Date().toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                `;
+                const elementClone = element.cloneNode(true);
+                wrapper.appendChild(header);
+                wrapper.appendChild(elementClone);
+
+                this.html2pdf()
+                    .set(opt)
+                    .from(wrapper)
+                    .save()
+                    .then(() => {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Succès',
+                            text: 'Le PDF a été généré avec succès!',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    })
+                    .catch(err => {
+                        console.error('Erreur lors de la génération du PDF:', err);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erreur',
+                            text: 'Erreur lors de la génération du PDF: ' + (err.message || 'Erreur inconnue')
+                        });
+                    });
+            } catch (error) {
+                console.error('Erreur dans exportToPdf:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: error.message || 'Une erreur est survenue'
+                });
+            }
+        };
+        
+        // Fonction pour afficher les données SWOT
+        swotWindow.displaySwotData = function(data) {
+            console.log('Affichage des données SWOT reçues:', JSON.stringify(data, null, 2));
+            try {
+                if (!data) throw new Error('Aucune donnée reçue');
+
+                // Sélecteurs des 4 boîtes fixes (2x2)
+                const boxes = {
+                    forces: this.document.getElementById('forcesBox'),
+                    faiblesses: this.document.getElementById('faiblessesBox'),
+                    opportunites: this.document.getElementById('opportunitesBox'),
+                    menaces: this.document.getElementById('menacesBox')
+                };
+                // Supporter aussi le singulier
+                const boxMap = {
+                    force: 'forcesBox',
+                    forces: 'forcesBox',
+                    faiblesse: 'faiblessesBox',
+                    faiblesses: 'faiblessesBox',
+                    opportunite: 'opportunitesBox',
+                    opportunites: 'opportunitesBox',
+                    menace: 'menacesBox',
+                    menaces: 'menacesBox'
+                };
+
+                const extraGrid = this.document.getElementById('swotExtra');
+                if (extraGrid) extraGrid.innerHTML = '';
+
+                const createSwotItem = (item) => {
+                    if (!item) return '';
+                    // Si item est un objet avec description et concurrent
+                    if (typeof item === 'object' && item.description) {
+                        const concurrentInfo = item.concurrent ? `<span class="badge badge-secondary ml-2" style="font-size: 0.75rem;">${item.concurrent}</span>` : '';
+                        return `<div class="swot-item"><i class="fas fa-caret-right" style="margin-right: 8px; opacity: 0.6;"></i><span>${item.description}</span>${concurrentInfo}</div>`;
+                    }
+                    // Sinon, c'est juste un texte
+                    const text = String(item).trim();
+                    if (!text) return '';
+                    return `<div class="swot-item"><i class="fas fa-caret-right" style="margin-right: 8px; opacity: 0.6;"></i><span>${text}</span></div>`;
+                };
+
+                // Vider les 4 boîtes standards
+                Object.values(boxes).forEach(b => { if (b) b.innerHTML = ''; });
+
+                // Répartir les éléments
+                Object.entries(data).forEach(([rawKey, items]) => {
+                    const key = String(rawKey).toLowerCase();
+                    const targetId = boxMap[key];
+                    const listHtml = Array.isArray(items) && items.length ? items.map(createSwotItem).join('') : '<div class="empty-message"><i class="fas fa-inbox"></i><br>Aucune donnée disponible</div>';
+                    if (targetId && this.document.getElementById(targetId)) {
+                        this.document.getElementById(targetId).innerHTML = listHtml;
+                    } else if (extraGrid) {
+                        // Types supplémentaires: créer une carte
+                        const label = key.charAt(0).toUpperCase() + key.slice(1);
+                        const card = this.document.createElement('div');
+                        card.className = `swot-quadrant tag-${key}`;
+                        card.innerHTML = `
+                            <div class="swot-quadrant-header"><i class="fas fa-list"></i> ${label}</div>
+                            <div class="swot-quadrant-body">${listHtml}</div>
+                        `;
+                        extraGrid.appendChild(card);
+                    }
+                });
+
+                // Afficher le contenu et cacher le chargement
+                const loadingElement = this.document.querySelector('.loading');
+                const contentElement = this.document.getElementById('swotContent');
+                if (loadingElement) loadingElement.style.display = 'none';
+                if (contentElement) contentElement.style.display = 'block';
+
+                console.log('Données SWOT affichées avec succès');
+            } catch (error) {
+                console.error('Erreur lors de l\'affichage des données:', error);
+                this.handleError(error);
+            }
+        };
+        
+        // Lancer d'abord le chargement des données (sans attendre les scripts)
+        console.log('[SWOT] loadSwotData: launching data load');
+        (function loadData() {
+            if (swotWindow.closed) {
+                console.error('La fenêtre a été fermée avant le chargement des données');
+                return;
+            }
+            const url = concurrentId 
+                ? '{% url "prospection:loadSwotData" %}?concurrent_id=' + encodeURIComponent(concurrentId)
+                : '{% url "prospection:loadSwotData" %}';
+            console.log('[SWOT] loadData: URL =', url);
+            const useJq = !!(swotWindow.jQuery && typeof swotWindow.jQuery.ajax === 'function');
+            const onSuccess = (payload) => {
+                try {
+                    const isWrapped = payload && typeof payload === 'object' && 'status' in payload;
+                    const ok = isWrapped ? payload.status === 'success' : true;
+                    const dataObj = isWrapped ? payload.data : payload;
+                    if (!ok) throw new Error((payload && payload.message) || 'Réponse serveur invalide');
+                    if (!dataObj) throw new Error('Aucune donnée à afficher');
+                    swotWindow.displaySwotData(dataObj);
+                } catch (e) {
+                    console.error('Erreur lors du traitement de la réponse:', e, payload);
+                    swotWindow.handleError(e);
+                }
+            };
+            const onError = (err) => {
+                const errorMsg = `Erreur lors de la requête: ${err && err.message ? err.message : err}`;
+                console.error(errorMsg);
+                swotWindow.handleError(new Error(errorMsg));
+            };
+            if (useJq) {
+                console.log('[SWOT] loadData: using jQuery.ajax');
+                swotWindow.jQuery.ajax({ url, type: 'GET', dataType: 'json', success: onSuccess, error: function(xhr, s, e){ onError(new Error(`${s} - ${e}`)); } });
+            } else {
+                console.log('[SWOT] loadData: using fetch');
+                fetch(url, { credentials: 'same-origin' })
+                    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+                    .then(onSuccess)
+                    .catch(onError);
+            }
+        })();
+
+        // Charger les scripts en parallèle puis initialiser les boutons
+        loadScripts().then(() => {            
+            swotWindow.initButtons();
+            console.log('[SWOT] loadSwotData: buttons initialized');
+        }).catch(err => {
+            console.error('Erreur lors du chargement des scripts:', err);
+            swotWindow.handleError(new Error('Impossible de charger les bibliothèques nécessaires'));
+        });
+
+        // Timeout de secours: éviter le blocage si rien ne s'affiche
+        setTimeout(() => {
+            try {
+                const loading = swotWindow.document.querySelector('.loading');
+                const content = swotWindow.document.getElementById('swotContent');
+                if (loading && content && content.style.display !== 'block') {
+                    swotWindow.handleError(new Error('Le chargement prend plus de temps que prévu. Veuillez réessayer.'));
+                }
+            } catch (_) {}
+        }, 12000);
+    };
+
+    function loadHtml2Pdf() {
+        return new Promise((resolve, reject) => {
+            if (window.html2pdf) {
+                return resolve();
+            }
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.integrity = 'sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==';
+            script.crossOrigin = 'anonymous';
+            script.referrerPolicy = 'no-referrer';
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('Échec du chargement de html2pdf'));
+            document.head.appendChild(script);
+        });
+    }
+
+    // Fonction globale pour exporter en PDF
+    window.exportToPdf = async function() {
+        
+        // Afficher un indicateur de chargement
+        const loadingAlert = Swal.fire({
+            title: 'Génération du PDF en cours',
+            html: 'Veuillez patienter...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        try {
+            // S'assurer que html2pdf est chargé
+            await loadHtml2Pdf();
+            
+            // Vérifier si html2pdf est disponible
+            if (typeof html2pdf === 'undefined' || !window.html2pdf) {
+                console.error('Erreur: html2pdf n\'est pas défini');
+                throw new Error('La bibliothèque html2pdf n\'est pas disponible');
+            }
+            // Sélectionner uniquement le contenu à exporter
+            const element = document.querySelector('.container');
+            if (!element) {
+                console.error('Erreur: Élément .container non trouvé');
+                throw new Error('Impossible de trouver le contenu à exporter');
+            }
+            
+            // Récupérer le nom du concurrent depuis la page
+            const titleElement = document.querySelector('h2');
+            if (!titleElement) {
+                console.error('Titre non trouvé dans la page');
+                throw new Error('Impossible de trouver le titre de l\'analyse SWOT');
+            }
+            const concurrentName = titleElement.textContent.replace('Analyse SWOT - ', '').trim() || 'export';
+            
+            // Options pour le PDF
+            const opt = {
+                margin: 10,
+                filename: `analyse_swot_${concurrentName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`,
+                image: { 
+                    type: 'jpeg', 
+                    quality: 0.98 
+                },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    scrollY: 0,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait' 
+                }
+            };
+            
+            // Créer un clone de l'élément pour éviter les problèmes de style
+            const elementToPrint = element.cloneNode(true);
+            
+            // Vérifier la taille du contenu
+            console.log('8. Taille du contenu:', {
+                width: elementToPrint.offsetWidth,
+                height: elementToPrint.offsetHeight,
+                scrollWidth: elementToPrint.scrollWidth,
+                scrollHeight: elementToPrint.scrollHeight
+            });
+            
+            // Générer le PDF
+            console.log('9. Lancement de la génération du PDF...');
+            console.log('Options de génération:', JSON.stringify({
+                margin: 10,
+                filename: `analyse_swot_${concurrentName ? concurrentName.replace(/\s+/g, '_') : 'export'}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2,
+                    useCORS: true,
+                    logging: true,
+                    scrollY: 0,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait' 
+                }
+            }, null, 2));
+            
+            html2pdf()
+                .set(opt)
+                .from(elementToPrint)
+                .save()
+                .then(() => {
+                    console.log('PDF généré avec succès');
+                })
+                .then(() => {
+                    console.log('PDF généré avec succès');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: 'Le PDF a été généré avec succès!',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                })
+                .catch(err => {
+                    console.error('Erreur lors de la génération du PDF:', err);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erreur',
+                        text: 'Une erreur est survenue lors de la génération du PDF: ' + (err.message || 'Erreur inconnue')
+                    });
+                });
+                
+        } catch (error) {
+            console.error('Erreur dans exportToPdf:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erreur',
+                text: 'Une erreur est survenue lors de l\'export PDF: ' + (error.message || 'Erreur inconnue')
+            });
+        } finally {
+            // Fermer l'alerte de chargement
+            if (Swal && Swal.isVisible()) {
+                Swal.close();
+            }
+        }
+    }
+
+
+    function displaySwotData(data) {
+        function createSwotItem(text) {
+            return '<div class="swot-item">' + text + '</div>';
+        }
+
+        // Afficher chaque section
+        document.getElementById('forcesList').innerHTML = data.forces && data.forces.length > 0
+            ? data.forces.map(createSwotItem).join('')
+            : '<div class="text-muted">Aucune donnée disponible</div>';
+
+        document.getElementById('faiblessesList').innerHTML = data.faiblesses && data.faiblesses.length > 0
+            ? data.faiblesses.map(createSwotItem).join('')
+            : '<div class="text-muted">Aucune donnée disponible</div>';
+
+        document.getElementById('opportunitesList').innerHTML = data.opportunites && data.opportunites.length > 0
+            ? data.opportunites.map(createSwotItem).join('')
+            : '<div class="text-muted">Aucune donnée disponible</div>';
+
+        document.getElementById('menacesList').innerHTML = data.menaces && data.menaces.length > 0
+            ? data.menaces.map(createSwotItem).join('')
+            : '<div class="text-muted">Aucune donnée disponible</div>';
+
+        // Cacher le chargement et afficher le contenu
+        document.querySelector('.loading').style.display = 'none';
+        document.getElementById('swotContent').style.display = 'block';
+    }
+
+    // Fonction pour gérer les erreurs
+    function handleError(error) {
+        document.querySelector('.loading').innerHTML =
+            '<div class="alert alert-danger">' +
+            '<i class="fas fa-exclamation-triangle"></i> Erreur lors du chargement des données: ' + error +
+            '</div>' +
+            '<button onclick="window.location.reload()" class="btn btn-primary mt-2">' +
+            '<i class="fas fa-sync-alt"></i> Réessayer' +
+            '</button>';
+    }
+    // Gestion de la popup SWOT non-modale
+    document.addEventListener('DOMContentLoaded', function () {
+        // Gestion du bouton d'analyse SWOT par concurrent
+        const analyseSwotBtn = document.getElementById('analyseSwotBtn');
+
+        // Fonction pour vérifier et mettre à jour l'état du bouton
+        function updateAnalyseButtonState() {
+            const concurrentSelect = document.querySelector('select[name="entreprise"]');
+            const swotInfoText = document.getElementById('swotInfoText');
+            const swotBtnSuffix = document.getElementById('swotBtnSuffix');
+            
+            if (concurrentSelect && analyseSwotBtn) {
+                if (concurrentSelect.value) {
+                    // Un concurrent est sélectionné
+                    const selectedConcurrent = concurrentSelect.options[concurrentSelect.selectedIndex];
+                    if (swotInfoText) {
+                        swotInfoText.textContent = 'Analyse pour: ' + selectedConcurrent.text;
+                    }
+                    if (swotBtnSuffix) {
+                        swotBtnSuffix.textContent = 'par concurrent';
+                    }
+                } else {
+                    // Aucun concurrent sélectionné
+                    if (swotInfoText) {
+                        swotInfoText.textContent = 'Affichera tous les SWOTs avec leurs concurrents';
+                    }
+                    if (swotBtnSuffix) {
+                        swotBtnSuffix.textContent = 'globale';
+                    }
+                }
+            }
+        }
+
+        // Écouter les changements sur le sélecteur de concurrent dans le filtre
+        const filterConcurrentSelect = document.querySelector('select[name="entreprise"]');
+        if (filterConcurrentSelect) {
+            filterConcurrentSelect.addEventListener('change', updateAnalyseButtonState);
+
+            // Vérifier l'état initial
+            updateAnalyseButtonState();
+
+            // Gestion de la popup d'analyse SWOT
+            if (analyseSwotBtn) {
+                // Ouvrir la popup
+                analyseSwotBtn.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    console.log('Bouton d\'analyse SWOT cliqué');
+                    const selectedConcurrentId = filterConcurrentSelect.value;
+                    const selectedConcurrent = filterConcurrentSelect.options[filterConcurrentSelect.selectedIndex];
+                    
+                    console.log('Concurrent sélectionné - ID:', selectedConcurrentId, 'Nom:', selectedConcurrent?.text);
+
+                    try {
+                        if (selectedConcurrentId) {
+                            console.log('Appel de loadSwotData avec ID:', selectedConcurrentId);
+                            // Charger les données SWOT dans une nouvelle fenêtre pour un concurrent spécifique
+                            loadSwotData(selectedConcurrentId, selectedConcurrent?.text || 'Concurrent');
+                        } else {
+                            console.log('Aucun concurrent sélectionné - affichage de tous les SWOTs');
+                            // Charger tous les SWOTs avec leurs concurrents
+                            loadSwotData(null, 'Tous les concurrents');
+                        }
+                    } catch (error) {
+                        console.error('Erreur lors de l\'appel à loadSwotData:', error);
+                        alert('Une erreur est survenue lors du chargement de l\'analyse SWOT. Veuillez consulter la console pour plus de détails.');
+                    }
+                });
+            }
+        }
+    });
+
+    // Gestion de l'export PDF
+    document.getElementById('exportSwotPdf')?.addEventListener('click', function () {
+        // Logique pour exporter en PDF
+        alert('Fonctionnalité d\'export PDF à implémenter');
+    });
+
+    // Gestion de la sidebar de filtrage
+    const filterSidebar = document.getElementById('filterSidebar');
+    const openFilterBtn = document.getElementById('openFilterBtn');
+    const closeFilterBtn = document.getElementById('closeFilterBtn');
+
+    // Gestion de la sidebar des requêtes
+    const requestsSidebar = document.getElementById('requestsSidebar');
+    const openRequestsBtn = document.getElementById('openRequestsBtn');
+    const closeRequestsBtn = document.getElementById('closeRequestsBtn');
+
+    // Créer le backdrop s'il n'existe pas déjà
+    let backdrop = document.querySelector('.sidebar-backdrop');
+    if (!backdrop) {
+        backdrop = document.createElement('div');
+        backdrop.className = 'sidebar-backdrop';
+        document.body.appendChild(backdrop);
+    }
+
+    // Fonctions pour la sidebar de filtrage
+    function openFilterSidebar() {
+        closeRequestsSidebar();
+        filterSidebar.style.right = '0';
+        backdrop.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeFilterSidebar() {
+        if (filterSidebar) {
+            filterSidebar.style.right = '-400px';
+        }
+        backdrop.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Fonctions pour la sidebar des requêtes
+    function openRequestsSidebar() {
+        closeFilterSidebar();
+        if (requestsSidebar) {
+            requestsSidebar.style.right = '0';
+            backdrop.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeRequestsSidebar() {
+        if (requestsSidebar) {
+            requestsSidebar.style.right = '-400px';
+        }
+        backdrop.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+
+    // Vérifier que les éléments existent avant d'ajouter des écouteurs
+    if (openFilterBtn && closeFilterBtn) {
+        openFilterBtn.addEventListener('click', openFilterSidebar);
+        closeFilterBtn.addEventListener('click', closeFilterSidebar);
+    }
+
+    if (openRequestsBtn && closeRequestsBtn && requestsSidebar) {
+        openRequestsBtn.addEventListener('click', openRequestsSidebar);
+        closeRequestsBtn.addEventListener('click', closeRequestsSidebar);
+    }
+
+    // Fermer les sidebars en cliquant sur le backdrop
+    if (backdrop) {
+        backdrop.addEventListener('click', function () {
+            closeFilterSidebar();
+            closeRequestsSidebar();
+        });
+    }
+
+    // Fermeture via la touche Échap
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeFilterSidebar();
+            closeRequestsSidebar();
+        }
+    });
+</script>
+
+<style>
+    .custom-sidebar {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: 400px;
+        height: 100%;
+        background: white;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+        z-index: 9999;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 10px;
+        margin-bottom: 12px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .sidebar-header h5 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #111827;
+    }
+
+    .close-btn {
+        background: transparent;
+        border: 0;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #6c757d;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .close-btn:hover {
+        background-color: rgba(0, 0, 0, 0.06);
+        color: #111827;
+    }
+
+    .close-btn:focus {
+        outline: none;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 9998;
+        display: none;
+        transition: opacity 0.2s ease;
+    }
+
+</style>
+
+{% endblock %}

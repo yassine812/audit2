@@ -1,0 +1,193 @@
+{% extends 'gestion_documentaire/base_gestion_documentaire.html' %}
+{% block title %}Gestion documentaire{% endblock %}
+
+{% block extra_css %}{{ block.super }}
+<style>
+  .library-item { position:relative; min-height:96px; }
+  .library-icon { width:42px; text-align:center; font-size:2rem; flex:0 0 42px; }
+  .item-menu { position:absolute; right:.55rem; top:.55rem; }
+  .access-panel { display:none; }
+  #id_acces_restreint:checked ~ .access-panel { display:block; }
+  .file-drop { border:2px dashed #b9c7db; border-radius:12px; padding:1.5rem; text-align:center; background:#f8fafc; }
+  .view-switch { display:inline-flex; padding:3px; border:1px solid #d7e0ed; border-radius:9px; background:#fff; }
+  .view-switch button { border:0; border-radius:6px; background:transparent; color:#6b778c; padding:.38rem .65rem; }
+  .view-switch button.active { background:#eaf2ff; color:#1d4ed8; }
+  #libraryItems.library-list-view > [class*="col-"] { flex:0 0 100%; max-width:100%; margin-bottom:.5rem !important; }
+  #libraryItems.library-list-view .library-item { min-height:64px; padding:.65rem 1rem; }
+  #libraryItems.library-list-view .library-icon { font-size:1.45rem; }
+  #libraryItems.library-list-view .library-item small { display:inline-block; margin-right:.6rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gd-shell">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+    <div>
+      <h3 class="gd-title">{% if dossier_actuel %}{{ dossier_actuel.nom }}{% else %}Dossiers globaux{% endif %}</h3>
+      <div class="gd-breadcrumb mt-2">
+        <a href="{% url 'gestion_documentaire:bibliotheque_racine' %}"><i class="fas fa-home mr-1"></i>Dossiers globaux</a>
+        {% for dossier in fil_ariane %}<span>/</span><a href="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}">{{ dossier.nom }}</a>{% endfor %}
+        {% if dossier_actuel %}<span>/</span><strong>{{ dossier_actuel.nom }}</strong>{% endif %}
+      </div>
+    </div>
+    <div class="gd-toolbar">
+      <form method="get" class="d-flex"><input class="form-control" name="q" value="{{ recherche }}" placeholder="Rechercher"><button class="btn btn-outline-primary ml-1"><i class="fas fa-search"></i></button></form>
+      <div class="view-switch" role="group" aria-label="Mode d'affichage">
+        <button type="button" data-library-view="cards" title="Affichage en cartes" aria-label="Affichage en cartes"><i class="fas fa-th-large"></i></button>
+        <button type="button" data-library-view="list" title="Affichage en liste" aria-label="Affichage en liste"><i class="fas fa-list"></i></button>
+      </div>
+      {% if peut_ajouter %}
+      <button class="btn btn-outline-primary" data-toggle="modal" data-target="#folderModal"><i class="fas fa-folder-plus mr-1"></i>Dossier</button>
+      <button class="btn btn-primary" data-toggle="modal" data-target="#uploadModal"><i class="fas fa-upload mr-1"></i>Uploader</button>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if dossier_actuel %}
+  <div class="mb-3"><a class="btn btn-sm btn-light" href="{% if dossier_actuel.parent %}{% url 'gestion_documentaire:dossier_detail' dossier_actuel.parent.pk %}{% else %}{% url 'gestion_documentaire:bibliotheque_racine' %}{% endif %}"><i class="fas fa-arrow-left mr-1"></i>Niveau supérieur</a></div>
+  {% endif %}
+
+  <div class="row" id="libraryItems">
+    {% for dossier in sous_dossiers %}
+    <div class="col-12 col-md-6 col-xl-4 mb-3">
+      <div class="gd-folder library-item">
+        <a href="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}" class="d-flex align-items-center text-dark flex-grow-1 text-decoration-none">
+          <span class="library-icon"><i class="fas fa-folder" style="color:{{ dossier.couleur }}"></i></span>
+          <span class="text-truncate ml-2"><strong class="d-block text-truncate">{{ dossier.nom }}</strong><small class="text-muted">{{ dossier.fichiers.count }} fichier(s)</small>{% if dossier.acces_restreint %}<small class="d-block text-warning"><i class="fas fa-lock"></i> Accès limité</small>{% endif %}</span>
+        </a>
+        <div class="dropdown item-menu">
+          <button class="btn btn-sm btn-light" data-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+          <div class="dropdown-menu dropdown-menu-right">
+            {% if dossier.peut_editer %}
+            <a class="dropdown-item" href="{% url 'gestion_documentaire:modifier_dossier' dossier.pk %}"><i class="fas fa-pen mr-2"></i>Renommer, couleur et accès</a>
+            {% endif %}
+            <button class="dropdown-item copy-link" data-url="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}"><i class="fas fa-link mr-2"></i>Copier le lien</button>
+            {% if dossier.peut_supprimer %}
+            <form method="post" action="{% url 'gestion_documentaire:supprimer_dossier' dossier.pk %}" onsubmit="return confirm('Supprimer ce dossier et tout son contenu ?')">{% csrf_token %}<button class="dropdown-item text-danger"><i class="fas fa-trash mr-2"></i>Supprimer</button></form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% empty %}{% endfor %}
+
+    {% for item in fichiers %}
+    <div class="col-12 col-md-6 col-xl-4 mb-3">
+      <div class="gd-folder library-item">
+        <span class="library-icon"><i class="fas fa-file-{% if item.extension == '.pdf' %}pdf text-danger{% elif item.extension == '.xls' or item.extension == '.xlsx' %}excel text-success{% else %}word text-primary{% endif %}"></i></span>
+        <span class="text-truncate"><strong class="d-block text-truncate">{{ item.nom }}</strong><small class="text-muted">{{ item.taille|filesizeformat }} · {{ item.date_modification|date:'d/m/Y H:i' }}</small></span>
+        <div class="dropdown item-menu">
+          <button class="btn btn-sm btn-light" data-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+          <div class="dropdown-menu dropdown-menu-right">
+            <button class="dropdown-item preview-file" data-toggle="modal" data-target="#filePreviewModal" data-url="{% url 'gestion_documentaire:visualiser_fichier_bibliotheque' item.pk %}" data-name="{{ item.nom }}"><i class="fas fa-eye mr-2"></i>Visualiser</button>
+            {% if peut_telecharger %}
+            <a class="dropdown-item" href="{% url 'gestion_documentaire:telecharger_fichier_bibliotheque' item.pk %}"><i class="fas fa-download mr-2"></i>Télécharger</a>
+            <button class="dropdown-item copy-link" data-url="{% url 'gestion_documentaire:telecharger_fichier_bibliotheque' item.pk %}"><i class="fas fa-link mr-2"></i>Copier le lien</button>
+            {% endif %}
+            {% if peut_editer %}
+            <button class="dropdown-item" data-toggle="modal" data-target="#renameFile{{ item.pk }}"><i class="fas fa-pen mr-2"></i>Renommer</button>
+            {% endif %}
+            {% if peut_supprimer %}
+            <form method="post" action="{% url 'gestion_documentaire:supprimer_fichier' item.pk %}" onsubmit="return confirm('Supprimer ce fichier ?')">{% csrf_token %}<button class="dropdown-item text-danger"><i class="fas fa-trash mr-2"></i>Supprimer</button></form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if not sous_dossiers and not fichiers %}<div class="gd-card gd-empty"><i class="far fa-folder-open"></i>Ce dossier est vide.<br>{% if peut_ajouter %}<small>Créez un dossier ou uploadez des fichiers.</small>{% endif %}</div>{% endif %}
+</div>
+
+{% if peut_ajouter %}
+<div class="modal fade" id="folderModal"><div class="modal-dialog modal-xl modal-dialog-scrollable"><form method="post" action="{% if dossier_actuel %}{% url 'gestion_documentaire:sous_dossier_create' dossier_actuel.pk %}{% else %}{% url 'gestion_documentaire:dossier_create' %}{% endif %}" class="modal-content">{% csrf_token %}
+  <div class="modal-header align-items-center"><div class="d-flex align-items-center"><span class="section-icon mr-3"><i class="fas fa-folder-plus"></i></span><div><h5 class="mb-0">Nouveau dossier</h5><small class="text-muted">Configurez son apparence et ses accès.</small></div></div><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+  <div class="modal-body">{% include 'gestion_documentaire/includes/dossier_fields.html' with form=dossier_form %}</div>
+  <div class="modal-footer"><button type="button" class="btn btn-light" data-dismiss="modal">Annuler</button><button class="btn btn-primary px-4"><i class="fas fa-folder-plus mr-1"></i>Créer le dossier</button></div>
+</form></div></div>
+
+<div class="modal fade" id="uploadModal"><div class="modal-dialog"><form method="post" enctype="multipart/form-data" action="{% if dossier_actuel %}{% url 'gestion_documentaire:uploader_fichiers' dossier_actuel.pk %}{% else %}{% url 'gestion_documentaire:uploader_fichiers_racine' %}{% endif %}" class="modal-content">{% csrf_token %}
+  <div class="modal-header"><h5>Uploader des fichiers</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+  <div class="modal-body"><div class="file-drop"><i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i><input type="file" name="fichier" multiple required accept=".doc,.docx,.docs,.xls,.xlsx,.pdf" class="form-control-file"><small class="d-block mt-2 text-muted">DOC, DOCX, DOCS, XLS, XLSX et PDF uniquement</small></div></div>
+  <div class="modal-footer"><button class="btn btn-primary">Uploader</button></div>
+</form></div></div>
+{% endif %}
+
+{% if peut_editer %}
+{% for item in fichiers %}
+<div class="modal fade" id="renameFile{{ item.pk }}"><div class="modal-dialog"><form method="post" action="{% url 'gestion_documentaire:renommer_fichier' item.pk %}" class="modal-content">{% csrf_token %}
+  <div class="modal-header"><h5>Renommer le fichier</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div>
+  <div class="modal-body"><input class="form-control" name="nom" value="{{ item.nom }}" required></div>
+  <div class="modal-footer"><button class="btn btn-primary">Renommer</button></div>
+</form></div></div>
+{% endfor %}
+{% endif %}
+
+<div class="modal fade" id="filePreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content preview-modal-content">
+      <div class="modal-header align-items-center">
+        <div><h5 class="modal-title mb-0"><i class="far fa-file-alt text-primary mr-2"></i><span id="filePreviewTitle">Aperçu du fichier</span></h5><small class="text-muted">Visualisation sécurisée</small></div>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="filePreviewLoader" class="preview-loader"><i class="fas fa-circle-notch fa-spin mr-2"></i>Chargement de l’aperçu…</div>
+        <iframe id="filePreviewFrame" title="Aperçu du fichier" loading="lazy" referrerpolicy="same-origin"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}{{ block.super }}
+<script>
+document.querySelectorAll('.copy-link').forEach(function(button) {
+  button.addEventListener('click', function() {
+    navigator.clipboard.writeText(new URL(this.dataset.url, window.location.origin).href);
+    this.innerHTML = '<i class="fas fa-check mr-2"></i>Lien copié';
+  });
+});
+document.querySelectorAll('.preview-file').forEach(function(button) {
+  button.addEventListener('click', function() {
+    const frame = document.getElementById('filePreviewFrame');
+    const loader = document.getElementById('filePreviewLoader');
+    document.getElementById('filePreviewTitle').textContent = this.dataset.name;
+    loader.style.display = 'grid';
+    frame.style.visibility = 'hidden';
+    frame.src = this.dataset.url;
+    frame.onload = function() {
+      loader.style.display = 'none';
+      frame.style.visibility = 'visible';
+    };
+  });
+});
+$('#filePreviewModal').on('hidden.bs.modal', function () {
+  document.getElementById('filePreviewFrame').src = 'about:blank';
+});
+(function () {
+  const storageKey = 'gestionDocumentaire.libraryView';
+  const container = document.getElementById('libraryItems');
+  const buttons = document.querySelectorAll('[data-library-view]');
+  if (!container || !buttons.length) return;
+
+  function applyView(view) {
+    const selected = view === 'list' ? 'list' : 'cards';
+    container.classList.toggle('library-list-view', selected === 'list');
+    buttons.forEach(function (button) {
+      const active = button.dataset.libraryView === selected;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+    try { localStorage.setItem(storageKey, selected); } catch (error) {}
+  }
+
+  let savedView = 'cards';
+  try { savedView = localStorage.getItem(storageKey) || 'cards'; } catch (error) {}
+  applyView(savedView);
+  buttons.forEach(function (button) {
+    button.addEventListener('click', function () { applyView(this.dataset.libraryView); });
+  });
+})();
+</script>
+{% endblock %}

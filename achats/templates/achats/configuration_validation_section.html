@@ -1,0 +1,107 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Configuration validation achats{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="mb-1">Configuration de la chaine de validation</h3>
+      <p class="text-muted mb-0">Parametrez les validateurs N1 et N2 par section analytique.</p>
+    </div>
+    <a href="{% url 'achats:dashboard' %}" class="btn btn-outline-secondary mt-2 mt-md-0">Retour dashboard</a>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white">
+      <strong>Parametrer une section</strong>
+    </div>
+    <div class="card-body">
+      <form method="post" class="row">
+        {% csrf_token %}
+        <div class="col-12 col-md-4 mb-3">
+          <label for="{{ form.section.id_for_label }}">{{ form.section.label }}</label>
+          {{ form.section }}
+          {% if form.section.errors %}<div class="text-danger small mt-1">{{ form.section.errors|join:', ' }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <label for="{{ form.validateur_n1.id_for_label }}">{{ form.validateur_n1.label }}</label>
+          {{ form.validateur_n1 }}
+          <small class="form-text text-muted">{{ form.validateur_n1.help_text }}</small>
+          {% if form.validateur_n1.errors %}<div class="text-danger small mt-1">{{ form.validateur_n1.errors|join:', ' }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <label for="{{ form.validateur_n2.id_for_label }}">{{ form.validateur_n2.label }}</label>
+          {{ form.validateur_n2 }}
+          <small class="form-text text-muted">{{ form.validateur_n2.help_text }}</small>
+          {% if form.validateur_n2.errors %}<div class="text-danger small mt-1">{{ form.validateur_n2.errors|join:', ' }}</div>{% endif %}
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="col-12 mb-2">
+          <div class="alert alert-danger py-2 mb-0">{{ form.non_field_errors|join:', ' }}</div>
+        </div>
+        {% endif %}
+
+        <div class="col-12">
+          <button type="submit" class="btn btn-primary">Enregistrer la configuration</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+      <strong>Configurations existantes</strong>
+      <span class="badge badge-light">{{ configurations|length }} section(s)</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Section</th>
+              <th>Validateur N1</th>
+              <th>Validateur N2</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for config in configurations %}
+            <tr>
+              <td>{{ config.section.Nom }}</td>
+              <td>{{ config.validateur_n1.get_full_name|default:config.validateur_n1.username|default:'Role RO' }}</td>
+              <td>{{ config.validateur_n2.get_full_name|default:config.validateur_n2.username|default:'Super admin' }}</td>
+              <td>
+                <a href="{% url 'achats:validation_config_section' %}?section={{ config.section_id }}" class="btn btn-sm btn-outline-primary">Modifier</a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">Aucune configuration enregistree.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-white">
+      <strong>Sections sans configuration</strong>
+    </div>
+    <div class="card-body">
+      {% if sections_non_configurees %}
+      <div class="d-flex flex-wrap">
+        {% for section in sections_non_configurees %}
+        <a href="{% url 'achats:validation_config_section' %}?section={{ section.pk }}" class="badge badge-secondary mr-2 mb-2 p-2">{{ section.Nom }}</a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-success">Toutes les sections sont configurees.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

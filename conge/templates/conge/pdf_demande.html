@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Demande de Congé — {{ demande.nom }} {{ demande.prenom }}</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   Template PDF WeasyPrint — Demande de Congé
+   Reproduit fidèlement le formulaire papier (deux exemplaires / page A4)
+   ═══════════════════════════════════════════════════════════════ */
+
+@page {
+  size: A4 portrait;
+  margin: 14mm 14mm 10mm 14mm;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 9.5pt;
+  color: #111;
+  width: 182mm;
+}
+
+/* ── Copie unique (pleine page) ── */
+.copy-block {
+  width: 100%;
+  padding: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── En-tête logo + infos ── */
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3.5mm;
+}
+
+.logo-area img {
+  height: 17mm;
+  width: auto;
+}
+.logo-fallback {
+  font-weight: 700;
+  font-size: 14pt;
+  color: #444;
+  line-height: 1.2;
+}
+.logo-fallback .logo-sub {
+  font-size: 7pt;
+  font-weight: 400;
+  display: block;
+  color: #777;
+}
+
+.header-right {
+  text-align: right;
+  font-size: 9pt;
+  line-height: 1.8;
+}
+.header-right span {
+  font-weight: 700;
+}
+
+/* ── Barre titre ── */
+.title-bar {
+  background: #6b6b6b;
+  color: #fff;
+  text-align: center;
+  padding: 2.2mm 0;
+  font-size: 13pt;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 1.5mm;
+}
+
+/* ── Sous-titre exemplaire ── */
+.exemplaire-line {
+  text-align: center;
+  font-size: 8.8pt;
+  margin-bottom: 3.5mm;
+}
+.exemplaire-line u { text-decoration: underline; }
+
+/* ── Lignes de champ ── */
+.field-row {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 2.8mm;
+  gap: 2mm;
+}
+
+.field-label {
+  font-weight: 700;
+  font-size: 9.5pt;
+  white-space: nowrap;
+}
+
+.field-value {
+  border-bottom: 1px solid #444;
+  flex: 1;
+  min-height: 5.5mm;
+  font-size: 9.5pt;
+  padding-bottom: 0.5mm;
+  padding-left: 1mm;
+}
+
+.field-value-short {
+  border-bottom: 1px solid #444;
+  width: 22mm;
+  min-height: 5.5mm;
+  font-size: 9.5pt;
+  padding-bottom: 0.5mm;
+  padding-left: 1mm;
+}
+
+.field-spacer { margin-right: 4mm; }
+
+.inclus-text {
+  font-size: 9pt;
+  white-space: nowrap;
+}
+
+/* ── Section imputation ── */
+.imputation-header {
+  font-weight: 700;
+  font-size: 9.5pt;
+  margin-bottom: 1.5mm;
+}
+.imputation-header u { text-decoration: underline; }
+
+.checkbox-grid {
+  display: flex;
+  gap: 0 16mm;
+  margin-bottom: 1.5mm;
+}
+
+.checkbox-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8mm;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  font-size: 9.5pt;
+}
+
+.cb-box {
+  display: inline-block;
+  width: 4mm;
+  height: 4mm;
+  border: 1px solid #333;
+  margin-right: 2mm;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.cb-box.checked {
+  background-color: #333;
+}
+
+.precision-row {
+  display: flex;
+  align-items: flex-end;
+  font-size: 8.8pt;
+  font-style: italic;
+  gap: 2mm;
+  margin-top: 0.5mm;
+}
+.precision-value {
+  border-bottom: 1px solid #444;
+  flex: 1;
+  min-height: 5mm;
+  font-style: normal;
+  font-size: 9pt;
+}
+
+/* ── Note bas imputation ── */
+.note-text {
+  font-size: 8pt;
+  color: #555;
+  font-style: italic;
+  margin-bottom: 3.5mm;
+}
+
+/* ── Bloc signatures ── */
+.signatures-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2mm;
+}
+
+.sig-block {
+  width: 55mm;
+  text-align: center;
+}
+
+.sig-block-label {
+  font-size: 8.8pt;
+  font-weight: 700;
+  margin-bottom: 1.5mm;
+  text-align: center;
+}
+
+.sig-image-area {
+  border-bottom: 1px solid #555;
+  height: 16mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sig-image-area img {
+  max-height: 15mm;
+  max-width: 52mm;
+}
+
+.sig-name {
+  margin-top: 2mm;
+  font-size: 8.5pt;
+  color: #333;
+}
+
+/* ── Date de validation ── */
+.date-validation {
+  text-align: right;
+  font-size: 9pt;
+  margin-top: 2mm;
+}
+</style>
+</head>
+<body>
+
+{% comment %}
+  ═══════════════════════════════════════════════════════════════
+  UNE SEULE COPIE par téléchargement.
+  Si exemplaire == 'demandeur' → "Exemplaire à conserver par le demandeur"
+  Si exemplaire == 'employeur' → "Exemplaire à conserver par l'employeur"
+  ═══════════════════════════════════════════════════════════════
+{% endcomment %}
+
+<div class="copy-block">
+
+  {# ── En-tête ── #}
+  <div class="form-header">
+    <div class="logo-area">
+      {% if logo_b64 %}
+        <img src="{{ logo_b64 }}" alt="AB Serve">
+      {% else %}
+        <div class="logo-fallback">
+          AB<span class="logo-sub">TUNISIE<br>Beyond quality</span>
+        </div>
+      {% endif %}
+    </div>
+    <div class="header-right">
+      <div><span>Date de la demande :</span> {{ demande.date_demande|date:"d/m/Y" }}</div>
+      <div><span>Section :</span> {{ demande.section|default:"—" }}</div>
+    </div>
+  </div>
+
+  {# ── Titre ── #}
+  <div class="title-bar">DEMANDE DE CONGÉS</div>
+
+  {# ── Sous-titre exemplaire ── #}
+  <div class="exemplaire-line">
+    Exemplaire à conserver par
+    {% if exemplaire == 'employeur' %}
+      <u><strong>l'employeur</strong></u>
+    {% else %}
+      <u><strong>le demandeur</strong></u>
+    {% endif %}
+  </div>
+
+  {# ── NOM / PRÉNOM ── #}
+  <div class="field-row">
+    <span class="field-label">NOM :</span>
+    <span class="field-value field-spacer">{{ demande.nom }}</span>
+    <span class="field-label">Prénom :</span>
+    <span class="field-value">{{ demande.prenom }}</span>
+  </div>
+
+  {# ── DATES D'ABSENCE ── #}
+  <div class="field-row">
+    <span class="field-label">S'absentera du :</span>
+    <span class="field-value field-spacer">{{ demande.date_debut|date:"d/m/Y" }}</span>
+    <span class="field-label">Au :</span>
+    <span class="field-value">{{ demande.date_fin|date:"d/m/Y" }}</span>
+    <span class="inclus-text">inclus</span>
+  </div>
+
+  {# ── REPRISE / JOURS ── #}
+  <div class="field-row">
+    <span class="field-label">Date de la reprise :</span>
+    <span class="field-value field-spacer">{{ demande.date_reprise|date:"d/m/Y" }}</span>
+    <span class="field-label">Nombre de jour(s) :</span>
+    <span class="field-value-short">{{ demande.nombre_jours }}</span>
+  </div>
+
+  {# ── IMPUTATION SUR ── #}
+  <div class="imputation-header">
+    <u>Imputation sur</u>* :
+  </div>
+  <div class="checkbox-grid">
+    <div class="checkbox-col">
+      <div class="checkbox-row">
+        <span class="cb-box {% if demande.type_conge == 'conges_payes' %}checked{% endif %}"></span>
+        Congés payés
+      </div>
+      <div class="checkbox-row">
+        <span class="cb-box {% if demande.type_conge == 'banque_heures' %}checked{% endif %}"></span>
+        Banque d'heures
+      </div>
+      <div class="checkbox-row">
+        <span class="cb-box {% if demande.type_conge == 'conges_sans_solde' %}checked{% endif %}"></span>
+        Congés sans solde
+      </div>
+    </div>
+    <div class="checkbox-col">
+      <div class="checkbox-row">
+        <span class="cb-box {% if demande.type_conge == 'conges_anciennete' %}checked{% endif %}"></span>
+        Congés ancienneté
+      </div>
+      <div class="checkbox-row">
+        <span class="cb-box {% if demande.type_conge == 'evenement_familial' %}checked{% endif %}"></span>
+        Événement familial
+      </div>
+      <div class="precision-row">
+        <span>Préciser lequel :</span>
+        <span class="precision-value">
+          {% if demande.evenement_familial_precision %}{{ demande.evenement_familial_precision }}{% endif %}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Note ── #}
+  <div class="note-text">
+    *Cocher la case correspondante.<br>
+    L'imputation sera appliquée selon la disponibilité des droits acquis par le salarié.
+  </div>
+
+  {# ── Signatures ── #}
+  <div class="signatures-row">
+    <div class="sig-block">
+      <div class="sig-block-label">Signature du demandeur :</div>
+      <div class="sig-image-area">
+        {% if demande.signature_demandeur %}
+          <img src="{{ demande.signature_demandeur }}" alt="Signature">
+        {% endif %}
+      </div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-block-label">Signature du responsable :</div>
+      <div class="sig-image-area">
+        {% if demande.signature_responsable %}
+          <img src="{{ demande.signature_responsable }}" alt="Signature">
+        {% endif %}
+      </div>
+      <div class="sig-name">
+        {% if demande.validateur %}
+          {{ demande.validateur.get_full_name|default:demande.validateur.username }}
+        {% else %}
+          &nbsp;
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Date de validation ── #}
+  <div class="date-validation">
+    Date :
+    {% if demande.date_validation %}
+      {{ demande.date_validation|date:"d/m/Y" }}
+    {% else %}
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    {% endif %}
+  </div>
+
+</div>{# /copy-block #}
+
+</body>
+</html>

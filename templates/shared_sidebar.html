@@ -1,0 +1,432 @@
+{% load static %}
+{# ── Résolution des URLs pour la détection de l'élément actif ── #}
+{% url 'prospection:liste_utilisateurs' as url_p_users %}
+{% url 'prospection:societe' as url_p_societe %}
+{% url 'prospection:gestion_entreprises' as url_p_clients %}
+{% url 'prospection:prospects_list' as url_p_prospects %}
+{% url 'prospection:gestion_concurrents' as url_p_concurrents %}
+{% url 'prospection:call_list' as url_p_calls %}
+{% url 'prospection:email_list' as url_p_emails %}
+{% url 'prospection:rv_list' as url_p_rvs %}
+{% url 'prospection:analyse' as url_p_analyse %}
+{% url 'prospection:event_list' typeEvent='interne' as url_p_ev_int %}
+{% url 'prospection:event_list' typeEvent='externe' as url_p_ev_ext %}
+{% url 'prospection:swot_list' as url_p_swot %}
+{% url 'prospection:enquetes' as url_p_enquetes %}
+{% url 'audit:dashboard' as url_a_dash %}
+{% url 'audit:list' as url_a_list %}
+{% url 'audit:formulaire-list' as url_a_form %}
+{% url 'audit:norme-list' as url_a_norme %}
+{% url 'audit:chapitre-list' as url_a_chap %}
+{% url 'audit:theme-list' as url_a_theme %}
+{% url 'audit:critere-list' as url_a_crit %}
+{% url 'audit:bareme-list' as url_a_bar %}
+{% url 'audit:niveaux-list' as url_a_niv %}
+{% url 'audit:preuve-list' as url_a_prev %}
+{% url 'at:at_dashboard' as url_t_dash %}
+{% url 'at:at_create_quick' as url_t_new %}
+{% url 'at:questionnaire_list' as url_t_quest %}
+{% url 'conge:liste' as url_c_liste %}
+{% url 'conge:nouvelle_demande' as url_c_new %}
+{% url 'conge:dashboard' as url_c_dash %}
+{% url 'achats:catalogue_list' as url_achats_catalogue %}
+{% url 'achats:fournisseur_list' as url_achats_fournisseurs %}
+{% url 'achats:demande_list' as url_achats_demandes %}
+{% url 'achats:dashboard' as url_achats_dashboard %}
+{% url 'achats:devis_list' as url_achats_devis %}
+{% url 'achats:reception_list' as url_achats_receptions %}
+{% url 'achats:evaluation_list' as url_achats_evaluations %}
+{% url 'achats:validation_config_section' as url_achats_validation_config %}
+{% url 'gestion_documentaire:document_list' as url_gd_documents %}
+{% url 'gestion_documentaire:dashboard_qse' as url_gd_dashboard %}
+{% url 'administration:dashboard' as url_adm_dash %}
+{% url 'administration:utilisateurs' as url_adm_users %}
+{% url 'administration:societes' as url_adm_societes %}
+{% url 'administration:sections' as url_adm_sections %}
+{% url 'administration:sites' as url_adm_sites %}
+{% url 'administration:customers' as url_adm_customers %}
+{% with ns=request.resolver_match.namespace un=request.resolver_match.url_name %}
+<nav class="mt-2">
+  <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : ADMINISTRATION                -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser %}
+    <li class="nav-item {% if ns == 'administration' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-user-shield"></i>
+        <p>Administration<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_adm_dash }}" class="nav-link {% if ns == 'administration' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_adm_users }}" class="nav-link {% if ns == 'administration' and un == 'utilisateurs' %}active{% endif %}">
+            <i class="nav-icon fas fa-users"></i><p>Utilisateurs</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_adm_societes }}" class="nav-link {% if ns == 'administration' and un == 'societes' %}active{% endif %}">
+            <i class="nav-icon fas fa-building"></i><p>Sociétés</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_adm_sections }}" class="nav-link {% if ns == 'administration' and un == 'sections' %}active{% endif %}">
+            <i class="nav-icon fas fa-sitemap"></i><p>Sections</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_adm_sites }}" class="nav-link {% if ns == 'administration' and un == 'sites' %}active{% endif %}">
+            <i class="nav-icon fas fa-map-marker-alt"></i><p>Sites</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_adm_customers }}" class="nav-link {% if ns == 'administration' and un == 'customers' %}active{% endif %}">
+            <i class="nav-icon fas fa-handshake"></i><p>Customers</p>
+          </a>
+        </li>
+      </ul>
+    </li>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : PROSPECTION                   -->
+    <!-- ══════════════════════════════════════ -->
+    <li class="nav-item {% if ns == 'prospection' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-chart-bar"></i>
+        <p>Prospection<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+
+        <!-- Entreprises -->
+        <li class="nav-item {% if ns == 'prospection' %}{% if un == 'gestion_entreprises' or un == 'prospects_list' or un == 'gestion_concurrents' %}menu-open{% endif %}{% endif %}">
+              <a href="#" class="nav-link">
+                <i class="nav-icon fas fa-industry"></i>
+                <p>Entreprises<i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview" style="margin-left:16px">
+                <li class="nav-item">
+                  <a href="{{ url_p_clients }}" class="nav-link {% if ns == 'prospection' and un == 'gestion_entreprises' %}active{% endif %}">
+                    <i class="fas fa-handshake nav-icon"></i><p>Clients</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_p_prospects }}" class="nav-link {% if ns == 'prospection' and un == 'prospects_list' %}active{% endif %}">
+                    <i class="fas fa-user nav-icon"></i><p>Prospects</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_p_concurrents }}" class="nav-link {% if ns == 'prospection' and un == 'gestion_concurrents' %}active{% endif %}">
+                    <i class="fas fa-balance-scale nav-icon"></i><p>Concurrents</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+        <!-- Sales -->
+        <li class="nav-item {% if ns == 'prospection' %}{% if un == 'call_list' or un == 'email_list' or un == 'rv_list' or un == 'analyse' or un == 'event_list' or un == 'swot_list' or un == 'enquetes' %}menu-open{% endif %}{% endif %}">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-briefcase"></i>
+            <p>Sales<i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview" style="margin-left:16px">
+
+            <!-- Actions -->
+            <li class="nav-item {% if ns == 'prospection' %}{% if un == 'call_list' or un == 'email_list' or un == 'rv_list' or un == 'analyse' %}menu-open{% endif %}{% endif %}">
+              <a href="#" class="nav-link">
+                <i class="fas fa-bars nav-icon"></i>
+                <p>Actions<i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview" style="margin-left:16px">
+                <li class="nav-item">
+                  <a href="{{ url_p_calls }}" class="nav-link {% if ns == 'prospection' and un == 'call_list' %}active{% endif %}">
+                    <i class="fas fa-phone nav-icon"></i><p>Appels</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_p_emails }}" class="nav-link {% if ns == 'prospection' and un == 'email_list' %}active{% endif %}">
+                    <i class="fas fa-envelope nav-icon"></i><p>E-mails</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_p_rvs }}" class="nav-link {% if ns == 'prospection' and un == 'rv_list' %}active{% endif %}">
+                    <i class="fas fa-handshake nav-icon"></i><p>Rendez-vous</p>
+                  </a>
+                </li>
+                {% if request.user.is_superuser or request.user.is_RC or request.user.is_RO %}
+                <li class="nav-item">
+                  <a href="{{ url_p_analyse }}" class="nav-link {% if ns == 'prospection' and un == 'analyse' %}active{% endif %}">
+                    <i class="fas fa-brain nav-icon"></i><p>Analyse IA</p>
+                  </a>
+                </li>
+                {% endif %}
+              </ul>
+            </li>
+
+            <!-- Événements -->
+            <li class="nav-item {% if ns == 'prospection' and un == 'event_list' %}menu-open{% endif %}">
+              <a href="#" class="nav-link">
+                <i class="fas fa-bullhorn nav-icon"></i>
+                <p>Événements<i class="right fas fa-angle-left"></i></p>
+              </a>
+              <ul class="nav nav-treeview" style="margin-left:16px">
+                <li class="nav-item">
+                  <a href="{{ url_p_ev_int }}" class="nav-link {% if ns == 'prospection' and un == 'event_list' and request.resolver_match.kwargs.typeEvent == 'interne' %}active{% endif %}">
+                    <i class="fas fa-users nav-icon"></i><p>Événements internes</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{{ url_p_ev_ext }}" class="nav-link {% if ns == 'prospection' and un == 'event_list' and request.resolver_match.kwargs.typeEvent == 'externe' %}active{% endif %}">
+                    <i class="fas fa-globe nav-icon"></i><p>Événements externes</p>
+                  </a>
+                </li>
+              </ul>
+            </li>
+
+            {% if request.user.is_superuser or request.user.is_RC or request.user.is_RO %}
+            <li class="nav-item">
+              <a href="{{ url_p_swot }}" class="nav-link {% if ns == 'prospection' and un == 'swot_list' %}active{% endif %}">
+                <i class="fas fa-chart-pie nav-icon"></i><p>SWOT</p>
+              </a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+              <a href="{{ url_p_enquetes }}" class="nav-link {% if ns == 'prospection' and un == 'enquetes' %}active{% endif %}">
+                <i class="fas fa-poll nav-icon"></i><p>Enquêtes</p>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+      </ul>
+    </li>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : ACHATS                        -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO %}
+    <li class="nav-item {% if ns == 'achats' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-shopping-cart"></i>
+        <p>Achats<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_achats_dashboard }}" class="nav-link {% if ns == 'achats' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line"></i><p>Dashboard Achats</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_demandes }}" class="nav-link {% if ns == 'achats' and un == 'demande_list' or ns == 'achats' and un == 'demande_create' or ns == 'achats' and un == 'demande_detail' or ns == 'achats' and un == 'demande_update' %}active{% endif %}">
+            <i class="nav-icon fas fa-file-signature"></i><p>Demandes d'achat</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_devis }}" class="nav-link {% if ns == 'achats' and un == 'devis_list' or ns == 'achats' and un == 'devis_manage' or ns == 'achats' and un == 'devis_create' or ns == 'achats' and un == 'devis_update' %}active{% endif %}">
+            <i class="nav-icon fas fa-file-invoice-dollar"></i><p>Devis fournisseurs</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_receptions }}" class="nav-link {% if ns == 'achats' and un == 'reception_list' or ns == 'achats' and un == 'reception_edit' %}active{% endif %}">
+            <i class="nav-icon fas fa-boxes"></i><p>Réceptions</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_evaluations }}" class="nav-link {% if ns == 'achats' and un == 'evaluation_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-star-half-alt"></i><p>Évaluation fournisseurs</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_catalogue }}" class="nav-link {% if ns == 'achats' and un == 'catalogue_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-box"></i><p>Catalogue</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_achats_fournisseurs }}" class="nav-link {% if ns == 'achats' and un == 'fournisseur_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-truck"></i><p>Fournisseurs</p>
+          </a>
+        </li>
+        {% if request.user.is_superuser %}
+        <li class="nav-item">
+          <a href="{{ url_achats_validation_config }}" class="nav-link {% if ns == 'achats' and un == 'validation_config_section' %}active{% endif %}">
+            <i class="nav-icon fas fa-project-diagram"></i><p>Config validation</p>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </li>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : GESTION DOCUMENTAIRE          -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser or request.user.is_CE or request.user.is_RS or request.user.is_RO or request.user.is_assistante or request.user.is_auditeur %}
+    {% if not request.user.is_CLT and not request.user.is_OP or request.user.is_superuser %}
+    <li class="nav-item {% if ns == 'gestion_documentaire' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-folder-open"></i>
+        <p>Gestion documentaire<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_gd_dashboard }}" class="nav-link {% if ns == 'gestion_documentaire' and un == 'dashboard_qse' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-pie"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_gd_documents }}" class="nav-link {% if ns == 'gestion_documentaire' and un == 'document_list' or ns == 'gestion_documentaire' and un == 'document_detail' or ns == 'gestion_documentaire' and un == 'document_create' or ns == 'gestion_documentaire' and un == 'document_update' %}active{% endif %}">
+            <i class="nav-icon fas fa-folder-open"></i><p>Bibliothèque</p>
+          </a>
+        </li>
+      </ul>
+    </li>
+    {% endif %}
+    {% endif %}
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : AUDIT                         -->
+    <!-- ══════════════════════════════════════ -->
+    <li class="nav-item {% if ns == 'audit' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-search"></i>
+        <p>Audit<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_a_dash }}" class="nav-link {% if ns == 'audit' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_a_list }}" class="nav-link {% if ns == 'audit' and un == 'list' %}active{% endif %}">
+            <i class="nav-icon fas fa-clipboard-list"></i><p>Audits</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_a_form }}" class="nav-link {% if ns == 'audit' and un == 'formulaire-list' %}active{% endif %}">
+            <i class="nav-icon fas fa-file-alt"></i><p>Formulaires</p>
+          </a>
+        </li>
+        {% if request.user.is_superuser or request.user.is_auditeur %}
+        <li class="nav-item {% if ns == 'audit' %}{% if un == 'norme-list' or un == 'chapitre-list' or un == 'theme-list' or un == 'critere-list' or un == 'bareme-list' or un == 'niveaux-list' or un == 'preuve-list' %}menu-open{% endif %}{% endif %}">
+          <a href="#" class="nav-link">
+            <i class="nav-icon fas fa-book"></i>
+            <p>Référentiel<i class="right fas fa-angle-left"></i></p>
+          </a>
+          <ul class="nav nav-treeview" style="margin-left:16px">
+            <li class="nav-item">
+              <a href="{{ url_a_norme }}" class="nav-link {% if ns == 'audit' and un == 'norme-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-book"></i><p>Normes</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_chap }}" class="nav-link {% if ns == 'audit' and un == 'chapitre-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-bookmark"></i><p>Chapitres</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_theme }}" class="nav-link {% if ns == 'audit' and un == 'theme-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-layer-group"></i><p>Thèmes</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_crit }}" class="nav-link {% if ns == 'audit' and un == 'critere-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-list-check"></i><p>Critères</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_bar }}" class="nav-link {% if ns == 'audit' and un == 'bareme-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-star-half-alt"></i><p>Barèmes</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_niv }}" class="nav-link {% if ns == 'audit' and un == 'niveaux-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-chart-line"></i><p>Niveaux attendus</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_prev }}" class="nav-link {% if ns == 'audit' and un == 'preuve-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-paperclip"></i><p>Preuves attendues</p>
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+      </ul>
+    </li>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : CONGÉS                        -->
+    <!-- ══════════════════════════════════════ -->
+    <li class="nav-item {% if ns == 'conge' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-calendar-alt"></i>
+        <p>Congés<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        {% if request.user.is_RS or request.user.is_RO or request.user.is_superuser %}
+        <li class="nav-item">
+          <a href="{{ url_c_dash }}" class="nav-link {% if ns == 'conge' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-bar"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        {% endif %}
+        <li class="nav-item">
+          <a href="{{ url_c_liste }}" class="nav-link {% if ns == 'conge' and un == 'liste' %}active{% endif %}">
+            <i class="nav-icon fas fa-list"></i>
+            <p>
+              {% if request.user.is_RS or request.user.is_RO or request.user.is_superuser %}
+                Gestion des congés
+              {% else %}
+                Mes congés
+              {% endif %}
+            </p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_c_new }}" class="nav-link {% if ns == 'conge' and un == 'nouvelle_demande' %}active{% endif %}">
+            <i class="nav-icon fas fa-plus-circle"></i><p>Nouvelle demande</p>
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : ACCIDENTS DE TRAVAIL          -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO %}
+    <li class="nav-item {% if ns == 'at' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-first-aid"></i>
+        <p>Accidents de Travail<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_t_dash }}" class="nav-link {% if ns == 'at' and un == 'at_dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_t_new }}" class="nav-link {% if ns == 'at' and un == 'at_create_quick' %}active{% endif %}">
+            <i class="nav-icon fas fa-plus-circle"></i><p>Nouvel accident</p>
+          </a>
+        </li>
+        {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO %}
+        <li class="nav-item">
+          <a href="{{ url_t_quest }}" class="nav-link {% if ns == 'at' and un == 'questionnaire_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-clipboard-list"></i><p>Questionnaire 48h</p>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </li>
+    {% endif %}
+
+  </ul>
+</nav>
+{% endwith %}

@@ -1,0 +1,165 @@
+{% extends "accident_travail/base.html" %}
+
+{% block title %}Questionnaire 48h — Référentiel des questions{% endblock %}
+
+{% block nav_questionnaire %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Rotation chevron section */
+    .section-chevron { transition: transform .2s; }
+    [aria-expanded="true"] .section-chevron { transform: rotate(0deg); }
+    [aria-expanded="false"] .section-chevron { transform: rotate(-90deg); }
+    /* Rotation chevron sous-questions */
+    .sq-chevron { transition: transform .2s; color: #007bff; }
+    .sq-toggle[aria-expanded="true"] .sq-chevron { transform: rotate(90deg); }
+    .sq-toggle[aria-expanded="false"] .sq-chevron { transform: rotate(0deg); }
+    .sq-toggle { color: #007bff; }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-7">
+        <h1><i class="fas fa-clipboard-list mr-2 text-primary"></i>Référentiel Questionnaire 48h</h1>
+    </div>
+    <div class="col-sm-5">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_dashboard' %}">Tableau de bord</a></li>
+            <li class="breadcrumb-item active">Questionnaire 48h</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Barre d'outils -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap" style="gap:.5rem">
+    <span class="text-muted">
+        <strong>{{ total }}</strong> question{{ total|pluralize }} enregistrée{{ total|pluralize }}
+    </span>
+    <a href="{% url 'at:questionnaire_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus mr-1"></i>Nouvelle question
+    </a>
+</div>
+
+{% if not sections %}
+<div class="alert alert-info">
+    <i class="fas fa-info-circle mr-2"></i>
+    Aucune question enregistrée.
+    <a href="{% url 'at:questionnaire_create' %}">Créez la première question</a> ou exécutez
+    <code>python manage.py populate_questionnaire_48h</code> pour charger les 77 questions par défaut.
+</div>
+{% endif %}
+
+{% for section_name, questions in sections.items %}
+<div class="card card-outline card-primary mb-3">
+    <div class="card-header" id="heading-{{ forloop.counter }}" style="cursor:pointer" data-toggle="collapse"
+        data-target="#section-{{ forloop.counter }}" aria-expanded="false">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-chevron-down mr-2 section-chevron"></i>{{ section_name }}
+            <span class="badge badge-primary ml-2">{{ questions|length }} question{{ questions|length|pluralize }}</span>
+        </h5>
+    </div>
+    <div class="collapse" id="section-{{ forloop.counter }}">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="thead-light">
+                    <tr>
+                        <th style="width:8%">Code</th>
+                        <th>Question</th>
+                        <th style="width:14%">Condition</th>
+                        <th style="width:5%">Ordre</th>
+                        <th style="width:10%">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in questions %}
+                    <!-- Question principale -->
+                    <tr class="table-active">
+                        <td>
+                            {% if q.sous_questions %}
+                            <a class="btn btn-xs btn-link p-0 mr-1 sq-toggle" data-toggle="collapse"
+                               data-target="#sq-{{ q.pk }}" aria-expanded="false" title="Voir sous-questions">
+                                <i class="fas fa-chevron-right sq-chevron"></i>
+                            </a>
+                            {% endif %}
+                            <code class="text-primary font-weight-bold">{{ q.code }}</code>
+                        </td>
+                        <td>
+                            {{ q.question }}
+                            {% if q.sous_questions %}
+                            <small class="text-muted ml-2">({{ q.sous_questions|length }} sous-question{{ q.sous_questions|length|pluralize }})</small>
+                            {% endif %}
+                        </td>
+                        <td>—</td>
+                        <td>{{ q.ordre }}</td>
+                        <td>
+                            <div class="d-flex" style="gap:4px">
+                                <a href="{% url 'at:questionnaire_update' q.pk %}" class="btn btn-xs btn-warning"
+                                    title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'at:questionnaire_delete' q.pk %}" class="btn btn-xs btn-danger"
+                                    title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Sous-questions (repliées par défaut) -->
+                    {% if q.sous_questions %}
+                    <tr class="p-0">
+                        <td colspan="5" class="p-0 border-0">
+                            <div class="collapse" id="sq-{{ q.pk }}">
+                                <table class="table table-sm mb-0" style="border-left:3px solid #007bff;margin-left:1.5rem;width:calc(100% - 1.5rem)">
+                                    <tbody>
+                                        {% for sq in q.sous_questions %}
+                                        <tr>
+                                            <td style="width:8%" class="pl-3">
+                                                <code class="text-secondary">{{ sq.code }}</code>
+                                                <i class="fas fa-level-up-alt fa-rotate-90 text-muted ml-1" style="font-size:.7rem"></i>
+                                            </td>
+                                            <td class="text-muted font-italic">{{ sq.question }}</td>
+                                            <td style="width:14%">
+                                                {% if sq.condition_affichage %}
+                                                <span class="badge badge-{% if sq.condition_affichage == 'O' %}success{% else %}danger{% endif %}">
+                                                    Si parent = {% if sq.condition_affichage == 'O' %}Oui{% else %}Non{% endif %}
+                                                </span>
+                                                {% else %}—{% endif %}
+                                            </td>
+                                            <td style="width:5%">{{ sq.ordre }}</td>
+                                            <td style="width:10%">
+                                                <div class="d-flex" style="gap:4px">
+                                                    <a href="{% url 'at:questionnaire_update' sq.pk %}" class="btn btn-xs btn-warning" title="Modifier">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'at:questionnaire_delete' sq.pk %}" class="btn btn-xs btn-danger" title="Supprimer">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- FAB Nouvelle question -->
+<a href="{% url 'at:questionnaire_create' %}" class="btn btn-primary btn-fab" title="Nouvelle question"
+    style="position:fixed;bottom:2rem;right:2rem;width:56px;height:56px;border-radius:50%;font-size:1.4rem;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.3);z-index:1050">
+    <i class="fas fa-plus"></i>
+</a>
+{% endblock %}

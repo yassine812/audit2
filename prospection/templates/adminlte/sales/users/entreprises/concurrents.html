@@ -1,0 +1,509 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+<button class="btn btn-primary" 
+    id="openFilterBtn" 
+    style="
+        position: fixed;
+        right: 20px;
+        top: 40%;
+        z-index: 999;
+    ">
+    <i class="fas fa-filter"></i> Filtres
+</button>
+
+<div class="custom-sidebar" id="filterSidebar">
+    <div class="sidebar-header">
+        <button class="close-btn" id="closeFilterBtn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">        
+        <form method="GET" id="competitorFilterForm">
+            <!-- Filtre Société (admin) -->
+            {% if is_superuser or is_RO %}
+            <div class="form-group">
+                <label>Filiale</label>
+                <select name="societe" class="form-control form-control-sm">
+                    <option value="">Toutes les Filiales</option>
+                    {% for societe in societes %}
+                        <option value="{{ societe.id }}" {% if societe_filter == societe.id|stringformat:"s" %}selected{% endif %}>{{ societe.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <!-- Tri par date -->
+            <div class="form-group">
+                <label>Trier par</label>
+                <select name="sort_by_date" class="form-control form-control-sm">
+                    <option value="">Par défaut</option>
+                    <option value="asc" {% if sort_by_date == "asc" %}selected{% endif %}>Plus ancien d'abord</option>
+                    <option value="desc" {% if sort_by_date == "desc" %}selected{% endif %}>Plus récent d'abord</option>
+                </select>
+            </div>
+            
+            <!-- Recherche -->
+            <div class="form-group">
+                <label>Recherche</label>
+                <input type="text" name="search" class="form-control form-control-sm" 
+                       placeholder="Nom du concurrent" value="{{ search_query|default_if_none:'' }}">
+            </div>
+
+            <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap: 4px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Appliquer les filtres
+                </button>
+                <a href="{% url 'prospection:gestion_concurrents' %}" class="btn btn-default">
+                    <i class="fas fa-sync-alt"></i> Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion des Concurrents</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">Concurrents</li>
+                </ol>
+            </div>
+        </div>
+
+        {% if is_superuser or is_responsable or is_RO %}
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <a href="#" class="btn btn-success" data-toggle="modal" data-target="#addCompetitorModal">
+                    <i class="fas fa-plus"></i> Ajouter un concurrent
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header justify-content-between align-items-center">
+                    
+                        <div class="card-tools float-right" style="text-align:center">
+                            <small style="font-size: 90%;">
+                                {{ entreprises.start_index }} - {{ entreprises.end_index }} sur {{ entreprises.paginator.count }}
+                            </small>
+                            <ul class="pagination pagination-sm justify-content-center mb-0" style="margin-top:0">
+                                <li class="page-item {% if not entreprises.has_previous %}disabled{% endif %}">
+                                    <a class="page-link" href="?page=1">&laquo;</a>
+                                </li>
+                                {% for i in entreprises.paginator.page_range %}
+                                    <li class="page-item {% if entreprises.number == i %}active{% endif %}">
+                                        <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                                    </li>
+                                {% endfor %}
+                                <li class="page-item {% if not entreprises.has_next %}disabled{% endif %}">
+                                    <a class="page-link" href="?page={{ entreprises.paginator.num_pages }}">&raquo;</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <table id="concurrent" class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Adresse</th>
+                                    <th>Email</th>
+                                    <th>Téléphone</th>
+                                    <th>Secteur d'activité</th>
+                                    <th>Date</th>
+                                    {% if is_superuser or is_RO %}
+                                    <th>Filiale</th>
+                                    {% endif %}
+                                    {% if is_superuser or is_responsable or is_RO %}
+                                    <th>Actions</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entreprise in entreprises %}
+                                <tr>
+                                    <td>{{ entreprise.nom }}</td>
+                                    <td>{{ entreprise.adresse }}</td>
+                                    <td>{{ entreprise.email }}</td>
+                                    <td>{{ entreprise.telephone }}</td>
+                                    <td>{{ entreprise.secteur_activite }}</td>
+                                    <td>{{ entreprise.date|date:"d/m/Y" }}</td>
+                                    {% if is_superuser or is_RO %}
+                                    <td>{% if entreprise.societe %}{{ entreprise.societe.nom }}{% else %}-{% endif %}</td>
+                                    {% endif %}
+                                    {% if is_superuser or is_responsable or is_RO %}
+                                    <td>
+                                        <button type="button" style="margin-bottom: 3px;" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editCompetitorModal{{ entreprise.id }}" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" style="margin-bottom: 3px;" class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#deleteCompetitorModal{{ entreprise.id }}" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Modal Ajout Concurrent -->
+<div class="modal fade" id="addCompetitorModal" tabindex="-1" role="dialog" aria-labelledby="addCompetitorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="addCompetitorModalLabel">Ajouter un concurrent</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'prospection:add_entreprise' 'concurrent' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                                <input type="text" name="nom" class="form-control" id="id_nom" required placeholder="Entrez le nom">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                                <input type="text" name="adresse" class="form-control" id="id_adresse" required placeholder="Entrez l'adresse">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" required placeholder="Ex: Informatique, BTP...">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone">Téléphone <span class="text-danger">*</span></label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone" required placeholder="Entrez le numéro">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" id="id_email" required placeholder="Entrez l'email">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_date">Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" id="id_date" required>
+                                <div class="invalid-feedback" id="date-error">
+                                    Veuillez sélectionner une date valide.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% if is_superuser or is_RO %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="id_societe">Filiale <span class="text-danger">*</span></label>
+                                <select name="societe" class="form-control" id="id_societe" required>
+                                    <option value="">Sélectionnez une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback" id="societe-error">
+                                    Veuillez sélectionner une filiale.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for entreprise in entreprises %}
+<!-- Modal Modification Concurrent -->
+<div class="modal fade" id="editCompetitorModal{{ entreprise.id }}" tabindex="-1" role="dialog" aria-labelledby="editCompetitorModalLabel{{ entreprise.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="editCompetitorModalLabel{{ entreprise.id }}">Modifier le concurrent</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'prospection:edit_entreprise' entreprise.id 'concurrent' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                                <input type="text" name="nom" class="form-control" id="id_nom" value="{{ entreprise.nom }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                                <input type="text" name="adresse" class="form-control" id="id_adresse" value="{{ entreprise.adresse }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" value="{{ entreprise.secteur_activite }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone">Téléphone</label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone" value="{{ entreprise.telephone }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email">Email <span class="text-danger">*</span></label>
+                                <input type="email" name="email" class="form-control" id="id_email" value="{{ entreprise.email }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_date">Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" id="edit_id_date_{{ entreprise.id }}" value="{{ entreprise.date|date:'Y-m-d' }}" required>
+                                <div class="invalid-feedback" id="edit-date-error-{{ entreprise.id }}">
+                                    Veuillez sélectionner une date valide.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Suppression Concurrent -->
+<div class="modal fade" id="deleteCompetitorModal{{ entreprise.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteCompetitorModalLabel{{ entreprise.id }}" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title" id="deleteCompetitorModalLabel{{ entreprise.id }}">Supprimer le concurrent</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer "{{ entreprise.nom }}" ?</p>
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="{% url 'prospection:delete_entreprise' entreprise.id 'concurrent' %}">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<div class="control-sidebar-bg"></div>
+
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        var table = $('#concurrent').DataTable({
+            "paging": false,
+            "searching": false,
+            "ordering": false,
+            "info": false,
+            "autoWidth": false,
+            "responsive": true,
+            "columnDefs": [
+                { "className": "dt-center", "targets": "_all" }
+            ],
+            "language": {
+                "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucun concurrent trouvé.</div>"
+            }
+        });
+
+        // Gestion de l'ouverture/fermeture
+        const toggleSidebar = () => {
+            $('body').toggleClass('control-sidebar-slide-open');
+            $('.control-sidebar-bg').fadeToggle();
+        };
+    
+        // Bouton principal
+        $('.fixed-filter-btn').click(toggleSidebar);
+        
+        // Bouton de fermeture
+        $('#closeFilterSidebar').click(toggleSidebar);
+        
+        // Fermeture en cliquant à l'extérieur
+        $('.control-sidebar-bg').click(toggleSidebar);
+        
+        // Fermeture après soumission
+        $('#competitorFilterForm').submit(function() {
+            toggleSidebar();
+        });
+    });
+//sidebar filtre
+const sidebar = document.getElementById('filterSidebar');
+const openBtn = document.getElementById('openFilterBtn');
+const closeBtn = document.getElementById('closeFilterBtn');
+const backdrop = document.createElement('div');
+backdrop.className = 'sidebar-backdrop';
+document.body.appendChild(backdrop);
+function openSidebar() {
+    sidebar.classList.add('open');
+    backdrop.style.display = 'block';
+}
+function closeSidebar() {
+    sidebar.classList.remove('open');
+    backdrop.style.display = 'none';
+}
+openBtn.addEventListener('click', openSidebar);
+closeBtn.addEventListener('click', closeSidebar);
+backdrop.addEventListener('click', closeSidebar);
+
+// Validation des formulaires
+function validateForm(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return false;
+    
+    let isValid = true;
+    
+    // Validation de la date
+    const dateInput = form.querySelector('input[type="date"]');
+    if (dateInput && dateInput.required) {
+        if (!dateInput.value) {
+            dateInput.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            dateInput.classList.remove('is-invalid');
+        }
+    }
+    
+    // Validation de la filiale (uniquement pour les superusers)
+    const societeSelect = form.querySelector('select[name="societe"]');
+    if (societeSelect && societeSelect.required) {
+        if (!societeSelect.value) {
+            societeSelect.classList.add('is-invalid');
+            isValid = false;
+        } else {
+            societeSelect.classList.remove('is-invalid');
+        }
+    }
+    
+    return isValid;
+}
+
+// Validation à la soumission du formulaire d'ajout
+document.addEventListener('DOMContentLoaded', function() {
+    const addForm = document.querySelector('form[action*="add_entreprise"]');
+    if (addForm) {
+        addForm.addEventListener('submit', function(e) {
+            if (!validateForm(this.id)) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        });
+    }
+    
+    // Validation à la soumission du formulaire de modification
+    document.querySelectorAll('form[action*="edit_entreprise"]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            if (!validateForm(this.id)) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            this.classList.add('was-validated');
+        });
+    });
+    
+    // Réinitialiser la validation quand le modal est fermé
+    $('.modal').on('hidden.bs.modal', function () {
+        const form = this.querySelector('form');
+        if (form) {
+            form.classList.remove('was-validated');
+            form.querySelectorAll('.is-invalid').forEach(el => {
+                el.classList.remove('is-invalid');
+            });
+        }
+    });
+});
+</script>
+<style>
+    .custom-sidebar {
+        position: fixed;
+        top: 0;
+        right: -250px;
+        width: 250px;
+        height: 100vh;
+        background: #343a40;
+        color: white;
+        z-index: 9999;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .custom-sidebar.open {
+        right: 0; 
+    }
+    
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none;
+    }
+</style>
+
+{% endblock %}

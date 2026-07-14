@@ -1,0 +1,73 @@
+{% extends 'audit/base.html' %}
+{% block title %}Supprimer ligne{% endblock %}
+{% block content %}
+<div class="card card-outline {% if is_referenced %}card-warning{% else %}card-danger{% endif %}" style="max-width:540px;margin:2rem auto">
+  <div class="card-header">
+    <h3 class="card-title">
+      {% if is_referenced %}
+      <i class="fas fa-ban mr-2 text-warning"></i>Cette ligne ne peut pas être supprimée
+      {% else %}
+      <i class="fas fa-trash-alt mr-2 text-danger"></i>Supprimer la ligne
+      {% endif %}
+    </h3>
+  </div>
+  <div class="card-body">
+    <p>Ligne : <strong>{{ object }}</strong></p>
+
+    {% if is_referenced %}
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle mr-1"></i>
+      Cette ligne est <strong>liée à des réponses d'audit</strong>. Elle ne peut pas être supprimée.
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle mr-1"></i>
+      Cette ligne n'est associée à aucune réponse. Vous pouvez la supprimer définitivement.
+    </div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap" style="gap:.5rem;margin-top:1rem">
+      {% if not is_referenced %}
+      <form method="post" class="js-action-form" data-action-label="supprimer" data-action-color="#d33" data-action-text="Cette ligne sera supprimee definitivement.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">
+          <i class="fas fa-trash-alt mr-1"></i>Supprimer définitivement
+        </button>
+      </form>
+      {% endif %}
+
+      <a href="javascript:history.back()" class="btn btn-secondary">
+        <i class="fas fa-arrow-left mr-1"></i>Annuler
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(function(){
+    $(document).on('submit', '.js-action-form', function(e){
+      e.preventDefault();
+      var form = this;
+      var label = $(form).data('action-label') || 'confirmer';
+      var color = $(form).data('action-color') || '#3085d6';
+      var text = $(form).data('action-text') || 'Veuillez confirmer cette action.';
+
+      Swal.fire({
+        title: 'Confirmer',
+        text: text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: color,
+        confirmButtonText: 'Oui, ' + label,
+        cancelButtonText: 'Annuler'
+      }).then(function(result){
+        if (result.isConfirmed) {
+          form.submit();
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Demandes en devis{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+  .meta { color: #64748b; font-size: .82rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="panel-card p-3 p-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div>
+        <h3 class="mb-1">Demandes en consultation devis</h3>
+        <div class="meta">Prenez en charge les demandes soumises, saisissez les devis et retenez les offres par ligne.</div>
+      </div>
+      <a href="{% url 'achats:demande_list' %}" class="btn btn-outline-secondary">Retour aux demandes</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Demande</th>
+            <th>Demandeur</th>
+            <th>Section</th>
+            <th>Statut</th>
+            <th>Lignes</th>
+            <th>Total HT</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for demande in demandes %}
+          <tr>
+            <td>
+              <strong>{{ demande.numero }}</strong><br>
+              <span class="meta">{{ demande.date_creation|date:'d/m/Y H:i' }}</span>
+            </td>
+            <td>{{ demande.demandeur.get_full_name|default:demande.demandeur.username }}</td>
+            <td>{{ demande.section_analytique }}</td>
+            <td>{{ demande.get_statut_display }}</td>
+            <td>{{ demande.lignes.count }}</td>
+            <td>{{ demande.total_commande_ht|default:'0.00' }} €</td>
+            <td>
+              {% if demande.statut == 'soumise' %}
+              <form method="post" action="{% url 'achats:demande_start_devis' demande.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-info btn-sm">Prendre en charge</button>
+              </form>
+              {% else %}
+              <a href="{% url 'achats:devis_manage' demande.pk %}" class="btn btn-primary btn-sm">Gérer les devis</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">Aucune demande en phase de devis.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

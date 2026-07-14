@@ -1,0 +1,787 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>AB Serve | Dashboard</title>
+
+  <link rel="icon" href="{% static 'favicon.ico' %}">
+  <link rel="icon" type="image/png" href="{% static 'dist/img/abserveLogo.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'dist/img/abserveLogo.png' %}">
+
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="{% static 'plugins/fontawesome-free/css/all.min.css'%}">
+  <!-- Ionicons -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+  <!-- Tempusdominus Bootstrap 4 -->
+  <link rel="stylesheet" href="{% static 'plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css'%}">
+  <!-- iCheck -->
+  <link rel="stylesheet" href="{% static 'plugins/icheck-bootstrap/icheck-bootstrap.min.css'%}">
+  <!-- JQVMap -->
+  <link rel="stylesheet" href="{% static 'plugins/jqvmap/jqvmap.min.css'%}">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css'%}">
+  <!-- overlayScrollbars -->
+  <link rel="stylesheet" href="{% static 'plugins/overlayScrollbars/css/OverlayScrollbars.min.css'%}">
+  <!-- Daterange picker -->
+  <link rel="stylesheet" href="{% static 'plugins/daterangepicker/daterangepicker.css'%}">
+  <!-- summernote -->
+  <link rel="stylesheet" href="{% static 'plugins/summernote/summernote-bs4.min.css'%}">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.dataTables.min.css">
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{% static 'dist/css/custom.css' %}">
+
+</head>
+<body class="hold-transition sidebar-mini layout-fixed">
+<div class="wrapper">
+
+  <!-- Preloader -->
+  <div class="preloader flex-column justify-content-center align-items-center">
+    <img class="animation__shake" src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve Logo" height="60" width="60">
+  </div>
+
+  <!-- Navbar -->
+  <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+    <!-- Left navbar links -->
+    <ul class="navbar-nav">
+      <li class="nav-item">
+        <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+      </li>
+      <li class="nav-item d-none d-sm-inline-block">
+        <a href="#" class="nav-link">Accueil</a>
+      </li>
+    </ul>
+
+    <!-- Right navbar links -->
+    <ul class="navbar-nav ml-auto">
+      <!-- Notifications Dropdown -->
+      <li class="nav-item dropdown" id="notifications-dropdown">
+        <a class="nav-link" data-toggle="dropdown" href="#" id="notifications-toggle">
+            <i class="far fa-bell"></i>
+            <span class="badge badge-warning navbar-badge" id="notification-counter" 
+                  {% if unread_notifications_count > 0 %}style="display: inline;"{% else %}style="display: none;"{% endif %}>
+                {{ unread_notifications_count }}
+            </span>
+        </a>
+        <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+            <span class="dropdown-item dropdown-header" id="notification-header">
+                {{ unread_notifications_count }} Notification{{ unread_notifications_count|pluralize }}
+            </span>
+            <div class="dropdown-divider"></div>
+            <div class="nav-item dropdown" id="notifications-list">
+                {% for notification in unread_notifications|slice:":5" %}
+                    <a href="#" 
+                      class="dropdown-item notification-item {% if not notification.est_lu %}font-weight-bold{% endif %}"
+                      data-notification-id="{{ notification.id }}"
+                      data-type="{{ notification.notification.type }}"
+                      data-lien-id="{{ notification.notification.lien_id }}"
+                      data-details-url="{% if notification.notification.type == 'event' %}{% url 'prospection:event_details' notification.notification.lien_id %}{% else %}{% url 'prospection:action_details' notification.notification.lien_id %}{% endif %}">
+                        <i class="fas fa-bell mr-2"></i> 
+                        {{ notification.notification.message|truncatechars:30 }}
+                        <span class="float-right text-muted text-sm">
+                            {{ notification.notification.date_heure|timesince }} ago
+                        </span>
+                    </a>
+                    <div class="dropdown-divider"></div>
+                {% empty %}
+                    <span class="dropdown-item">No new notifications</span>
+                    <div class="dropdown-divider"></div>
+                {% endfor %}
+            </div>
+            <a href="{% url 'prospection:all_notifications' %}" class="dropdown-item dropdown-footer">See all notifications</a>
+        </div>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-widget="fullscreen" role="button">
+          <i class="fas fa-expand-arrows-alt"></i>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="/" title="Accueil modules">
+          <i class="fas fa-th-large"></i>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link text-danger" href="/logout/" title="Se déconnecter">
+            <i class="fas fa-sign-out-alt"></i>
+        </a>
+      </li>    
+    </ul>
+  </nav>
+  <!-- /.navbar -->
+
+  <!-- Main Sidebar Container -->
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <!-- Brand Logo -->
+    <a href="/" class="brand-link">
+      <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve" class="brand-image img-circle elevation-3" style="opacity: .8">
+      <span class="brand-text font-weight-light">AB Serve</span>
+    </a>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Sidebar user panel (optional) -->
+      <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <div class="image">
+            <i class="fas fa-user-circle fa-2x text-white"></i>
+        </div>
+        <div class="info">
+            <a href="{% url 'profile' %}" class="d-block"><span id="username"></span></a>
+        </div>
+      </div>
+
+      {% include 'shared_sidebar.html' %}
+    </div>
+    <!-- /.sidebar -->
+  </aside>
+
+      <!-- Content Wrapper. Contains page content -->
+      <div class="content-wrapper">
+        {% block body %}
+        {% endblock %}
+      </div>
+      <!-- /.content-wrapper -->
+  <!-- /.content-wrapper -->
+  <footer class="main-footer">
+    <strong>Copyright &copy; 2024-2025 <a href="https://abservesmart.com/">AB Serve Tunisie</a>.</strong>
+    All rights reserved.
+  </footer>
+
+  <!-- /.control-sidebar -->
+</div>
+<!-- Dynamic Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" role="dialog" aria-labelledby="detailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+      <div class="modal-content shadow-sm">
+          <div class="modal-header bg-primary text-white">
+              <h5 class="modal-title" id="detailsModalLabel">
+                  <i class="fas fa-info-circle"></i> Détails
+              </h5>
+              <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+              </button>
+          </div>
+          <div class="modal-body" id="detailsModalBody">
+              <!-- Le contenu sera injecté dynamiquement par JavaScript -->
+          </div>
+          <div class="modal-footer d-flex justify-content-end">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                  <i class="fas fa-times"></i> Fermer
+              </button>
+          </div>
+      </div>
+  </div>
+</div>
+
+<!-- Enquête Details Modal (match enquetes.html) -->
+<div class="modal fade" id="detailsEnqModal" tabindex="-1" role="dialog" aria-labelledby="detailsEnqModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="detailsEnqModalLabel">
+                    <i class="fas fa-poll mr-2"></i>Détails de l'enquête
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0">
+                <!-- Le contenu sera injecté ici par JS -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i> Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ./wrapper -->
+
+<!-- jQuery FIRST (absolument nécessaire en premier) -->
+<script src="{% static 'plugins/jquery/jquery.min.js' %}"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<!-- Moment.js (early, car utilisé par plusieurs plugins) -->
+<script src="{% static 'plugins/moment/moment.min.js' %}"></script>
+
+<!-- jQuery UI (doit venir après jQuery) -->
+<script src="{% static 'plugins/jquery-ui/jquery-ui.min.js' %}"></script>
+
+<!-- Bootstrap Bundle (inclut Popper.js) -->
+<script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+<!-- Plugins dépendants de jQuery et Bootstrap -->
+<script src="{% static 'plugins/overlayScrollbars/js/jquery.overlayScrollbars.min.js' %}"></script>
+<script src="{% static 'plugins/jquery-knob/jquery.knob.min.js' %}"></script>
+<script src="{% static 'plugins/chart.js/Chart.min.js' %}"></script>
+<script src="{% static 'plugins/daterangepicker/daterangepicker.js' %}"></script>
+<script src="{% static 'plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js' %}"></script>
+<script src="{% static 'plugins/summernote/summernote-bs4.min.js' %}"></script>
+
+<!-- AdminLTE Core JS -->
+<script src="{% static 'dist/js/adminlte.js' %}"></script>
+
+<!-- Scripts de démo (doivent venir EN DERNIER) -->
+<script src="{% static 'dist/js/demo.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<!-- Script pour la navigation SPA -->
+<script src="{% static 'dist/js/spa-navigation.js' %}"></script>
+
+<!-- Scripts pour les notifications push -->
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-messaging.js"></script>
+<script>
+  // Récupération des informations utilisateur
+  fetch('/prospection/info/')
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("username").innerText = data.username;
+    })
+    .catch(error => console.error('Erreur:', error));
+  
+  // Configuration Firebase
+  const firebaseConfig = {
+      apiKey: "AIzaSyCu5Z1bFg7HSMVeIIs2MUKez_-FJbNC2V0",
+      authDomain: "prospect-95d0f.firebaseapp.com",
+      projectId: "prospect-95d0f",
+      storageBucket: "prospect-95d0f.firebasestorage.app",
+      messagingSenderId: "370819164017",
+      appId: "1:370819164017:web:f57ddb1a87e2086bedf8d0"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+  let notificationInterval;
+  
+  // Fonction pour obtenir le cookie CSRF
+  function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                  break;
+              }
+          }
+      }
+      return cookieValue;
+  }
+  
+  // Synchronisation des notifications
+  async function syncNotifications() {
+      try {
+          const response = await $.get("{% url 'prospection:notifications_api' %}");
+          if (response && typeof response === 'object' && !response.error) {
+              updateNotificationUI(response);
+          }
+      } catch (error) {
+          // Silently ignore if unauthenticated (401) or server-side error
+          if (error && error.status !== 401) {
+              console.warn('Erreur de synchronisation notifications:', error.status || error);
+          }
+      }
+  }
+  
+  // Mise à jour de l'interface des notifications
+  function updateNotificationUI(data) {
+      // Mettre à jour le compteur
+      const unreadCount = data.unread_count;
+      const counter = $('#notification-counter');
+      const header = $('#notification-header');
+      
+      if (unreadCount > 0) {
+          counter.text(unreadCount).show();
+          header.text(`${unreadCount} Notification${unreadCount !== 1 ? 's' : ''}`);
+      } else {
+          counter.hide();
+          header.text('No new notifications');
+      }
+      
+      // Mettre à jour la liste
+      const container = $('#notifications-list');
+      container.empty();
+      
+      if (data.notifications.length === 0) {
+          container.append('<span class="dropdown-item">No notifications</span>');
+          return;
+      }
+      
+      data.notifications.slice(0, 5).forEach(notif => {
+          const detailsUrl = notif.type === 'event' 
+              ? `/prospection/events/${notif.details_url}/details/` 
+              : notif.type === 'enquete' 
+              ? `/prospection/enquetes/detail/${notif.details_url}/` 
+              : `/prospection/actions/${notif.details_url}/details/`;
+          
+          container.append(`
+              <a href="#" 
+                 class="dropdown-item ${notif.unread ? 'font-weight-bold' : ''} notification-item"
+                 data-notification-id="${notif.id}"
+                 data-type="${notif.type}"
+                 data-details-url="${detailsUrl}">
+                  <i class="fas fa-bell mr-2"></i> ${notif.message.substring(0, 30)+ '...' }
+                  <span class="float-right text-muted text-sm">${notif.time_ago}</span>
+              </a>
+              <div class="dropdown-divider"></div>
+          `);
+      });
+  }
+  
+  // Gestion des messages Firebase
+  messaging.onMessage((payload) => {
+      syncNotifications();
+      
+      if (Notification.permission === 'granted') {
+          new Notification(payload.notification.title, {
+              body: payload.notification.body,
+              icon: payload.notification.icon || '/static/img/logo.png'
+          });
+      }
+  });
+  
+  // Affichage des détails d'un événement
+  function showEventDetails(data) {
+      const modalTitle = $('#detailsModalLabel');
+      const modalBody = $('#detailsModalBody');
+      
+      modalTitle.html('<i class="fas fa-calendar-alt"></i> Détails');
+      
+      const html = `
+          <div class="table-responsive">
+              <table class="table table-bordered">
+                  <tbody>
+                      <tr>
+                          <th width="25%"><i class="fas fa-tag"></i> Nom</th>
+                          <td width="25%">${data.nom || 'N/A'}</td>
+                          <th width="25%"><i class="fas fa-map-marker-alt"></i> Lieu</th>
+                          <td width="25%">${data.lieu || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-filter"></i> Categorie</th>
+                          <td>${data.categorie || 'N/A'}</td>
+                          <th><i class="fas fa-industry"></i> Secteur d'activité</th>
+                          <td>${data.secteur_activite || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-building"></i> Filiale</th>
+                          <td>${data.societe || 'N/A'}</td>
+                          <th><i class="fas fa-briefcase"></i> Enterprise</th>
+                          <td>${data.entreprise || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-user"></i> Créé par</th>
+                          <td>${data.created_by || 'N/A'}</td>
+                          <th><i class="fas fa-user-tie"></i> Pilote</th>
+                          <td>${data.pilote || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-calendar"></i> Date de création</th>
+                          <td>${data.date || 'N/A'}</td>
+                          <th><i class="fas fa-clock"></i> Date planifié</th>
+                          <td>${data.date_heure_planifie || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-check-circle"></i> Date de réalisation</th>
+                          <td>${data.date_heure_realiser || 'N/A'}</td>
+                          <th><i class="fas fa-info-circle"></i> Statut</th>
+                          <td>${data.etat || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th colspan="4"><i class="fas fa-sticky-note"></i> Notes</th>
+                      </tr>
+                      <tr>
+                          <td colspan="4">${data.notes || 'pas de notes'}</td>
+                      </tr>
+                  </tbody>
+              </table>
+          </div>
+      `;
+      
+      modalBody.html(html);
+  }
+  
+  // Affichage des détails d'une action
+  function showActionDetails(data) {
+      const modalTitle = $('#detailsModalLabel');
+      const modalBody = $('#detailsModalBody');
+      
+      modalTitle.html(`<i class="fas fa-tasks"></i> Détails ${data.type || 'Action'}`);
+      
+      const html = `
+          <div class="table-responsive">
+              <table class="table table-bordered">
+                  <tbody>
+                      <tr>
+                          <th width="25%"><i class="fas fa-tag"></i> Type</th>
+                          <td width="25%">${data.type || 'N/A'}</td>
+                          <th width="25%"><i class="fas fa-comment"></i> Sujet</th>
+                          <td width="25%">${data.subject || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-info-circle"></i> Statut</th>
+                          <td>${data.status || 'N/A'}</td>
+                          <th><i class="fas fa-calendar"></i> Date de création</th>
+                          <td>${data.creation_date || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-clock"></i> Date planifié</th>
+                          <td>${data.planned_date || 'N/A'}</td>
+                          <th><i class="fas fa-check-circle"></i> Date de réalisation</th>
+                          <td>${data.completed_date || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-building"></i> Filiale</th>
+                          <td>${data.company || 'N/A'}</td>
+                          <th><i class="fas fa-briefcase"></i> Enterprise</th>
+                          <td>${data.enterprise || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th><i class="fas fa-user"></i> Créé par</th>
+                          <td>${data.created_by || 'N/A'}</td>
+                          <th><i class="fas fa-user-tie"></i> Pilote</th>
+                          <td>${data.pilot || 'N/A'}</td>
+                      </tr>
+                      <tr>
+                          <th colspan="4"><i class="fas fa-clipboard"></i> compte-rendu</th>
+                      </tr>
+                      <tr>
+                          <td colspan="4">${data.report || 'pas de compte-rendu'}</td>
+                      </tr>
+                      <tr>
+                          <th colspan="4"><i class="fas fa-sticky-note"></i> Notes</th>
+                      </tr>
+                      <tr>
+                          <td colspan="4">${data.notes || 'pas de notes'}</td>
+                      </tr>
+                  </tbody>
+              </table>
+          </div>
+      `;
+      
+      modalBody.html(html);
+  }
+  
+  // Affichage des détails d'une enquête
+  function showEnqueteDetails(data) {
+      const modalBody = $('#detailsEnqModal .modal-body');
+      
+      var html = `
+        <div class="container-fluid p-0">
+            <!-- Section Informations Générales -->
+            <div class="card rounded-0 border-0 shadow-sm mb-3">
+                <div class="card-header bg-info text-white py-3">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle mr-2"></i>Informations générales
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge badge-light badge-pill mr-2"><i class="fas fa-heading"></i></span>
+                                <div>
+                                    <small class="text-muted d-block">Titre</small>
+                                    <strong>${data.titre || '—'}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge badge-light badge-pill mr-2"><i class="fas fa-building"></i></span>
+                                <div>
+                                    <small class="text-muted d-block">Client</small>
+                                    <span class="badge badge-info">${data.client || '—'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge badge-light badge-pill mr-2"><i class="fas fa-user"></i></span>
+                                <div>
+                                    <small class="text-muted d-block">Créé par</small>
+                                    <span class="badge badge-secondary">${data.created_by || '—'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-start">
+                                <span class="badge badge-light badge-pill mr-2"><i class="fas fa-align-left"></i></span>
+                                <div>
+                                    <small class="text-muted d-block">Description</small>
+                                    <div>${data.description || '—'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-container mt-4">
+                        <div class="row">
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="timeline-item ${data.date_creation ? 'active' : ''}">
+                                    <div class="timeline-icon bg-primary">
+                                        <i class="fas fa-plus text-white"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <small class="text-muted d-block">Créée</small>
+                                        <strong>${data.date_creation || '—'}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="timeline-item ${data.date_modification ? 'active' : ''}">
+                                    <div class="timeline-icon bg-warning">
+                                        <i class="fas fa-edit text-white"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <small class="text-muted d-block">Modifiée</small>
+                                        <strong>${data.date_modification || '—'}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="timeline-item ${data.date_envoi ? 'active' : ''}">
+                                    <div class="timeline-icon bg-info">
+                                        <i class="fas fa-paper-plane text-white"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <small class="text-muted d-block">Envoyée</small>
+                                        <strong>${data.date_envoi || '—'}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6 mb-3">
+                                <div class="timeline-item ${data.date_reponse ? 'active' : ''}">
+                                    <div class="timeline-icon bg-success">
+                                        <i class="fas fa-check text-white"></i>
+                                    </div>
+                                    <div class="timeline-content">
+                                        <small class="text-muted d-block">Réponse</small>
+                                        <strong>${data.date_reponse || '—'}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Section Questions & Réponses -->
+            <div class="card rounded-0 border-0 shadow-sm">
+                <div class="card-header bg-info text-white py-3">
+                    <h6 class="mb-0">
+                        <i class="fas fa-question-circle mr-2"></i>Questions & réponses
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+        `;
+
+        if (data.questions.length === 0) {
+            html += `
+                    <div class="alert alert-warning m-3">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Aucune question pour cette enquête.
+                    </div>
+            `;
+        } else {
+            html += `
+                    <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th width="50">#</th>
+                                    <th>Question</th>
+                                    <th width="150">Type</th>
+                                    <th width="120">Statut</th>
+                                    <th width="200">Réponse</th>
+                                    <th width="120">Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            data.questions.forEach(function (q, i) {
+                var reponseBadge = '';
+                if (data.date_reponse) {
+                    if (q.reponse) {
+                        reponseBadge = `<span class="badge badge-success">${q.reponse}</span>`;
+                    } else {
+                        reponseBadge = '<span class="badge badge-secondary">Non renseignée</span>';
+                    }
+                }
+
+                html += `
+                                <tr>
+                                    <td class="align-middle"><strong>${i + 1}</strong></td>
+                                    <td class="align-middle">${q.question}</td>
+                                    <td class="align-middle">
+                                        <span class="badge ${getTypeBadgeClass(q.type)}">${q.type}</span>
+                                    </td>
+                                    <td class="align-middle">
+                                        ${q.obligatoire ? '<span class="badge badge-warning">Obligatoire</span>' : '<span class="badge badge-secondary">Optionnel</span>'}
+                                    </td>
+                                    ${data.date_reponse ? `<td class="align-middle">${reponseBadge}</td>` : '<td class="align-middle">-</td>'}
+                                    ${q.commentaire && data.date_reponse ? `<td class="align-middle">${q.commentaire}</td>` : '<td class="align-middle">-</td>'}
+                                </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+        </div>
+        `;
+      
+      modalBody.html(html);
+  }
+
+  function getTypeBadgeClass(type) {
+        switch(type.toLowerCase()) {
+            case 'closed': return 'badge-info';
+            case 'ouinon': return 'badge-primary';
+            case 'open': return 'badge-secondary';
+            case 'note': return 'badge-danger';
+            default: return 'badge-light';
+        }
+    }
+  
+  // Gestion du clic sur une notification
+  function handleNotificationClick(e) {
+      e.preventDefault();
+      const $this = $(this);
+      const notificationId = $this.data('notification-id');
+      const detailsUrl = $this.data('details-url');
+      const type = $this.data('type');
+
+      // Marquage comme lu
+      $.ajax({
+          url: "{% url 'prospection:mark_notification_read' pk=0 %}".replace('/0/', '/' + notificationId + '/'),
+          method: 'POST',
+          headers: {
+              'X-CSRFToken': getCookie('csrftoken')
+          },
+          success: function() {
+              $this.removeClass('font-weight-bold');
+              
+              // Mettre à jour le compteur
+              const counter = $('#notification-counter');
+              const count = parseInt(counter.text()) - 1;
+              if (count > 0) {
+                  counter.text(count);
+              } else {
+                  counter.hide();
+                  $('#notification-header').text('No new notifications');
+              }
+              
+              // Charger les détails
+              $.get(detailsUrl)
+                  .done(function(data) {
+                      if (type === 'event') {
+                          showEventDetails(data);
+                          $('#detailsModal').modal('show');
+                      } else if (type === 'enquete') {
+                          showEnqueteDetails(data);
+                          $('#detailsEnqModal').modal('show');
+                      } else {
+                          showActionDetails(data);
+                          $('#detailsModal').modal('show');
+                      }
+                  })
+                  .fail(function(xhr) {
+                      console.error("Error loading details:", xhr);
+                      $('#detailsModalBody').html(`
+                          <div class="alert alert-danger">
+                              Failed to load details. Status: ${xhr.status}
+                          </div>
+                      `);
+                      $('#detailsModal').modal('show');
+                  });
+          },
+          error: function(xhr) {
+              console.error("Error marking as read:", xhr);
+              $.get(detailsUrl)
+                  .done(function(data) {
+                      if (type === 'event') {
+                          showEventDetails(data);
+                          $('#detailsModal').modal('show');
+                      } else if (type === 'enquete') {
+                          showEnqueteDetails(data);
+                          $('#detailsEnqModal').modal('show');
+                      } else {
+                          showActionDetails(data);
+                          $('#detailsModal').modal('show');
+                      }
+                  });
+          }
+      });
+  }
+  
+  // Initialisation
+  $(document).ready(function() {      
+      // Première synchronisation
+      syncNotifications();
+      
+      // Intervalle d'actualisation (30 secondes)
+      notificationInterval = setInterval(syncNotifications, 30000);
+      
+      // Gestion du clic sur le bouton de notifications
+      $(document).on('click', '#notifications-toggle', function(e) {
+          e.stopPropagation();
+      });
+      
+      // Gestion du clic sur les notifications
+      $(document).on('click', '.notification-item', handleNotificationClick);
+      
+      // Nettoyage
+      $(window).on('beforeunload', function() {
+          clearInterval(notificationInterval);
+      })
+  });
+</script>
+
+<script>
+  (function() {
+      function ensureNextField(form) {
+          if (!form || !form.method) return;
+          if (String(form.method).toUpperCase() !== 'POST') return;
+          if (form.querySelector('input[name="next"]')) return;
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'next';
+          input.value = window.location.href;
+          form.appendChild(input);
+      }
+
+      function init() {
+          document.querySelectorAll('form').forEach(ensureNextField);
+      }
+
+      if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init);
+      } else {
+          init();
+      }
+
+      document.addEventListener('submit', function(e) {
+          ensureNextField(e.target);
+      }, true);
+  })();
+</script>
+</body>
+</html>

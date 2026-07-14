@@ -1,0 +1,569 @@
+{% extends 'audit/base.html' %}
+{% load i18n %}
+{% block title %}{% if object %}Modifier l'audit {{ object.numero }}{% else %}Nouvel audit{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* Wizard steps indicator */
+  .wizard-steps { display:flex; gap:0; margin-bottom:2rem; }
+  .wizard-step {
+    flex:1; text-align:center; padding:.75rem 1rem;
+    background:#f4f6f9; border:1px solid #dee2e6; cursor:pointer;
+    font-weight:600; color:#6c757d; transition:.2s;
+  }
+  .wizard-step:first-child { border-radius:.35rem 0 0 .35rem; }
+  .wizard-step:last-child  { border-radius:0 .35rem .35rem 0; }
+  .wizard-step.active   { background:#007bff; color:#fff; border-color:#007bff; z-index:1; }
+  .wizard-step.done     { background:#28a745; color:#fff; border-color:#28a745; }
+  .wizard-step .step-num {
+    display:inline-flex; width:1.6rem; height:1.6rem; border-radius:50%;
+    background:rgba(255,255,255,.3); align-items:center; justify-content:center;
+    font-size:.8rem; margin-right:.4rem;
+  }
+  /* Formulaire mode radio cards */
+  .mode-card { border:2px solid #dee2e6; border-radius:.5rem; padding:1rem 1.25rem; cursor:pointer; transition:.2s; }
+  .mode-card:hover { border-color:#007bff; }
+  .mode-card.selected { border-color:#007bff; background:#e8f0fe; }
+  .mode-card input[type=radio] { display:none; }
+  /* Participant rows */
+  .participant-row { background:#f8f9fa; border:1px solid #dee2e6; border-radius:.4rem; padding:.75rem 1rem; margin-bottom:.5rem; }
+  .participant-type-toggle { cursor:pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">{% if object %}Modifier l'audit <small class="text-muted">{{ object.numero }}</small>{% else %}Nouvel audit{% endif %}</h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="{% url 'audit:list' %}">Audits</a></li>
+          <li class="breadcrumb-item active">{% if object %}Modifier{% else %}Créer{% endif %}</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+<div class="container-fluid">
+
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+  {{ message }}<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button>
+</div>
+{% endfor %}
+
+<form method="post" id="auditForm" novalidate>
+{% csrf_token %}
+
+<!-- ════ Wizard Steps Bar ════ -->
+<div class="wizard-steps" id="wizardSteps">
+  <div class="wizard-step active" id="step1Tab" onclick="goToStep(1)">
+    <span class="step-num">1</span> Formulaire
+  </div>
+  <div class="wizard-step" id="step2Tab" onclick="goToStep(2)">
+    <span class="step-num">2</span> Détails &amp; Participants
+  </div>
+</div>
+
+<!-- ════ STEP 1: Formulaire ════ -->
+<div id="step1Panel">
+  <div class="card card-outline card-primary">
+    <div class="card-header">
+      <h3 class="card-title"><i class="fas fa-file-alt mr-2"></i>Choisir un formulaire d'audit</h3>
+    </div>
+    <div class="card-body">
+      {% if object %}
+        <!-- Edit mode: formulaire already fixed -->
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle mr-1"></i>
+          Formulaire associé : <strong>{{ object.formulaire.titre }}</strong>
+          ({{ object.formulaire.get_type_audit_display }})
+          {% if object.formulaire.section %} — Section : {{ object.formulaire.section.Nom }}{% endif %}
+        </div>
+        {{ form.formulaire.as_hidden }}
+      {% else %}
+        <!-- Mode selection: existing OR copy -->
+        <div class="row mb-3">
+          <div class="col-md-6 mb-2">
+            <label class="mode-card selected d-block" id="modeExistingCard">
+              <input type="radio" name="_mode" value="existing" checked>
+              <div class="d-flex align-items-start">
+                <i class="fas fa-list-alt fa-2x text-primary mr-3 mt-1"></i>
+                <div>
+                  <div class="font-weight-bold">Utiliser un formulaire existant</div>
+                  <small class="text-muted">Sélectionner directement un formulaire de la base.</small>
+                </div>
+              </div>
+            </label>
+          </div>
+          <div class="col-md-6 mb-2">
+            <label class="mode-card d-block" id="modeCopyCard">
+              <input type="radio" name="_mode" value="copy">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-copy fa-2x text-success mr-3 mt-1"></i>
+                <div>
+                  <div class="font-weight-bold">Copier un formulaire existant</div>
+                  <small class="text-muted">Dupliquer un formulaire pour une autre section/type.</small>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Mode: existing -->
+        <div id="panelExisting">
+          <div class="form-group">
+            <label class="font-weight-bold">Formulaire <span class="text-danger">*</span></label>
+            <select name="formulaire" id="id_formulaire" class="form-control select2-formulaire" style="width:100%">
+              <option value="">— Choisir un formulaire —</option>
+              {% for f in formulaires_list %}
+                <option value="{{ f.id }}"
+                  data-type="{{ f.type_audit }}"
+                  data-section="{{ f.section__Nom|default:'' }}"
+                  {% if form.formulaire.value == f.id|stringformat:"s" %}selected{% endif %}>
+                  {{ f.titre }} — {{ f.type_audit }} {% if f.section__Nom %}({{ f.section__Nom }}){% endif %}
+                </option>
+              {% endfor %}
+            </select>
+            {% if form.formulaire.errors %}
+              <div class="text-danger small mt-1">{{ form.formulaire.errors.0 }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Mode: copy -->
+        <div id="panelCopy" style="display:none">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label class="font-weight-bold">Formulaire source <span class="text-danger">*</span></label>
+                <select id="copySourceId" class="form-control select2-copy-source" style="width:100%">
+                  <option value="">— Choisir le formulaire à copier —</option>
+                  {% for f in formulaires_list %}
+                    <option value="{{ f.id }}" data-type="{{ f.type_audit }}" data-section="{{ f.section__Nom|default:'' }}" data-section-id="{{ f.section_id|default:'' }}">
+                      {{ f.titre }} ({{ f.type_audit }}{% if f.section__Nom %} / {{ f.section__Nom }}{% endif %})
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label class="font-weight-bold">Nouveau titre <span class="text-danger">*</span></label>
+                <input type="text" id="copyNewTitre" class="form-control" placeholder="Titre du nouveau formulaire">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label class="font-weight-bold">Nouvelle section <span class="text-danger">*</span></label>
+                <select id="copyNewSectionId" class="form-control select2-copy-section" style="width:100%">
+                  <option value="">— Choisir la section —</option>
+                  {% for f in formulaires_list %}{% endfor %}
+                  <!-- populated from formulaires_json sections via JS -->
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label class="font-weight-bold">Nouveau type d'audit <span class="text-danger">*</span></label>
+                <select id="copyNewType" class="form-control select2-copy-type" style="width:100%">
+                  <option value="">— Choisir le type —</option>
+                  {% for val, label in type_choices %}
+                    <option value="{{ val }}">{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-success" id="btnCopyFormulaire">
+            <i class="fas fa-copy mr-1"></i>Créer la copie
+          </button>
+          <div id="copyStatus" class="mt-2"></div>
+        </div>
+
+        <!-- Hidden: copied formulaire id -->
+        <input type="hidden" id="copiedFormulaireId" name="_copied_formulaire_id" value="">
+      {% endif %}
+    </div>
+    <div class="card-footer text-right">
+      <button type="button" class="btn btn-primary" id="btnStep1Next">
+        Suivant <i class="fas fa-arrow-right ml-1"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ STEP 2: Détails & Participants ════ -->
+<div id="step2Panel" style="display:none">
+  <div class="row">
+
+    <!-- LEFT: Audit details -->
+    <div class="col-lg-6">
+      <div class="card card-outline card-primary">
+        <div class="card-header">
+          <h3 class="card-title"><i class="fas fa-info-circle mr-2"></i>Informations de l'audit</h3>
+        </div>
+        <div class="card-body">
+
+          {% if object %}
+          <div class="form-group">
+            <label class="font-weight-bold">Statut <span class="text-danger">*</span></label>
+            <select name="statut" id="id_statut" class="form-control select2-statut" style="width:100%">
+              {% for val, label in statut_choices %}
+                <option value="{{ val }}" {% if form.statut.value == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            {% if form.statut.errors %}<div class="text-danger small mt-1">{{ form.statut.errors.0 }}</div>{% endif %}
+          </div>
+          {% else %}
+          <input type="hidden" name="statut" value="EN_COURS">
+          {% endif %}
+
+          <div class="form-group">
+            <label class="font-weight-bold">Date d'audit <span class="text-danger">*</span></label>
+            <input type="date" name="date_audit" id="id_date_audit" class="form-control"
+              value="{{ form.date_audit.value|date:'Y-m-d'|default:today }}">
+            {% if form.date_audit.errors %}<div class="text-danger small mt-1">{{ form.date_audit.errors.0 }}</div>{% endif %}
+          </div>
+
+          <div class="form-group">
+            <label class="font-weight-bold">Responsable audit</label>
+            <select name="responsable_audit" id="id_responsable_audit" class="form-control select2-user" style="width:100%">
+              <option value="">— Aucun responsable —</option>
+              {% for u in users_json %}
+                <option value="{{ u.id }}"
+                  {% if form.responsable_audit.value|stringformat:"s" == u.id|stringformat:"s" %}selected{% endif %}>
+                  {{ u.last_name }} {{ u.first_name }} ({{ u.username }})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="font-weight-bold">Commentaire</label>
+            <textarea name="commentaire" id="id_commentaire" class="form-control" rows="3"
+              placeholder="Commentaires éventuels…">{{ form.commentaire.value|default:'' }}</textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Participants -->
+    <div class="col-lg-6">
+      <div class="card card-outline card-success">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h3 class="card-title"><i class="fas fa-users mr-2"></i>Participants</h3>
+          <button type="button" class="btn btn-success btn-sm" id="btnAddParticipant">
+            <i class="fas fa-plus mr-1"></i>Ajouter
+          </button>
+        </div>
+        <div class="card-body">
+          <div id="participantsList">
+            <!-- Existing participants (edit mode) -->
+            {% for p in participants %}
+            <div class="participant-row" data-idx="{{ forloop.counter0 }}">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="btn-group btn-group-sm participant-type-toggle">
+                  <button type="button" class="btn {% if p.user_id %}btn-primary{% else %}btn-outline-primary{% endif %} btn-type-internal" data-for="{{ forloop.counter0 }}">Interne</button>
+                  <button type="button" class="btn {% if not p.user_id %}btn-primary{% else %}btn-outline-primary{% endif %} btn-type-external" data-for="{{ forloop.counter0 }}">Externe</button>
+                </div>
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove-participant"><i class="fas fa-trash"></i></button>
+              </div>
+
+              <div class="participant-internal" {% if not p.user_id %}style="display:none"{% endif %}>
+                <div class="form-group mb-1">
+                  <label class="small">Utilisateur</label>
+                  <select name="participant_user_id[]" class="form-control form-control-sm select2-participant-user" style="width:100%">
+                    <option value="">— Choisir —</option>
+                    {% for u in users_json %}
+                      <option value="{{ u.id }}" {% if p.user_id == u.id %}selected{% endif %}>
+                        {{ u.last_name }} {{ u.first_name }} ({{ u.username }})
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <div class="participant-external" {% if p.user_id %}style="display:none"{% endif %}>
+                <div class="form-group mb-1">
+                  <label class="small">Nom externe</label>
+                  <input type="text" name="participant_nom[]" class="form-control form-control-sm"
+                    placeholder="Nom et prénom" value="{{ p.nom_externe }}">
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col-7">
+                  <div class="form-group mb-0">
+                    <label class="small">Fonction</label>
+                    <input type="text" name="participant_fonction[]" class="form-control form-control-sm"
+                      placeholder="Fonction" value="{{ p.fonction }}">
+                  </div>
+                </div>
+                <div class="col-5 d-flex align-items-end">
+                  <div class="form-check mb-1 ml-1">
+                    <input class="form-check-input" type="checkbox" name="participant_exterieur[]"
+                      value="1" id="pext_{{ forloop.counter0 }}" {% if p.est_auditeur_externe %}checked{% endif %}>
+                    <label class="form-check-label small" for="pext_{{ forloop.counter0 }}">Auditeur ext.</label>
+                  </div>
+                </div>
+              </div>
+
+              <!-- hidden empty user_id if external -->
+              {% if not p.user_id %}<input type="hidden" name="participant_user_id[]" value="">{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <div id="noParticipants" class="text-center text-muted py-3 {% if participants %}d-none{% endif %}">
+            <i class="fas fa-users fa-2x d-block mb-1"></i>Aucun participant ajouté.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.row -->
+
+  <div class="d-flex justify-content-between mt-2">
+    <button type="button" class="btn btn-secondary" id="btnStep2Back">
+      <i class="fas fa-arrow-left mr-1"></i>Retour
+    </button>
+    <div>
+      <a href="{% url 'audit:list' %}" class="btn btn-outline-secondary mr-2">Annuler</a>
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-save mr-1"></i>{% if object %}Enregistrer les modifications{% else %}Créer l'audit{% endif %}
+      </button>
+    </div>
+  </div>
+</div><!-- /#step2Panel -->
+
+</form>
+</div>
+</section>
+
+<!-- ── Participant row template ── -->
+<template id="participantRowTemplate">
+  <div class="participant-row">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div class="btn-group btn-group-sm participant-type-toggle">
+        <button type="button" class="btn btn-primary btn-type-internal">Interne</button>
+        <button type="button" class="btn btn-outline-primary btn-type-external">Externe</button>
+      </div>
+      <button type="button" class="btn btn-outline-danger btn-sm btn-remove-participant"><i class="fas fa-trash"></i></button>
+    </div>
+    <div class="participant-internal">
+      <div class="form-group mb-1">
+        <label class="small">Utilisateur</label>
+        <select name="participant_user_id[]" class="form-control form-control-sm select2-participant-user" style="width:100%">
+          <option value="">— Choisir —</option>
+          {% for u in users_json %}
+            <option value="{{ u.id }}">{{ u.last_name }} {{ u.first_name }} ({{ u.username }})</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="participant-external" style="display:none">
+      <div class="form-group mb-1">
+        <label class="small">Nom externe</label>
+        <input type="text" name="participant_nom[]" class="form-control form-control-sm" placeholder="Nom et prénom">
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-7">
+        <div class="form-group mb-0">
+          <label class="small">Fonction</label>
+          <input type="text" name="participant_fonction[]" class="form-control form-control-sm" placeholder="Fonction">
+        </div>
+      </div>
+      <div class="col-5 d-flex align-items-end">
+        <div class="form-check mb-1 ml-1">
+          <input class="form-check-input" type="checkbox" name="participant_exterieur[]" value="1">
+          <label class="form-check-label small">Auditeur ext.</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var ALL_FORMULAIRES = {{ formulaires_json|safe }};
+var COPY_URL = "{% url 'audit:ajax-copy-formulaire' %}";
+var IS_EDIT = {{ object|yesno:"true,false" }};
+
+/* ── Wizard ── */
+function goToStep(n) {
+  if (n === 2) {
+    // validate step 1
+    var mode = $('input[name=_mode]:checked').val();
+    if (!IS_EDIT) {
+      if (mode === 'existing' && !$('#id_formulaire').val()) {
+        Swal.fire('Attention', 'Veuillez choisir un formulaire.', 'warning'); return;
+      }
+      if (mode === 'copy' && !$('#copiedFormulaireId').val()) {
+        Swal.fire('Attention', 'Veuillez créer la copie du formulaire d\'abord.', 'warning'); return;
+      }
+    }
+  }
+  $('#step1Panel').toggle(n === 1);
+  $('#step2Panel').toggle(n === 2);
+  $('#step1Tab').toggleClass('active', n === 1).toggleClass('done', n === 2);
+  $('#step2Tab').toggleClass('active', n === 2);
+}
+
+$('#btnStep1Next').on('click', function () { goToStep(2); });
+$('#btnStep2Back').on('click', function () { goToStep(1); });
+
+/* ── Mode radio cards ── */
+$('input[name=_mode]').on('change', function () {
+  var val = $(this).val();
+  $('#modeExistingCard').toggleClass('selected', val === 'existing');
+  $('#modeCopyCard').toggleClass('selected', val === 'copy');
+  $('#panelExisting').toggle(val === 'existing');
+  $('#panelCopy').toggle(val === 'copy');
+  if (val === 'existing') {
+    $('select[name=formulaire]').attr('required', true);
+    $('#copiedFormulaireId').val('');
+  } else {
+    $('select[name=formulaire]').removeAttr('required').val('');
+  }
+});
+$('#modeExistingCard, #modeCopyCard').on('click', function () {
+  $(this).find('input[type=radio]').prop('checked', true).trigger('change');
+});
+
+/* ── Copy: build section options from formulaires data ── */
+(function() {
+  var sections = {};
+  ALL_FORMULAIRES.forEach(function(f) {
+    if (f.section_id && f.section__Nom) sections[f.section_id] = f.section__Nom;
+  });
+  var $sel = $('#copyNewSectionId');
+  Object.entries(sections).sort(function(a,b){ return a[1].localeCompare(b[1]); }).forEach(function(s) {
+    $sel.append('<option value="' + s[0] + '">' + s[1] + '</option>');
+  });
+})();
+
+/* ── AJAX Copy ── */
+$('#btnCopyFormulaire').on('click', function() {
+  var src     = $('#copySourceId').val();
+  var titre   = $('#copyNewTitre').val().trim();
+  var section = $('#copyNewSectionId').val();
+  var type    = $('#copyNewType').val();
+  if (!src || !titre || !section || !type) {
+    Swal.fire('Champs manquants', 'Veuillez remplir tous les champs de la copie.', 'warning'); return;
+  }
+  $('#btnCopyFormulaire').prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Création…');
+  $.ajax({
+    url: COPY_URL,
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ source_id: src, new_section_id: section, new_type_audit: type, new_titre: titre }),
+    headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+    success: function(data) {
+      if (data.ok) {
+        $('#copiedFormulaireId').val(data.id);
+        // also set the hidden formulaire field
+        $('select[name=formulaire]').append('<option value="'+data.id+'" selected>'+data.titre+'</option>');
+        $('#copyStatus').html('<div class="alert alert-success py-1"><i class="fas fa-check-circle mr-1"></i>Formulaire "<strong>'+data.titre+'</strong>" créé (ID '+data.id+'). Vous pouvez passer à l\'étape suivante.</div>');
+      } else {
+        $('#copyStatus').html('<div class="alert alert-danger py-1"><i class="fas fa-exclamation-circle mr-1"></i>'+data.error+'</div>');
+      }
+    },
+    error: function(xhr) {
+      var msg = xhr.responseJSON ? xhr.responseJSON.error : 'Erreur réseau';
+      $('#copyStatus').html('<div class="alert alert-danger py-1">'+msg+'</div>');
+    },
+    complete: function() {
+      $('#btnCopyFormulaire').prop('disabled', false).html('<i class="fas fa-copy mr-1"></i>Créer la copie');
+    }
+  });
+});
+
+/* ── Form submit: wire formulaire field for copy mode ── */
+$('#auditForm').on('submit', function() {
+  if (!IS_EDIT) {
+    var mode = $('input[name=_mode]:checked').val();
+    if (mode === 'copy') {
+      var cid = $('#copiedFormulaireId').val();
+      if (cid) $('select[name=formulaire]').val(cid);
+    }
+  }
+});
+
+/* ── Participants ── */
+function initParticipantRow($row) {
+  // type toggle
+  $row.find('.btn-type-internal').on('click', function() {
+    $(this).addClass('btn-primary').removeClass('btn-outline-primary');
+    $row.find('.btn-type-external').addClass('btn-outline-primary').removeClass('btn-primary');
+    $row.find('.participant-internal').show();
+    $row.find('.participant-external').hide();
+  });
+  $row.find('.btn-type-external').on('click', function() {
+    $(this).addClass('btn-primary').removeClass('btn-outline-primary');
+    $row.find('.btn-type-internal').addClass('btn-outline-primary').removeClass('btn-primary');
+    $row.find('.participant-external').show();
+    $row.find('.participant-internal').hide();
+    $row.find('select[name="participant_user_id[]"]').val('');
+  });
+  // remove
+  $row.find('.btn-remove-participant').on('click', function() {
+    $row.remove();
+    if ($('#participantsList .participant-row').length === 0) {
+      $('#noParticipants').removeClass('d-none');
+    }
+  });
+  // select2
+  $row.find('.select2-participant-user').select2({ width: '100%' });
+}
+
+$('#btnAddParticipant').on('click', function() {
+  var tpl = document.getElementById('participantRowTemplate').content.cloneNode(true);
+  var $row = $(tpl).find('.participant-row');
+  // wrap in a div so we can append properly
+  var $wrap = $('<div>').append($row);
+  $('#participantsList').append($wrap.children());
+  var $newRow = $('#participantsList .participant-row').last();
+  initParticipantRow($newRow);
+  $('#noParticipants').addClass('d-none');
+  $newRow[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+// Init existing rows (edit mode)
+$('#participantsList .participant-row').each(function() { initParticipantRow($(this)); });
+
+/* ── Select2 inits ── */
+$(function() {
+  $('.select2-formulaire').select2({ width: '100%', placeholder: '— Choisir un formulaire —' });
+  $('.select2-copy-source').select2({ width: '100%', placeholder: '— Formulaire source —' });
+  $('.select2-copy-site').select2({ width: '100%', placeholder: '— Site —' });
+  $('.select2-copy-type').select2({ width: '100%', placeholder: '— Type —' });
+  $('.select2-statut').select2({ width: '100%' });
+  $('.select2-user').select2({ width: '100%', placeholder: '— Responsable —', allowClear: true });
+
+  // If edit mode or returning from error — jump straight to step 2 if formulaire already set
+  if (IS_EDIT) {
+    goToStep(2);
+  }
+  // If returning with form errors (step 2 fields)
+  {% if form.errors %}
+    {% if form.statut.errors or form.date_audit.errors or form.commentaire.errors or form.responsable_audit.errors %}
+    goToStep(2);
+    {% endif %}
+  {% endif %}
+
+  // Default today for date_audit if empty
+  var dateField = document.getElementById('id_date_audit');
+  if (dateField && !dateField.value) {
+    dateField.value = new Date().toISOString().split('T')[0];
+  }
+});
+</script>
+{% endblock %}
+

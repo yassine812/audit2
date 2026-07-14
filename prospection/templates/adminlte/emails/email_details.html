@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Détails de l'email - {{ sujet }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            position: relative;
+            border-top: 2px solid #3498db;
+            border-bottom: 2px solid #3498db;
+            padding: 10px 0;
+        }
+        
+        .logo {
+            height: 70px;
+            margin-left: 15px;
+            flex-shrink: 0;
+        }
+        
+        .title {
+            flex: 1;
+            text-align: center;
+            margin: 0;
+            font-size: 24px;
+            color: #2c3e50;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border-bottom: 2px solid #3498db;
+        } 
+        
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            color: #2c3e50;
+            font-weight: 600;
+            width: 25%;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        tr:hover {
+            background-color: #f1f7fd;
+        }
+
+        td{
+            width: 25%;
+        }
+        
+        .section-header {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 15px;
+            margin: 25px 0 15px 0;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        
+        .report-content {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #3498db;
+            margin: 15px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+                font-size: 13px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+        }
+        
+        @media print {
+            body {
+                padding: 0;
+                font-size: 12px;
+            }
+            
+            .card {
+                box-shadow: none;
+                padding: 0;
+            }
+            
+            table {
+                page-break-inside: avoid;
+            }
+            
+            .section-header {
+                page-break-after: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="data:image/png;base64,{{ logo_base64 }}" alt="Logo" class="logo">
+        <h1 class="title">Rapport de l'email</h1>
+    </div>
+    
+    <div class="card">
+        <table>
+            <tbody>
+                <tr>
+                    <th>Sujet</th>
+                    <td colspan="3">{{ sujet }}</td>
+                </tr>
+                <tr>
+                    <th>Client/Prospect</th>
+                    <td>{{ entreprise }}</td>
+                    <th>Filiale</th>
+                    <td>{{ societe }}</td>
+                </tr>
+                <tr>
+                    <th>Créé par</th>
+                    <td>{{ createdBy }}</td>
+                    <th>Pilote</th>
+                    <td>{{ pilote }}</td>
+                </tr>
+                <tr>
+                    <th>Date de création</th>
+                    <td>{{ dateHeure }}</td>
+                    <th>Statut</th>
+                    <td>{{ etat }}</td>
+                </tr>
+                <tr>
+                    <th>Date prévue</th>
+                    <td>{{ datePlanifie }}</td>
+                    <th>Date de réalisation</th>
+                    <td>{{ dateRealiser }}</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="section-header">Contenu de l'email</div>
+        <div class="report-content">
+            {{ compteRendu }}
+        </div>
+    </div>
+</body>
+</html>

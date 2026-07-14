@@ -1,0 +1,71 @@
+{% extends "accident_travail/base.html" %}
+
+{% block title %}Supprimer la question {{ question.code }}{% endblock %}
+
+{% block nav_questionnaire %}active{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-trash mr-2 text-danger"></i>Supprimer la question</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:questionnaire_list' %}">Questionnaire 48h</a></li>
+            <li class="breadcrumb-item active">Supprimer</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card card-outline card-danger">
+            <div class="card-header">
+                <h3 class="card-title text-danger">Confirmation de suppression</h3>
+            </div>
+            <div class="card-body">
+                <p>Êtes-vous sûr de vouloir supprimer la question suivante ?</p>
+                <dl class="row">
+                    <dt class="col-sm-4">Code</dt>
+                    <dd class="col-sm-8"><code class="text-danger font-weight-bold">{{ question.code }}</code></dd>
+                    <dt class="col-sm-4">Section</dt>
+                    <dd class="col-sm-8">{{ question.section }}</dd>
+                    <dt class="col-sm-4">Question</dt>
+                    <dd class="col-sm-8">{{ question.question }}</dd>
+                </dl>
+
+                {% if sous_questions %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <strong>Attention :</strong> {{ sous_questions.count }} sous-question{{ sous_questions.count|pluralize }} sera{{ sous_questions.count|pluralize:"nt" }} également
+                    supprimée{{ sous_questions.count|pluralize }} :
+                    <ul class="mb-0 mt-1">
+                        {% for sq in sous_questions %}
+                        <li><code>{{ sq.code }}</code> — {{ sq.question|truncatechars:60 }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <div class="alert alert-danger">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Cette action est <strong>irréversible</strong>. Les réponses existantes dans les analyses 48h ne
+                    seront pas supprimées.
+                </div>
+
+                <form method="post" class="d-flex justify-content-between">
+                    {% csrf_token %}
+                    <a href="{% url 'at:questionnaire_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times mr-1"></i>Annuler
+                    </a>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash mr-1"></i>Confirmer la suppression
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

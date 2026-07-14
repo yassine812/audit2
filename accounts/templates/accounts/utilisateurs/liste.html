@@ -1,0 +1,206 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Utilisateurs{% endblock %}
+
+{% block admin_content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0"><i class="fas fa-users mr-2"></i>Utilisateurs</h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="{% url 'administration:dashboard' %}">Administration</a></li>
+          <li class="breadcrumb-item active">Utilisateurs</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- Messages -->
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags }} alert-dismissible">
+      <button type="button" class="close" data-dismiss="alert">&times;</button>
+      {{ msg }}
+    </div>
+    {% endfor %}
+
+    <div class="card card-outline card-primary">
+      <div class="card-header">
+        <h3 class="card-title">Liste ({{ page_obj.paginator.count }})</h3>
+        <div class="card-tools">
+          <a href="{% url 'administration:creer_utilisateur' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus mr-1"></i>Nouvel utilisateur
+          </a>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover table-sm mb-0">
+          <thead class="thead-light">
+            <tr>
+              <th>Nom</th><th>Email</th><th>Section</th><th>Société</th>
+              <th>Rôles</th><th class="text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in page_obj %}
+            <tr>
+              <td>
+                <strong>{{ u.get_full_name|default:u.username }}</strong><br>
+                <small class="text-muted">{{ u.username }}</small>
+              </td>
+              <td>{{ u.email|default:"—" }}</td>
+              <td>{{ u.section|default:"—" }}</td>
+              <td>{{ u.societe|default:"—" }}</td>
+              <td>
+                {% if u.is_superuser %}<span class="badge badge-danger">SA</span>{% endif %}
+                {% if u.is_RS %}<span class="badge badge-primary">RS</span>{% endif %}
+                {% if u.is_RO %}<span class="badge badge-info">RO</span>{% endif %}
+                {% if u.is_CE %}<span class="badge badge-warning">CE</span>{% endif %}
+                {% if u.is_OP %}<span class="badge badge-secondary">OP</span>{% endif %}
+                {% if u.is_auditeur %}<span class="badge badge-dark">AUD</span>{% endif %}
+                {% if u.is_CLT %}<span class="badge badge-success">CLT</span>{% endif %}
+              </td>
+              <td class="text-center">
+                <a href="{% url 'administration:modifier_utilisateur' u.pk %}"
+                   class="btn btn-xs btn-warning" title="Modifier">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <button type="button" class="btn btn-xs btn-danger btn-delete"
+                        data-url="{% url 'administration:supprimer_utilisateur' u.pk %}"
+                        data-name="{{ u.get_full_name|default:u.username }}"
+                        title="Supprimer">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-3">Aucun utilisateur trouvé.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.has_other_pages %}
+      <div class="card-footer clearfix">
+        <ul class="pagination pagination-sm m-0 float-right">
+          {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&section={{ section_id }}&societe={{ societe_id }}&role={{ role }}">&laquo;</a></li>
+          {% endif %}
+          {% for i in page_obj.paginator.page_range %}
+          <li class="page-item {% if i == page_obj.number %}active{% endif %}">
+            <a class="page-link" href="?page={{ i }}&q={{ q }}&section={{ section_id }}&societe={{ societe_id }}&role={{ role }}">{{ i }}</a>
+          </li>
+          {% endfor %}
+          {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&section={{ section_id }}&societe={{ societe_id }}&role={{ role }}">&raquo;</a></li>
+          {% endif %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</section>
+
+<!-- Toggle filtre -->
+<button class="btn btn-primary filter-toggle-btn" id="filterToggleBtn" title="Filtres">
+  <i class="fas fa-filter"></i>
+</button>
+<div class="filter-overlay" id="filterOverlay"></div>
+<div class="filter-sidebar" id="filterSidebar">
+  <div class="filter-sidebar-header">
+    <span><i class="fas fa-filter mr-2"></i>Filtres</span>
+    <button class="close-btn" type="button"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="filter-sidebar-body">
+    <form method="get" action="">
+      <div class="filter-group">
+        <label class="filter-label">Recherche</label>
+        <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Nom, username…">
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Section</label>
+        <select name="section" class="form-control form-control-sm">
+          <option value="">Toutes</option>
+          {% for s in sections %}
+          <option value="{{ s.pk }}" {% if section_id == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.Nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Société</label>
+        <select name="societe" class="form-control form-control-sm">
+          <option value="">Toutes</option>
+          {% for s in societes %}
+          <option value="{{ s.pk }}" {% if societe_id == s.pk|stringformat:"s" %}selected{% endif %}>{{ s.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="filter-label">Rôle</label>
+        <select name="role" class="form-control form-control-sm">
+          <option value="">Tous</option>
+          <option value="RS" {% if role == "RS" %}selected{% endif %}>RS</option>
+          <option value="RO" {% if role == "RO" %}selected{% endif %}>RO</option>
+          <option value="CE" {% if role == "CE" %}selected{% endif %}>CE</option>
+          <option value="OP" {% if role == "OP" %}selected{% endif %}>OP</option>
+          <option value="auditeur" {% if role == "auditeur" %}selected{% endif %}>Auditeur</option>
+          <option value="CLT" {% if role == "CLT" %}selected{% endif %}>Client</option>
+          <option value="superuser" {% if role == "superuser" %}selected{% endif %}>Super Admin</option>
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-sm btn-block">
+          <i class="fas fa-search mr-1"></i>Appliquer
+        </button>
+        <a href="{% url 'administration:utilisateurs' %}" class="btn btn-outline-secondary btn-sm btn-block mt-1">
+          <i class="fas fa-times mr-1"></i>Réinitialiser
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<!-- SweetAlert2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.querySelectorAll('.btn-delete').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    const url  = this.dataset.url;
+    const name = this.dataset.name;
+    Swal.fire({
+      title: 'Supprimer ?',
+      text: 'L\'utilisateur « ' + name + ' » sera définitivement supprimé.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Oui, supprimer',
+      cancelButtonText: 'Annuler',
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        var csrf = document.createElement('input');
+        csrf.type  = 'hidden';
+        csrf.name  = 'csrfmiddlewaretoken';
+        csrf.value = '{{ csrf_token }}';
+        form.appendChild(csrf);
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

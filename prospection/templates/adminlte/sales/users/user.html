@@ -1,0 +1,1397 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+<button class="btn btn-primary" 
+    id="openFilterBtn" 
+    style="
+        position: fixed;
+        right: 20px;
+        top: 40%;
+        z-index: 999;
+    ">
+    <i class="fas fa-filter"></i> Filtres
+</button>
+
+<div class="custom-sidebar" id="filterSidebar">
+    <div class="sidebar-header">
+        <button class="close-btn" id="closeFilterBtn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content">
+        <form method="GET" id="filterForm" class="p-2">
+            <div class="form-group">
+                <label>Rôle</label>
+                <select name="role" class="form-control form-control-sm">
+                    <option value="">Tous les rôles</option>
+                    <option value="RC" {% if request.GET.role == "RC" %}selected{% endif %}>Responsable Commercial</option>
+                    <option value="C" {% if request.GET.role == "C" %}selected{% endif %}>Commercial</option>
+                    {% if is_superuser %}
+                    <option value="admin" {% if request.GET.role == "admin" %}selected{% endif %}>Administrateur</option>
+                    {% endif %}
+                </select>
+            </div>
+            
+            {% if is_superuser  or is_RO%}
+            <div class="form-group">
+                <label>Filiale</label>
+                <select name="societe" class="form-control form-control-sm">
+                    <option value="">Toutes les filiales</option>
+                    {% for societe in societes %}
+                        <option value="{{ societe.id }}" {% if request.GET.societe == societe.id|stringformat:"s" %}selected{% endif %}>{{ societe.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="form-group">
+                <label>Statut</label>
+                <select name="is_active" class="form-control form-control-sm">
+                    <option value="">Tous les statuts</option>
+                    <option value="activated" {% if request.GET.is_active == "activated" %}selected{% endif %}>Activé</option>
+                    <option value="deactivated" {% if request.GET.is_active == "deactivated" %}selected{% endif %}>Désactivé</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Recherche</label>
+                <input type="text" name="search" class="form-control form-control-sm" 
+                       placeholder="Nom d'utilisateur ou email" value="{{ request.GET.search|default_if_none:'' }}">
+            </div>
+
+            <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap: 4px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Appliquer
+                </button>
+                <button type="button" class="btn btn-secondary" id="resetFiltersBtn">
+                    <i class="fas fa-sync-alt"></i> Réinitialiser
+                </button>
+            </div>            
+        </form>
+    </div>
+</div>
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Liste des Utilisateurs</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">Utilisateurs</li>
+                </ol>
+            </div>
+        </div>
+        {% if is_superuser %}
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-plus"></i> Ajouter un utilisateur
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item" href="#" data-toggle="modal" data-target="#addCommercialManagerModal">
+                            <i class="fas fa-user-tie text-primary"></i> Ajouter un Responsable Commercial
+                        </a>
+                        <a class="dropdown-item" href="#" data-toggle="modal" data-target="#addCommercialModal">
+                            <i class="fas fa-user-plus text-success"></i> Ajouter un Commercial
+                        </a>
+                        <a class="dropdown-item" href="#" data-toggle="modal" data-target="#addAdminModal">
+                            <i class="fas fa-user-cog text-danger"></i> Ajouter un Administrateur
+                        </a>
+                    </div>                    
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        <div class="row">
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-success">
+                    <div class="inner">
+                        <h3>{{ user_counts.total_commercials }}</h3>
+                        <p>Commerciaux</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-info">
+                    <div class="inner">
+                        <h3>{{ user_counts.total_rc }}</h3>
+                        <p>Responsables Commerciaux</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                </div>
+            </div>
+            
+            {% if request.user.is_superuser %}
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-danger">
+                    <div class="inner">
+                        <h3>{{ user_counts.total_admins }}</h3>
+                        <p>Administrateurs</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-user-cog"></i>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="col-lg-3 col-6">
+                <div class="small-box bg-warning">
+                    <div class="inner">
+                        <h3>{{ user_counts.total_users }}</h3>
+                        <p>Total Utilisateurs</p>
+                    </div>
+                    <div class="icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header justify-content-between align-items-center">
+                            <div class="card-tools mx-auto" style="text-align: center;">
+                                <small id="pagination-info" style="font-size: 90%;">
+                                    {% if utilisateurs.paginator.count > 0 %}
+                                        {{ utilisateurs.start_index }} - {{ utilisateurs.end_index }} sur {{ utilisateurs.paginator.count }}
+                                    {% else %}
+                                        0 sur 0
+                                    {% endif %}
+                                </small>
+                                <ul class="pagination pagination-sm justify-content-center" style="margin-top:0" id="pagination-links">
+                                    {% if utilisateurs.has_other_pages %}
+                                        <li class="page-item"><a class="page-link" href="#" data-page="1">&laquo;</a></li>
+                                        {% for i in utilisateurs.paginator.page_range %}
+                                            <li class="page-item {% if utilisateurs.number == i %}active{% endif %}">
+                                                <a class="page-link" href="#" data-page="{{ i }}">{{ i }}</a>
+                                            </li>
+                                        {% endfor %}
+                                        <li class="page-item"><a class="page-link" href="#" data-page="{{ utilisateurs.paginator.num_pages }}">&raquo;</a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="card-body" id="users-table-container">
+                            <table id="users" class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nom d'utilisateur</th>
+                                        <th>Email</th>
+                                        <th>Téléphone</th>
+                                        <th>Rôle</th>
+                                        <th>Filiale</th>
+                                        <th>Statut</th>
+                                        <th>Date d'inscription</th>
+                                        {% if is_superuser %}
+                                        <th>Actions</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in utilisateurs %}
+                                    <tr data-user-id="{{ user.id }}">
+                                        <td>{{ user.username }}</td>
+                                        <td>{{ user.email }}</td>
+                                        <td>{{ user.telephone }}</td>
+                                        <td>
+                                            {% if user.is_RO %}
+                                                Administrateur
+                                            {% elif user.is_RC %}
+                                                Responsable Commercial
+                                            {% elif user.is_C %}
+                                                Commercial
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.is_RO %}
+                                                {% with sels=user.societes.all %}
+                                                    {% if sels %}
+                                                        {{ sels|join:", " }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                {% endwith %}
+                                            {% else %}
+                                                {% if user.societe %}
+                                                    {{ user.societe.nom }}
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if user.is_active %}
+                                                <span class="badge badge-success">Activé</span>
+                                            {% else %}
+                                                <span class="badge badge-danger">Désactivé</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ user.date_joined|date:"d/m/Y H:i" }}
+                                        </td>
+                                        {% if is_superuser %}
+                                        <td>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editUserModal{{ user.id }}" title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if user.is_active %}
+                                                <button type="button" class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#deleteUserModal{{ user.id }}" title="Désactiver">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="button" class="btn btn-outline-success btn-sm activate-user" data-user-id="{{ user.id }}" title="Activer">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+{% if is_superuser %}
+<!-- Modal pour Ajouter un Responsable Commercial -->
+<div class="modal fade" id="addCommercialManagerModal" tabindex="-1" role="dialog" aria-labelledby="addCommercialManagerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title" id="addCommercialManagerModalLabel">Ajouter un Responsable Commercial</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addCommercialManagerForm" method="post" class="ajax-user-form" action="{% url 'prospection:ajouter_utilisateur' %}" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="role" value="RC"> <!-- Rôle prédéfini -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_username_new_rc">Nom d'utilisateur*</label>
+                                <input type="text" name="username" class="form-control" id="id_username_new_rc" placeholder="Entrez le nom d'utilisateur" required>
+                                <small id="username-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email_new_rc">Email*</label>
+                                <input type="email" name="email" class="form-control" id="id_email_new_rc" placeholder="Entrez l'email" required>
+                                <small id="email-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone_new_rc">Téléphone*</label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone_new_rc" placeholder="Entrez le numéro de téléphone" required>
+                                <small id="telephone-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_societe_new_rc">Filiale*</label>
+                                <select name="societe" class="form-control" id="id_societe_new_rc">
+                                    <option value="">Sélectionnez une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small id="societe-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" id="id_is_RO_new_rc" name="is_RO" value="1">
+                                <label class="form-check-label" for="id_is_RO_new_rc">Administrateur (multi-filiales)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group" id="id_societes_new_rc_wrap" style="display:none;">
+                                <label for="id_societes_new_rc">Sociétés (Admin)</label>
+                                <select multiple class="form-control" id="id_societes_new_rc" name="societes">
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Maintenez Ctrl/⌘ pour sélectionner plusieurs.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password1_new_rc">Mot de passe*</label>
+                                <input type="password" name="password1" class="form-control" id="id_password1_new_rc" placeholder="Entrez le mot de passe" required>
+                                <small id="password1-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password2_new_rc">Confirmer le mot de passe*</label>
+                                <input type="password" name="password2" class="form-control" id="id_password2_new_rc" placeholder="Confirmez le mot de passe" required>
+                                <small id="password2-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-success">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_superuser %}
+<!-- Modal pour Ajouter un Administrateur -->
+<div class="modal fade" id="addAdminModal" tabindex="-1" role="dialog" aria-labelledby="addAdminModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title" id="addAdminModalLabel">Ajouter un Administrateur</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addAdminForm" method="post" class="ajax-user-form" action="{% url 'prospection:ajouter_utilisateur' %}" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="role" value="ADMIN">
+                    <input type="hidden" name="is_RO" value="1">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_username_new_admin">Nom d'utilisateur*</label>
+                                <input type="text" name="username" class="form-control" id="id_username_new_admin" placeholder="Entrez le nom d'utilisateur" required>
+                                <small id="username-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email_new_admin">Email*</label>
+                                <input type="email" name="email" class="form-control" id="id_email_new_admin" placeholder="Entrez l'email" required>
+                                <small id="email-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone_new_admin">Téléphone*</label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone_new_admin" placeholder="Entrez le numéro de téléphone" required>
+                                <small id="telephone-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group" id="id_societes_new_admin_wrap">
+                                <label for="id_societes_new_admin">Sociétés (Admin)</label>
+                                <select multiple class="form-control" id="id_societes_new_admin" name="societes" required>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small id="societes-error" class="text-danger"></small>
+                                <small class="text-muted d-block">Maintenez Ctrl/⌘ pour sélectionner plusieurs.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password1_new_admin">Mot de passe*</label>
+                                <input type="password" name="password1" class="form-control" id="id_password1_new_admin" placeholder="Entrez le mot de passe" required>
+                                <small id="password1-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password2_new_admin">Confirmer le mot de passe*</label>
+                                <input type="password" name="password2" class="form-control" id="id_password2_new_admin" placeholder="Confirmez le mot de passe" required>
+                                <small id="password2-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-danger">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    </div>
+{% endif %}
+
+{% if is_superuser %}
+<!-- Modal pour Ajouter un Commercial -->
+<div class="modal fade" id="addCommercialModal" tabindex="-1" role="dialog" aria-labelledby="addCommercialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title" id="addCommercialModalLabel">Ajouter un Commercial</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addCommercialForm" method="post" action="{% url 'prospection:ajouter_utilisateur' %}" autocomplete="off">
+                    {% csrf_token %}
+                    <input type="hidden" name="role" value="C"> <!-- Rôle prédéfini -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_username_new_c">Nom d'utilisateur*</label>
+                                <input type="text" name="username" class="form-control" id="id_username_new_c" placeholder="Entrez le nom d'utilisateur" required>
+                                <small id="username-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email_new_c">Email*</label>
+                                <input type="email" name="email" class="form-control" id="id_email_new_c" placeholder="Entrez l'email" required>
+                                <small id="email-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone_new_c">Téléphone*</label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone_new_c" placeholder="Entrez le numéro de téléphone" required>
+                                <small id="telephone-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_societe_new_c">Filiale*</label>
+                                <select name="societe" class="form-control" id="id_societe_new_c">
+                                    <option value="">Sélectionnez une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small id="societe-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input" id="id_is_RO_new_c" name="is_RO" value="1">
+                                <label class="form-check-label" for="id_is_RO_new_c">Administrateur (multi-filiales)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group" id="id_societes_new_c_wrap" style="display:none;">
+                                <label for="id_societes_new_c">Sociétés (Admin)</label>
+                                <select multiple class="form-control" id="id_societes_new_c" name="societes">
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Maintenez Ctrl/⌘ pour sélectionner plusieurs.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password1_new_c">Mot de passe*</label>
+                                <input type="password" name="password1" class="form-control" id="id_password1_new_c" placeholder="Entrez le mot de passe" required>
+                                <small id="password1-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password2_new_c">Confirmer le mot de passe*</label>
+                                <input type="password" name="password2" class="form-control" id="id_password2_new_c" placeholder="Confirmez le mot de passe" required>
+                                <small id="password2-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-success">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<div class="control-sidebar-bg"></div>
+
+{% if is_superuser %}
+<!-- Modals pour Modifier un Utilisateur -->
+{% for user in utilisateurs %}
+<div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="editUserModalLabel{{ user.id }}">Modifier {{ user.username }}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" id="editUserForm{{ user.id }}" action="{% url 'prospection:modifier_utilisateur' user.id %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_username3{{ user.id }}">Nom d'utilisateur*</label>
+                                <input type="text" name="username" class="form-control" id="id_username3{{ user.id }}" value="{{ user.username }}" required>
+                                <small id="username-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_email3{{ user.id }}">Email*</label>
+                                <input type="email" name="email" class="form-control" id="id_email3{{ user.id }}" value="{{ user.email }}" required>
+                                <small id="email-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_telephone3{{ user.id }}">Téléphone*</label>
+                                <input type="text" name="telephone" class="form-control" id="id_telephone3{{ user.id }}" value="{{ user.telephone }}" required>
+                                <small id="telephone-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_societe3{{ user.id }}" id="id_societe_label_{{ user.id }}">Filiale*</label>
+                                <select name="societe" class="form-control" id="id_societe3{{ user.id }}">
+                                    <option value="">Sélectionnez une filiale</option>
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}" {% if user.societe == societe %}selected{% endif %}>{{ societe.nom }}</option>
+                                    {% endfor %}   
+                                </select>
+                                <small id="societe-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6" style="display: none;">
+                            <div class="form-group form-check">
+                                <input type="checkbox" class="form-check-input is-admin-toggle" id="id_is_RO_edit_{{ user.id }}" name="is_RO" value="1" {% if user.is_RO %}checked{% endif %} data-userid="{{ user.id }}">
+                                <label class="form-check-label" for="id_is_RO_edit_{{ user.id }}">Administrateur (multi-filiales)</label>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-group admin-societes-wrap" id="id_societes_edit_wrap_{{ user.id }}" style="display:{% if user.is_RO %}block{% else %}none{% endif %};">
+                                <label for="id_societes_edit_{{ user.id }}">Sociétés (Admin)</label>
+                                <select multiple class="form-control" id="id_societes_edit_{{ user.id }}" name="societes">
+                                    {% for societe in societes %}
+                                        <option value="{{ societe.id }}" {% if societe in user.societes.all %}selected{% endif %}>{{ societe.nom }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Maintenez Ctrl/⌘ pour sélectionner plusieurs.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password13{{ user.id }}">Nouveau mot de passe</label>
+                                <input type="password" name="password1" class="form-control" id="id_password13{{ user.id }}">
+                                <small id="password1-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_password23{{ user.id }}">Confirmer le nouveau mot de passe</label>
+                                <input type="password" name="password2" class="form-control" id="id_password23{{ user.id }}">
+                                <small id="password2-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label>Rôle</label>
+                                <div class="form-check">
+                                    <input type="radio" name="role" value="RC" class="form-check-input" id="id_role_rc{{ user.id }}" {% if user.is_RC %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_role_rc{{ user.id }}">Responsable Commercial</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="radio" name="role" value="C" class="form-check-input" id="id_role_c{{ user.id }}" {% if user.is_C %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_role_c{{ user.id }}">Commercial</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="radio" name="role" value="ADMIN" class="form-check-input role-admin" id="id_role_admin{{ user.id }}" {% if user.is_RO %}checked{% endif %} data-userid="{{ user.id }}">
+                                    <label class="form-check-label" for="id_role_admin{{ user.id }}">Administrateur</label>
+                                </div>
+                                <small id="role-error" class="text-danger"></small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% if is_superuser %}
+<!-- Modals pour Supprimer un Utilisateur -->
+{% for user in utilisateurs %}
+<div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title">Désactiver {{ user.username }}</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir désactiver l'utilisateur "{{ user.username }}" ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger confirm-delete" data-user-id="{{ user.id }}">Désactiver</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    // pour eviter les pré-remplissage des formulaires d'ajout
+    document.addEventListener('DOMContentLoaded', function() {
+        // Pour tous les formulaires
+        document.querySelectorAll('form').forEach(form => {
+            form.setAttribute('autocomplete', 'off');
+            
+            // Pour tous les champs input
+            form.querySelectorAll('input').forEach(input => {
+                if(input.type === 'text' || input.type === 'email') {
+                    input.setAttribute('autocomplete', 'new-username');
+                }
+
+    // Bind AJAX submission for forms that should display inline errors
+    $(document).on('submit', '.ajax-user-form', function(e){
+        e.preventDefault();
+        const modalId = $(this).closest('.modal').attr('id');
+        handleUserFormSubmission(this, modalId);
+    });
+                if(input.type === 'password') {
+                    input.setAttribute('autocomplete', 'new-password');
+                }
+                
+                // Solution alternative avec readonly
+                input.setAttribute('readonly', 'true');
+                input.addEventListener('focus', function() {
+                    this.removeAttribute('readonly');
+                });
+            });
+        });
+    });
+
+    function handleUserFormSubmission(form, modalId) {
+        const formData = new FormData(form);
+        
+        const submitBtn = $(form).find('button[type="submit"]');
+        submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Traitement...').prop('disabled', true);
+        
+        $(form).find('.text-danger').text('');
+    
+        $.ajax({
+            url: form.action,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.errors) {
+                    for (const [field, message] of Object.entries(response.errors)) {
+                        const errorElement = $(form).find(`#${field}-error`);
+                        if (errorElement.length) {
+                            errorElement.text(message);
+                        } else {
+                            $(form).find('.modal-body').prepend(
+                                `<div class="alert alert-danger">${message}</div>`
+                            );
+                        }
+                    }
+                }
+                if (response.success) {
+                    $(`#${modalId}`).modal('hide');
+                    form.reset();
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        confirmButtonText: 'OK',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        if (typeof window.loadUsers === 'function') {
+                            window.loadUsers(window.currentUsersPage || 1);
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue lors de l\'enregistrement',
+                    timer: 2500
+                });
+            },
+            complete: function() {
+                submitBtn.html('Enregistrer').prop('disabled', false);
+            }
+        });
+    }
+    
+    // Gestion des formulaires d'ajout (Commercial et Responsable) via handler générique ci-dessous
+    
+    // Fonction pour afficher les erreurs de validation
+    function displayFormErrors(form, errors) {
+        for (const [field, message] of Object.entries(errors)) {
+            const fieldInput = form.find(`[name="${field}"]`);
+            const errorElement = form.find(`#${field}-error`);
+            
+            fieldInput.addClass('is-invalid');
+            
+            if (errorElement.length) {
+                errorElement.text(message);
+            } else {
+                fieldInput.after(`<small class="text-danger">${message}</small>`);
+            }
+        }
+    }
+    
+    // Fonction pour ajouter un utilisateur au tableau
+    function addUserToTable(userData) {
+        let role = userData.role || (userData.is_RC ? 'Responsable Commercial' : userData.is_C ? 'Commercial' : userData.is_superuser ? 'Administrateur' : '-');
+
+        const newRow = `
+            <tr data-user-id="${userData.id}">
+                <td>${userData.username}</td>
+                <td>${userData.email}</td>
+                <td>${userData.telephone || '-'}</td>
+                <td>${role}</td>
+                <td>${userData.societe || '-'}</td>
+                <td><span class="badge badge-success">Activé</span></td>
+               <td>${new Date().toLocaleDateString('fr-FR')} ${new Date().toLocaleTimeString('fr-FR')}</td>
+                {% if is_superuser %}
+                <td>
+                    <button class="btn btn-outline-secondary btn-sm edit-user" data-user-id="${userData.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm delete-user" data-user-id="${userData.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+                {% endif %}
+            </tr>
+        `;
+        
+        $('#users tbody').prepend(newRow);
+        
+        if ($.fn.DataTable.isDataTable('#users')) {
+            $('#users').DataTable().draw();
+        }
+    }
+    
+    $(document).ready(function() {
+        $('.fixed-filter-btn').click(function() {
+            $('body').toggleClass('control-sidebar-slide-open');
+        });
+        
+        $('#closeFilterSidebar').click(function() {
+            $('body').removeClass('control-sidebar-slide-open');
+        });
+        
+        $('.control-sidebar-bg').click(function() {
+            $('body').removeClass('control-sidebar-slide-open');
+        });
+    });
+    
+    const sidebar = document.getElementById('filterSidebar');
+    const openBtn = document.getElementById('openFilterBtn');
+    const closeBtn = document.getElementById('closeFilterBtn');
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+    function openSidebar() {
+        sidebar.classList.add('open');
+        backdrop.style.display = 'block';
+    }
+    function closeSidebar() {
+        sidebar.classList.remove('open');
+        backdrop.style.display = 'none';
+    }
+    openBtn.addEventListener('click', openSidebar);
+    closeBtn.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+    
+    $(document).ready(function() {
+        var dataTable = $('#users').DataTable({
+           "paging": false,
+           "searching": false,
+           "ordering": false,
+           "info": false,
+           "autoWidth": false,
+           "responsive": true,
+           "columnDefs": [
+                { "className": "dt-center", "targets": "_all" }
+            ],
+            "language": {
+                "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucun utilisateur trouvé.</div>"
+            }
+        });
+    });
+    $(document).ready(function () {
+        window.currentUsersPage = window.currentUsersPage || 1;
+
+        window.loadUsers = function(page) {
+            window.currentUsersPage = page || 1;
+            // Construire les params en supprimant les valeurs vides (évite ?role=&societe=&...)
+            const params = new URLSearchParams($('#filterForm').serialize());
+            for (const [k, v] of Array.from(params.entries())) {
+                if (!v) params.delete(k);
+            }
+            // Pagination
+            if (window.currentUsersPage && window.currentUsersPage > 1) {
+                params.set('page', String(window.currentUsersPage));
+            } else {
+                params.delete('page');
+            }
+
+            const formData = params.toString();
+
+            // Mettre à jour l'URL pour conserver les filtres/pagination (utile après reload)
+            try {
+                const newUrl = window.location.pathname + (formData ? ('?' + formData) : '');
+                window.history.replaceState({}, '', newUrl);
+            } catch (e) {
+                // noop
+            }
+    
+            $.ajax({
+                url: window.location.pathname,
+                data: formData,
+                type: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                beforeSend: function() {
+                    $('#users-table-container').html(
+                        '<div class="text-center py-4"><i class="fas fa-spinner fa-spin fa-2x"></i> Chargement...</div>'
+                    );
+                },
+                success: function(response) {
+                    if (response.html) {
+                        var $response = $('<div>').html(response.html);
+                        var newContent = $response.find('#users-table-container').html();
+                        
+                        $('#users-table-container').html(newContent);
+                        
+                        if ($.fn.DataTable.isDataTable('#users')) {
+                            $('#users').DataTable().destroy();
+                        }
+                        $('#users').DataTable({
+                            "paging": false,
+                            "lengthChange": false,
+                            "searching": false,
+                            "ordering": false,
+                            "info": false,
+                            "autoWidth": false,
+                            "responsive": true,
+                            "destroy": true,
+                            "columnDefs": [
+                                { "className": "dt-center", "targets": "_all" }
+                            ],
+                            "language": {
+                                "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucun utilisateur trouvé.</div>"
+                            }
+                        });
+    
+                        $('#pagination-links').html($response.find('#pagination-links').html());
+                        $('#pagination-info').html($response.find('#pagination-info').html());
+                    }
+                },
+                error: function() {
+                    $('#users-table-container').html(
+                        '<div class="alert alert-danger">Erreur de chargement des données. Veuillez réessayer.</div>'
+                    );
+                }
+            });
+        };
+    
+        // Gestion du filtre AJAX
+        $('#filterForm').on('submit', function(e) {
+            e.preventDefault();
+            window.loadUsers(1);
+            closeSidebar();
+        });
+    
+        // Gestion du reset AJAX
+        $('#resetFiltersBtn').on('click', function() {
+            $('#filterForm')[0].reset();
+            window.loadUsers(1);
+            closeSidebar();
+        });
+    
+        // Gestion de la pagination AJAX
+        $(document).on('click', '#pagination-links .page-link', function(e) {
+            e.preventDefault();
+            var page = $(this).data('page');
+            window.loadUsers(page);
+        });
+    
+        $('#addCommercialForm').on('submit', function(e) {
+            e.preventDefault();
+            handleUserFormSubmission(this, 'addCommercialModal');
+        });
+    
+        $('#addCommercialManagerForm').on('submit', function(e) {
+            e.preventDefault();
+            handleUserFormSubmission(this, 'addCommercialManagerModal');
+        });
+    });
+    
+    $(document).on('submit', '[id^="editUserForm"]', function(e) {
+        e.preventDefault();
+        const form = $(this);
+        const userId = form.attr('id').replace('editUserForm', '');
+        const modalId = '#editUserModal' + userId;
+        const submitBtn = form.find('button[type="submit"]');
+        
+        submitBtn.html('<i class="fas fa-spinner fa-spin"></i> Enregistrement...').prop('disabled', true);
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': form.find('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $(modalId).modal('hide');
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        confirmButtonText: 'OK',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        if (typeof window.loadUsers === 'function') {
+                            window.loadUsers(window.currentUsersPage || 1);
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                } else if (response.errors) {
+                    displayFormErrors(form, response.errors);
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue',
+                    timer: 2000
+                });
+            },
+            complete: function() {
+                submitBtn.html('Enregistrer').prop('disabled', false);
+            }
+        });
+    });
+    
+    // Fonction pour mettre à jour la ligne utilisateur
+    function updateUserRow(userData) {
+        const row = $('#users tbody').find(`tr[data-user-id="${userData.id}"]`);
+        
+        if (row.length) {
+            row.find('td:eq(0)').text(userData.username);
+            row.find('td:eq(1)').text(userData.email);
+            row.find('td:eq(2)').text(userData.telephone || '-');
+            row.find('td:eq(3)').text(userData.role);
+            row.find('td:eq(4)').text(userData.societe || '-');
+            
+            if ($.fn.DataTable.isDataTable('#users')) {
+                $('#users').DataTable().draw(false);
+            }
+        } else {
+            loadUsers(1);
+        }
+    }
+    
+    // Gestion de la suppression d'utilisateur
+    $(document).on('click', '.confirm-delete', function() {
+        const userId = $(this).data('user-id');
+        const modalId = '#deleteUserModal' + userId;
+        const deleteBtn = $(this);
+        
+        deleteBtn.html('<i class="fas fa-spinner fa-spin"></i> Désactivation...').prop('disabled', true);
+        
+        $.ajax({
+            url: "{% url 'prospection:supprimer_utilisateur' 0 %}".replace('0', userId),
+            type: 'POST',
+            data: {
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $(modalId).modal('hide');
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    if (response.action === 'deactivated') {
+                        updateUserStatus(userId, false);
+                    } else {
+                        removeUserRow(userId);
+                    }
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue',
+                    timer: 2000
+                });
+            },
+            complete: function() {
+                deleteBtn.html('Désactiver').prop('disabled', false);
+            }
+        });
+    });
+    
+    // Gestion de l'activation d'utilisateur
+    $(document).on('click', '.activate-user', function() {
+        const userId = $(this).data('user-id');
+        const activateBtn = $(this);
+        
+        // Afficher la boîte de dialogue de confirmation
+        Swal.fire({
+            title: 'Confirmer l\'activation',
+            text: 'Êtes-vous sûr de vouloir activer cet utilisateur ?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Oui, activer',
+            cancelButtonText: 'Annuler',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Afficher l'indicateur de chargement
+                activateBtn.html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+                
+                // Effectuer la requête d'activation
+                $.ajax({
+                    url: "{% url 'prospection:activer_utilisateur' 0 %}".replace('0', userId),
+                    type: 'POST',
+                    data: {
+                        csrfmiddlewaretoken: '{{ csrf_token }}'
+                    },
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Succès',
+                                text: response.success,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            
+                            // Mise à jour de l'interface utilisateur
+                            updateUserStatus(userId, true);
+                            
+                            // Recharger la ligne pour mettre à jour les boutons d'action
+                            const row = $(`tr[data-user-id="${userId}"]`);
+                            if (row.length) {
+                                row.find('td:eq(7)').html(`
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editUserModal${userId}" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#deleteUserModal${userId}" title="Désactiver">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                `);
+                            }
+                        }
+                    },
+                    error: function(xhr) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erreur',
+                            text: xhr.responseJSON?.error || 'Une erreur est survenue lors de l\'activation',
+                            timer: 2000
+                        });
+                    },
+                    complete: function() {
+                        activateBtn.html('<i class="fas fa-check"></i>').prop('disabled', false);
+                    }
+                });
+            } else {
+                // Si l'utilisateur annule, réinitialiser le bouton
+                activateBtn.html('<i class="fas fa-check"></i>');
+            }
+        });
+    });
+    
+    // Fonction pour mettre à jour le statut dans le tableau
+    function updateUserStatus(userId, isActive) {
+        const row = $(`tr[data-user-id="${userId}"]`);
+        if (row.length) {
+            const statusBadge = row.find('td:eq(5)');
+            if (isActive) {
+                statusBadge.html('<span class="badge badge-success">Activé</span>');
+            } else {
+                statusBadge.html('<span class="badge badge-danger">Désactivé</span>');
+                // On ne vide plus la colonne d'action complètement, on laisse le bouton d'édition
+                const actionsCell = row.find('td:eq(7)');
+                actionsCell.html(`
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editUserModal${userId}" title="Modifier">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-success btn-sm activate-user" data-user-id="${userId}" title="Activer">
+                        <i class="fas fa-check"></i>
+                    </button>
+                `);
+            }
+            
+            // Si vous utilisez DataTables
+            if ($.fn.DataTable.isDataTable('#users')) {
+                $('#users').DataTable().draw(false);
+            }
+        }
+    }
+    
+    // Fonction pour supprimer la ligne du tableau
+    function removeUserRow(userId) {
+        $(`tr[data-user-id="${userId}"]`).remove();
+        
+        // Si vous utilisez DataTables
+        if ($.fn.DataTable.isDataTable('#users')) {
+            $('#users').DataTable().draw(false);
+        }
+        
+        // Recharger la pagination si nécessaire
+        loadUsers(1);
+    }
+
+    // Réinitialiser les formulaires d'ajout quand les modals se ferment (delegation pour fiabilité)
+    $(document).on('hidden.bs.modal', '#addCommercialModal, #addCommercialManagerModal', function () {
+        const $modal = $(this);
+        const formEl = $modal.find('form')[0];
+        if (formEl) {
+            formEl.reset();
+        }
+        // Nettoyer les états de validation et messages d'erreur
+        $modal.find('.is-invalid').removeClass('is-invalid');
+        $modal.find('.text-danger').text('');
+        $modal.find('.alert.alert-danger').remove();
+    });
+
+    // S'assurer que le formulaire est propre à l'ouverture du modal (et contrer l'autofill navigateur)
+    // Utiliser 'shown.bs.modal' pour agir après l'affichage complet (certains navigateurs autofill après show)
+    $(document).on('shown.bs.modal', '#addCommercialModal, #addCommercialManagerModal', function () {
+        const $modal = $(this);
+        const $form = $modal.find('form');
+        if ($form.length) {
+            $form[0].reset();
+            $form.find('.is-invalid').removeClass('is-invalid');
+            $form.find('.text-danger').text('');
+            $form.find('.alert.alert-danger').remove();
+            // Vider explicitement les champs texte/email/password après un tick pour éviter l'autofill
+            setTimeout(() => {
+                $form.find('input[type="text"], input[type="email"], input[type="password"]').val('');
+                // Réinitialiser aussi les selects
+                $form.find('select').each(function(){
+                    this.selectedIndex = 0;
+                    $(this).trigger('change');
+                });
+            }, 0);
+        }
+    });
+
+    // Cliquer sur le bouton de fermeture doit aussi nettoyer immédiatement
+    $(document).on('click', '#addCommercialModal .close, #addCommercialManagerModal .close', function(){
+        const $modal = $(this).closest('.modal');
+        const formEl = $modal.find('form')[0];
+        if (formEl) formEl.reset();
+        $modal.find('.is-invalid').removeClass('is-invalid');
+        $modal.find('.text-danger').text('');
+        $modal.find('.alert.alert-danger').remove();
+    });
+
+    // Nettoyer immédiatement quand l'utilisateur clique sur les entrées du menu "Ajouter ..."
+    $(document).on('click', '[data-target="#addCommercialModal"]', function(){
+        const $modal = $('#addCommercialModal');
+        const $form = $modal.find('form');
+        if ($form.length) {
+            $form[0].reset();
+            $form.find('.is-invalid').removeClass('is-invalid');
+            $form.find('.text-danger').text('');
+            $form.find('.alert.alert-danger').remove();
+            setTimeout(() => {
+                $form.find('input[type="text"], input[type="email"], input[type="password"]').val('');
+                $form.find('select').each(function(){ this.selectedIndex = 0; $(this).trigger('change'); });
+            }, 0);
+        }
+    });
+    $(document).on('click', '[data-target="#addCommercialManagerModal"]', function(){
+        const $modal = $('#addCommercialManagerModal');
+        const $form = $modal.find('form');
+        if ($form.length) {
+            $form[0].reset();
+            $form.find('.is-invalid').removeClass('is-invalid');
+            $form.find('.text-danger').text('');
+            $form.find('.alert.alert-danger').remove();
+            setTimeout(() => {
+                $form.find('input[type="text"], input[type="email"], input[type="password"]').val('');
+                $form.find('select').each(function(){ this.selectedIndex = 0; $(this).trigger('change'); });
+            }, 0);
+        }
+    });
+
+    // Toggle admin fields visibility and single societe enable/disable
+    function bindAdminToggles(){
+        // Add RC
+        $('#id_is_RO_new_rc').on('change', function(){
+            const checked = this.checked;
+            $('#id_societes_new_rc_wrap').toggle(checked);
+            $('#id_societe_new_rc').prop('disabled', checked);
+        });
+        // Add C
+        $('#id_is_RO_new_c').on('change', function(){
+            const checked = this.checked;
+            $('#id_societes_new_c_wrap').toggle(checked);
+            $('#id_societe_new_c').prop('disabled', checked);
+        });
+        // Edit modals
+        $('.is-admin-toggle').each(function(){
+            const uid = $(this).data('userid');
+            $(this).on('change', function(){
+                const checked = this.checked;
+                $('#id_societes_edit_wrap_'+uid).toggle(checked);
+                $('#id_societe3'+uid).prop('hidden', checked);
+                $('#id_societe_label_'+uid).prop('hidden', checked);
+            });
+        });
+
+        // Sync role radio with is_RO checkbox in edit modals
+        $('input.role-admin').each(function(){
+            const uid = $(this).data('userid');
+            const $adminRadio = $(this);
+            const $isAdminChk = $('#id_is_RO_edit_'+uid);
+            const $roleRC = $('#id_role_rc'+uid);
+            const $roleC = $('#id_role_c'+uid);
+            function applyState(){
+                const isAdmin = $adminRadio.is(':checked');
+                $isAdminChk.prop('checked', isAdmin).trigger('change');
+            }
+            $adminRadio.on('change', applyState);
+            $roleRC.on('change', function(){ if ($(this).is(':checked')) { $isAdminChk.prop('checked', false).trigger('change'); } });
+            $roleC.on('change', function(){ if ($(this).is(':checked')) { $isAdminChk.prop('checked', false).trigger('change'); } });
+            // Initialize state
+            applyState();
+        });
+    }
+
+    $(document).ready(function(){
+        bindAdminToggles();
+    });
+</script>
+<style>
+    .custom-sidebar {
+        position: fixed;
+        top: 0;
+        right: -250px;
+        width: 250px;
+        height: 100vh;
+        background: #343a40;
+        color: white;
+        z-index: 9999;
+        transition: right 0.3s ease;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .custom-sidebar.open {
+        right: 0; 
+    }
+    
+    .sidebar-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none;
+    }
+
+</style>
+
+{% endblock %}

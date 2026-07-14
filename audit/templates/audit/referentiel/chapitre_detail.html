@@ -1,0 +1,101 @@
+{% extends 'audit/base.html' %}
+{% block title %}Chapitre {{ object.reference }} — {{ object.norme.nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .ch-header {
+    background: linear-gradient(135deg, #1a73e8, #1557b0);
+    color: #fff;
+    border-radius: .75rem .75rem 0 0;
+    padding: 1.4rem 1.6rem;
+  }
+  .ch-header .ch-ref {
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+  }
+  .ch-header .ch-norme {
+    font-size: .85rem;
+    opacity: .8;
+    margin-top: .2rem;
+  }
+  .ch-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    background: rgba(255,255,255,.15);
+    border-radius: 2rem;
+    padding: .25rem .75rem;
+    font-size: .8rem;
+    margin-right: .4rem;
+    margin-top: .6rem;
+  }
+  .pdf-viewer-wrap {
+    background: #525659;
+    border-radius: 0 0 .75rem .75rem;
+    padding: 0;
+    min-height: 80vh;
+  }
+  .pdf-viewer-wrap embed {
+    width: 100%;
+    height: 82vh;
+    border: none;
+    border-radius: 0 0 .75rem .75rem;
+    display: block;
+  }
+  .no-pdf-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 40vh;
+    color: #adb5bd;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10 col-lg-11 col-12">
+
+    <div class="mb-3">
+      <a href="{% url 'audit:chapitre-list' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left mr-1"></i>Retour à la liste
+      </a>
+    </div>
+
+    <div class="card shadow-sm" style="border:none;border-radius:.75rem;overflow:hidden">
+
+      {# ── En-tête ── #}
+      <div class="ch-header">
+        <div class="ch-ref">{{ object.reference }} &mdash; {{ object.intitule }}</div>
+        <div class="ch-norme"><i class="fas fa-book mr-1"></i>{{ object.norme.nom }}</div>
+        <div class="ch-meta">
+          {% if object.num_page %}
+          <span><i class="fas fa-file-alt"></i>Page {{ object.num_page }}</span>
+          {% endif %}
+          {% if not object.actif %}
+          <span style="background:rgba(220,53,69,.3)"><i class="fas fa-eye-slash"></i>Inactif</span>
+          {% endif %}
+        </div>
+      </div>
+
+      {# ── Corps : PDF ou message ── #}
+      <div class="pdf-viewer-wrap">
+        {% if object.norme.fichier %}
+          <embed
+            src="{{ object.norme.fichier.url }}{% if object.num_page %}#page={{ object.num_page }}{% endif %}"
+            type="application/pdf">
+        {% else %}
+          <div class="no-pdf-box">
+            <i class="fas fa-file-times fa-3x mb-3"></i>
+            <p class="mb-0 font-weight-bold">Aucun fichier PDF associé à cette norme.</p>
+            <small>Vous pouvez en ajouter un depuis <a href="{% url 'audit:norme-edit' object.norme.pk %}">la fiche norme</a>.</small>
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

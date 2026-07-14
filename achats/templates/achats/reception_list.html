@@ -1,0 +1,54 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Réceptions achats{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="panel-card p-3 p-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+      <div>
+        <h3 class="mb-1">Réceptions marchandise</h3>
+        <div class="text-muted">Enregistrez la conformité et la notation fournisseur après livraison.</div>
+      </div>
+      <a href="{% url 'achats:dashboard' %}" class="btn btn-outline-secondary">Retour au dashboard</a>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Demande</th>
+            <th>Demandeur</th>
+            <th>Statut</th>
+            <th>Réception</th>
+            <th>Score</th>
+            <th>Note</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for demande in demandes %}
+          <tr>
+            <td>{{ demande.numero }}</td>
+            <td>{{ demande.demandeur.get_full_name|default:demande.demandeur.username }}</td>
+            <td>{{ demande.get_statut_display }}</td>
+            <td>{% if demande.reception %}{{ demande.reception.date_reception|date:'d/m/Y' }}{% else %}-{% endif %}</td>
+            <td>{% if demande.reception %}{{ demande.reception.score_calcule }}{% else %}-{% endif %}</td>
+            <td>{% if demande.reception %}{{ demande.reception.note_calculee }}{% else %}-{% endif %}</td>
+            <td><a href="{% url 'achats:reception_edit' demande.pk %}" class="btn btn-primary btn-sm">Ouvrir</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" class="text-center text-muted py-4">Aucune demande prête à la réception.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Réception {{ demande.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card, .side-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+  .side-card { padding: 1rem; }
+  .required-label::after { content: ' *'; color: #dc2626; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="row">
+    <div class="col-12 col-xl-8 mb-3">
+      <div class="panel-card p-3 p-md-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+          <div>
+            <h3 class="mb-1">Réception marchandise - {{ demande.numero }}</h3>
+            <div class="text-muted">Évaluez la livraison et la performance fournisseur selon la procédure P03.</div>
+          </div>
+          <a href="{% url 'achats:demande_detail' demande.pk %}" class="btn btn-outline-secondary">Retour à la demande</a>
+        </div>
+        <form method="post">
+          {% csrf_token %}
+          {{ form.non_field_errors }}
+          <div class="form-group mb-3">
+            <div class="form-check">
+              {{ form.conforme_quantite_etat }}
+              <label class="form-check-label required-label" for="{{ form.conforme_quantite_etat.id_for_label }}">{{ form.conforme_quantite_etat.label }}</label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c1_reponse_demande_prix.id_for_label }}">{{ form.c1_reponse_demande_prix.label }}</label>{{ form.c1_reponse_demande_prix }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c2_livraisons.id_for_label }}">{{ form.c2_livraisons.label }}</label>{{ form.c2_livraisons }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c3_disponibilite.id_for_label }}">{{ form.c3_disponibilite.label }}</label>{{ form.c3_disponibilite }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c4_qualite_utilisation.id_for_label }}">{{ form.c4_qualite_utilisation.label }}</label>{{ form.c4_qualite_utilisation }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c5_qualite_reception.id_for_label }}">{{ form.c5_qualite_reception.label }}</label>{{ form.c5_qualite_reception }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c6_information_produit.id_for_label }}">{{ form.c6_information_produit.label }}</label>{{ form.c6_information_produit }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c7_reglement_litiges.id_for_label }}">{{ form.c7_reglement_litiges.label }}</label>{{ form.c7_reglement_litiges }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c8_couts.id_for_label }}">{{ form.c8_couts.label }}</label>{{ form.c8_couts }}</div>
+            <div class="col-12 col-md-6 mb-3"><label class="required-label" for="{{ form.c9_communication.id_for_label }}">{{ form.c9_communication.label }}</label>{{ form.c9_communication }}</div>
+          </div>
+          <div class="d-flex flex-wrap justify-content-end">
+            <button type="submit" class="btn btn-primary mr-2 mb-2">Enregistrer la réception</button>
+            <a href="{% url 'achats:reception_list' %}" class="btn btn-outline-secondary mb-2">Retour aux réceptions</a>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4 mb-3">
+      <div class="side-card mb-3">
+        <h5 class="mb-3">Synthèse</h5>
+        <div><strong>Demandeur :</strong> {{ demande.demandeur.get_full_name|default:demande.demandeur.username }}</div>
+        <div><strong>Section :</strong> {{ demande.section_analytique }}</div>
+        <div><strong>Total HT :</strong> {{ demande.total_commande_ht|default:'0.00' }} €</div>
+        {% if reception %}
+        <hr>
+        <div><strong>Score calculé :</strong> {{ reception.score_calcule }}</div>
+        <div><strong>Note :</strong> {{ reception.note_calculee }}</div>
+        <div><strong>Conforme :</strong> {% if reception.conforme_quantite_etat %}Oui{% else %}Non{% endif %}</div>
+        {% endif %}
+      </div>
+      <div class="side-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Dysfonctionnements</h5>
+        </div>
+        {% if reception and reception.dysfonctionnements.all %}
+          {% for item in reception.dysfonctionnements.all %}
+          <div class="border rounded p-2 mb-2">
+            <div><strong>{{ item.get_statut_display }}</strong></div>
+            <div class="small text-muted">{{ item.date_signalement|date:'d/m/Y' }} {{ item.heure_signalement|time:'H:i' }}</div>
+            <div class="small">{{ item.description }}</div>
+          </div>
+          {% endfor %}
+        {% elif demande.dysfonctionnements.all %}
+          {% for item in demande.dysfonctionnements.all %}
+          <div class="border rounded p-2 mb-2">
+            <div><strong>{{ item.get_statut_display }}</strong></div>
+            <div class="small text-muted">{{ item.date_signalement|date:'d/m/Y' }} {{ item.heure_signalement|time:'H:i' }}</div>
+            <div class="small">{{ item.description }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="text-muted mb-3">Aucun dysfonctionnement déclaré.</div>
+        {% endif %}
+        <hr>
+        <form method="post" enctype="multipart/form-data" action="{% url 'achats:dysfonctionnement_create' demande.pk %}">
+          {% csrf_token %}
+          <div class="form-group mb-2">
+            <label class="required-label" for="{{ dysfonctionnement_form.heure_signalement.id_for_label }}">{{ dysfonctionnement_form.heure_signalement.label }}</label>
+            {{ dysfonctionnement_form.heure_signalement }}
+          </div>
+          <div class="form-group mb-2">
+            <label class="required-label" for="{{ dysfonctionnement_form.description.id_for_label }}">{{ dysfonctionnement_form.description.label }}</label>
+            {{ dysfonctionnement_form.description }}
+          </div>
+          <div class="form-group mb-2">
+            <label for="{{ dysfonctionnement_form.photo.id_for_label }}">{{ dysfonctionnement_form.photo.label }}</label>
+            {{ dysfonctionnement_form.photo }}
+          </div>
+          <div class="form-group mb-2">
+            <label class="required-label" for="{{ dysfonctionnement_form.statut.id_for_label }}">{{ dysfonctionnement_form.statut.label }}</label>
+            {{ dysfonctionnement_form.statut }}
+          </div>
+          <div class="form-group mb-2">
+            <label for="{{ dysfonctionnement_form.plan_action.id_for_label }}">{{ dysfonctionnement_form.plan_action.label }}</label>
+            {{ dysfonctionnement_form.plan_action }}
+          </div>
+          <div class="form-group mb-3">
+            <label for="{{ dysfonctionnement_form.date_cloture.id_for_label }}">{{ dysfonctionnement_form.date_cloture.label }}</label>
+            {{ dysfonctionnement_form.date_cloture }}
+          </div>
+          <button type="submit" class="btn btn-outline-danger btn-sm">Déclarer le dysfonctionnement</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

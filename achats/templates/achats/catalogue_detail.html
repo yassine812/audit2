@@ -1,0 +1,122 @@
+{% extends 'base_global.html' %}
+
+{% block title %}{{ article.designation }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .info-card {
+    border: 1px solid #dfe6f5;
+    border-radius: .9rem;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  }
+  .value-label {
+    font-size: .78rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .value-content {
+    color: #1f2937;
+    font-weight: 600;
+  }
+  .action-btn {
+    min-width: 110px;
+  }
+  @media (max-width: 768px) {
+    .page-shell {
+      padding: .8rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+<div class="card shadow-sm border-0">
+  <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+    <h3 class="card-title mb-0"><i class="fas fa-box mr-2"></i>{{ article.designation }}</h3>
+    <div class="d-flex flex-wrap">
+      <a href="{% url 'achats:catalogue_list' %}" class="btn btn-outline-light btn-sm mr-2 mb-1 action-btn">Retour</a>
+      <a href="{% url 'achats:catalogue_update' article.pk %}" class="btn btn-warning btn-sm text-dark font-weight-bold mr-2 mb-1 action-btn">Modifier</a>
+      <form method="post" action="{% url 'achats:catalogue_toggle_actif' article.pk %}" class="d-inline mb-1">
+        {% csrf_token %}
+        {% if article.actif %}
+          <button type="submit" class="btn btn-outline-light btn-sm action-btn">Désactiver</button>
+        {% else %}
+          <button type="submit" class="btn btn-light btn-sm action-btn">Activer</button>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+  <div class="card-body p-3 p-md-4">
+    <div class="row g-4">
+      <div class="col-12 col-md-4 mb-3 mb-md-0">
+        {% if article.photo %}
+          <img src="{{ article.photo.url }}" class="img-fluid rounded shadow-sm" alt="{{ article.designation }}">
+        {% else %}
+          <div class="bg-light rounded p-5 text-center shadow-sm"><i class="fas fa-box-open fa-4x text-muted"></i></div>
+        {% endif %}
+      </div>
+      <div class="col-12 col-md-8">
+        <div class="info-card p-3 p-md-4">
+          <div class="mb-3">
+            <div class="value-label">Reference</div>
+            <div class="value-content">{{ article.reference }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="value-label">Categorie</div>
+            <div class="value-content">{{ article.get_categorie_display }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="value-label">Type</div>
+            <div class="value-content">{{ article.get_type_article_display }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="value-label">Stock disponible</div>
+            <div class="value-content">{{ article.stock_disponible }}</div>
+          </div>
+          <div class="mb-3">
+            <div class="value-label">Prix de reference HT</div>
+            <div class="value-content">{% if article.prix_reference_ht %}{{ article.prix_reference_ht }} €{% else %}-{% endif %}</div>
+          </div>
+          <div>
+            <div class="value-label">Description</div>
+            <div>{{ article.description|default:'Aucune description' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h4 class="mt-4">Offres fournisseurs</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle mt-3">
+        <thead class="thead-light">
+          <tr>
+            <th>Fournisseur</th>
+            <th>Tarif proposé</th>
+            <th>Référence chez le fournisseur</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for offre in article.offres.all %}
+          <tr>
+            <td><a href="{% url 'achats:fournisseur_detail' offre.fournisseur.pk %}">{{ offre.fournisseur.nom }}</a></td>
+            <td>{{ offre.tarif_propose }} €</td>
+            <td>{{ offre.reference_chez_fournisseur|default:'-' }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-muted">Aucune offre fournisseur enregistrée.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock %}

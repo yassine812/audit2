@@ -1,0 +1,289 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Catalogue d'achats{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .page-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1f2a44;
+    margin: 0;
+  }
+  .page-subtitle {
+    margin-top: .25rem;
+    color: #6b7280;
+    font-size: .9rem;
+  }
+  .filters-sidebar {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 300px;
+    height: 100vh;
+    z-index: 1060;
+    background: #fff;
+    box-shadow: -12px 0 35px rgba(0, 0, 0, 0.14);
+    transition: right 0.3s ease-in-out;
+    overflow-y: auto;
+    padding: 1.1rem;
+  }
+  .filters-sidebar.open {
+    right: 0;
+  }
+  .filters-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.25);
+    z-index: 1050;
+    display: none;
+  }
+  .filters-backdrop.show {
+    display: block;
+  }
+  .filters-toggle {
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    z-index: 1055;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    box-shadow: 0 10px 18px rgba(59, 130, 246, 0.35);
+  }
+  .filters-sidebar .form-control,
+  .filters-sidebar .form-select {
+    border: 1px solid #d1d5db;
+    border-radius: 0.6rem;
+    padding: 0.7rem 0.85rem;
+    min-height: 40px;
+    line-height: 1.35;
+    background: #fff;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .filters-sidebar .form-control:focus,
+  .filters-sidebar .form-select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.15);
+  }
+  .filters-sidebar .form-label {
+    font-weight: 600;
+    color: #374151;
+    font-size: .88rem;
+    margin-bottom: .4rem;
+  }
+  .article-card {
+    border: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(16, 24, 40, 0.08);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .article-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 24px rgba(16, 24, 40, 0.14);
+  }
+  .article-thumb {
+    height: 185px;
+    object-fit: cover;
+  }
+  .category-badge {
+    background: #e6f0ff;
+    color: #1d4ed8;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: .32rem .6rem;
+    font-size: .72rem;
+  }
+  .pagination-modern .page-link {
+    border-radius: 10px;
+    border: 1px solid #dbe3f1;
+    color: #334155;
+    margin: 0 .15rem;
+  }
+  .pagination-modern .page-item.active .page-link {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+    color: #fff;
+  }
+  @media (max-width: 768px) {
+    .page-shell {
+      padding: .8rem;
+    }
+    .filters-sidebar {
+      width: 88vw;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="page-title">Catalogue de fournitures</h3>
+      <p class="page-subtitle">Gestion des articles et consultation rapide des offres fournisseurs.</p>
+    </div>
+    <a href="{% url 'achats:catalogue_create' %}" class="btn btn-primary btn-sm mt-2 mt-md-0">
+      <i class="fas fa-plus mr-1"></i>Ajouter un article
+    </a>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+    <button class="btn btn-primary position-fixed p-3 filters-toggle" type="button" id="toggleCatalogueFilters" aria-controls="catalogueFilters" aria-expanded="false">
+      <i class="fas fa-filter"></i>
+    </button>
+
+    <div class="filters-backdrop" id="catalogueFiltersBackdrop"></div>
+    <aside class="filters-sidebar" id="catalogueFilters" aria-label="Filtres du catalogue">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Filtres du catalogue</h5>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="closeCatalogueFilters" aria-label="Fermer">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form method="get">
+        <div class="form-group">
+          <label class="form-label" for="catalogue_q">Recherche</label>
+          <input id="catalogue_q" type="text" name="q" class="form-control" placeholder="Désignation ou référence" value="{{ q }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="catalogue_categorie">Catégorie</label>
+          <select id="catalogue_categorie" name="categorie" class="form-control">
+            <option value="">Toutes les catégories</option>
+            {% for value, label in categories %}
+              <option value="{{ value }}" {% if categorie_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="catalogue_type">Type</label>
+          <select id="catalogue_type" name="type_article" class="form-control">
+            <option value="">Tous les types</option>
+            {% for value, label in types %}
+              <option value="{{ value }}" {% if type_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="catalogue_actif">Statut</label>
+          <select id="catalogue_actif" name="actif" class="form-control">
+            <option value="">Tous</option>
+            <option value="1" {% if actif_filter == '1' %}selected{% endif %}>Actifs</option>
+            <option value="0" {% if actif_filter == '0' %}selected{% endif %}>Inactifs</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block mb-2">Appliquer</button>
+        <a href="{% url 'achats:catalogue_list' %}" class="btn btn-outline-secondary btn-block">Réinitialiser</a>
+      </form>
+    </aside>
+
+    <div class="row">
+      {% for article in articles %}
+      <div class="col-12 col-md-6 col-xl-4 mb-4">
+        <div class="card h-100 article-card">
+          {% if article.photo %}
+            <img src="{{ article.photo.url }}" class="card-img-top article-thumb" alt="{{ article.designation }}">
+          {% else %}
+            <div class="card-img-top bg-light d-flex align-items-center justify-content-center article-thumb">
+              <i class="fas fa-box-open fa-3x text-muted"></i>
+            </div>
+          {% endif %}
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <h5 class="card-title mb-0">{{ article.designation }}</h5>
+              <span class="category-badge">{{ article.get_categorie_display }}</span>
+            </div>
+            <p class="text-muted small mb-2">{{ article.reference }}</p>
+            <p class="card-text">{{ article.description|truncatechars:120 }}</p>
+            <div class="d-flex align-items-center justify-content-between mt-3">
+              {% if article.actif %}
+                <span class="badge badge-success">Actif</span>
+              {% else %}
+                <span class="badge badge-secondary">Inactif</span>
+              {% endif %}
+              <div class="d-flex align-items-center">
+                <a href="{% url 'achats:catalogue_detail' article.pk %}" class="btn btn-outline-primary btn-sm mr-2">Voir</a>
+                <form method="post" action="{% url 'achats:catalogue_toggle_actif' article.pk %}" class="d-inline">
+                  {% csrf_token %}
+                  {% if article.actif %}
+                    <button type="submit" class="btn btn-outline-warning btn-sm">Désactiver</button>
+                  {% else %}
+                    <button type="submit" class="btn btn-outline-success btn-sm">Activer</button>
+                  {% endif %}
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info">Aucun article trouvé.</div>
+      </div>
+      {% endfor %}
+    </div>
+
+      {% if is_paginated %}
+      <nav class="mt-2" aria-label="Pagination catalogue">
+        <ul class="pagination pagination-modern justify-content-center flex-wrap">
+          <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+            <a class="page-link" href="{% if page_obj.has_previous %}?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if categorie_filter %}&categorie={{ categorie_filter }}{% endif %}{% if type_filter %}&type_article={{ type_filter }}{% endif %}{% if actif_filter %}&actif={{ actif_filter }}{% endif %}{% else %}#{% endif %}">Precedent</a>
+          </li>
+          {% for num in paginator.page_range %}
+            {% if num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+              <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if categorie_filter %}&categorie={{ categorie_filter }}{% endif %}{% if type_filter %}&type_article={{ type_filter }}{% endif %}{% if actif_filter %}&actif={{ actif_filter }}{% endif %}">{{ num }}</a>
+              </li>
+            {% endif %}
+          {% endfor %}
+          <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{% if page_obj.has_next %}?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if categorie_filter %}&categorie={{ categorie_filter }}{% endif %}{% if type_filter %}&type_article={{ type_filter }}{% endif %}{% if actif_filter %}&actif={{ actif_filter }}{% endif %}{% else %}#{% endif %}">Suivant</a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggleButton = document.getElementById('toggleCatalogueFilters');
+    const sidebar = document.getElementById('catalogueFilters');
+    const backdrop = document.getElementById('catalogueFiltersBackdrop');
+    const closeButton = document.getElementById('closeCatalogueFilters');
+
+    function openSidebar() {
+      sidebar.classList.add('open');
+      backdrop.classList.add('show');
+      toggleButton.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('show');
+      toggleButton.setAttribute('aria-expanded', 'false');
+    }
+
+    toggleButton.addEventListener('click', function () {
+      if (sidebar.classList.contains('open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+
+    closeButton.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+  });
+</script>
+{% endblock %}

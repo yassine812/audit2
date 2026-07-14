@@ -1,0 +1,750 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}{% if demande %}Modifier{% else %}Nouvelle{% endif %} demande d'achat{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'plugins/select2/css/select2.min.css' %}">
+<link rel="stylesheet" href="{% static 'plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}">
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .hero-card,
+  .section-card,
+  .line-card,
+  .preview-card,
+  .placeholder-card {
+    border: 1px solid #dfe6f5;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+  .hero-card {
+    padding: 1.15rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .page-title {
+    margin: 0;
+    color: #1f2a44;
+    font-weight: 700;
+    font-size: 1.45rem;
+  }
+  .page-subtitle {
+    color: #6b7280;
+    margin: .35rem 0 0;
+  }
+  .section-card {
+    padding: 1.15rem;
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-bottom: 1rem;
+  }
+  .section-intro {
+    color: #64748b;
+    font-size: .83rem;
+    margin-top: -.45rem;
+    margin-bottom: .95rem;
+  }
+  .meta-box {
+    background: #f8fbff;
+    border: 1px solid #dbe6fb;
+    border-radius: 12px;
+    padding: .85rem 1rem;
+    height: 100%;
+  }
+  .meta-label {
+    font-size: .78rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .25rem;
+  }
+  .meta-value {
+    color: #1f2937;
+    font-weight: 600;
+  }
+  .form-label {
+    margin-bottom: .45rem;
+    color: #334155;
+    font-size: .84rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  .required-label::after {
+    content: " *";
+    color: #dc2626;
+    font-weight: 700;
+  }
+  .form-control,
+  .select2-container--bootstrap4 .select2-selection,
+  .form-control-file {
+    border-radius: .7rem;
+    border: 1px solid #cfd8ea;
+    min-height: 42px;
+  }
+  .form-control:focus {
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 .2rem rgba(29, 78, 216, .14);
+  }
+  .form-check-shell {
+    background: #f8fbff;
+    border: 1px solid #dbe6fb;
+    border-radius: 12px;
+    padding: .75rem .9rem;
+    display: flex;
+    align-items: center;
+    min-height: 42px;
+  }
+  .line-card {
+    padding: 1rem;
+    margin-bottom: 1rem;
+    position: relative;
+  }
+  .line-block {
+    margin-bottom: .95rem;
+  }
+  .line-block:last-child {
+    margin-bottom: 0;
+  }
+  .line-block-title {
+    color: #475569;
+    font-size: .76rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    margin-bottom: .55rem;
+  }
+  .line-soft-panel {
+    background: #f8fbff;
+    border: 1px solid #dbe6fb;
+    border-radius: 12px;
+    padding: .85rem;
+  }
+  .line-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: .9rem;
+  }
+  .line-title {
+    font-size: .95rem;
+    font-weight: 700;
+    color: #1f2a44;
+    margin: 0;
+  }
+  .line-mini-grid .compact-field .form-label {
+    font-size: .72rem;
+    margin-bottom: .3rem;
+  }
+  .line-mini-grid .compact-field .form-control,
+  .line-mini-grid .compact-field .form-control-file,
+  .line-mini-grid .compact-field .select2-container--bootstrap4 .select2-selection {
+    min-height: 38px;
+  }
+  .line-mini-grid .compact-field textarea.form-control {
+    min-height: 74px;
+  }
+  .preview-card {
+    padding: .85rem;
+    min-height: 100%;
+    background: #f9fbfe;
+  }
+  .preview-image {
+    width: 100%;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: .75rem;
+  }
+  .preview-empty {
+    min-height: 120px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    background: #fff;
+  }
+  .remove-line-btn {
+    border-radius: 999px;
+  }
+  .placeholder-card {
+    padding: 1rem;
+    border-style: dashed;
+    text-align: center;
+    color: #64748b;
+  }
+  .hidden-block {
+    display: none;
+  }
+  .field-help {
+    color: #64748b;
+    font-size: .76rem;
+    margin-top: .3rem;
+  }
+  .actions-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: .75rem;
+    margin-top: 1rem;
+  }
+  .required-legend {
+    color: #b91c1c;
+    font-size: .82rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 767px) {
+    .page-shell {
+      padding: .8rem;
+    }
+    .line-soft-panel {
+      padding: .7rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="hero-card d-flex flex-wrap justify-content-between align-items-start">
+    <div>
+      <h3 class="page-title">{% if demande %}Demande d'achat {{ demande.numero }}{% else %}Nouvelle demande d'achat{% endif %}</h3>
+      <p class="page-subtitle">Digitalisation du document avec lignes catalogue et hors catalogue.</p>
+    </div>
+    <a href="{% url 'achats:demande_list' %}" class="btn btn-outline-secondary mt-2 mt-md-0">Retour à la liste</a>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="demande-form">
+    {% csrf_token %}
+    <div class="section-card">
+      <div class="section-title">Informations générales</div>
+      <div class="section-intro">Définissez d'abord le besoin global, puis ajoutez les lignes d'articles ou de services à approvisionner.</div>
+      <div class="required-legend">Les champs marqués d'un astérisque sont obligatoires. Si vous cochez "Article hors catalogue", la désignation hors catalogue devient obligatoire.</div>
+      {{ form.non_field_errors }}
+      <div class="row">
+        <div class="col-12 col-md-4 mb-3">
+          <div class="meta-box">
+            <div class="meta-label">Demandeur</div>
+            <div class="meta-value">{{ request.user.get_full_name|default:request.user.username }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <div class="meta-box">
+            <div class="meta-label">Date d'émission</div>
+            <div class="meta-value">{% if demande %}{{ demande.date_emission|date:'d/m/Y H:i' }}{% else %}À l'enregistrement{% endif %}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <div class="meta-box">
+            <div class="meta-label">Numéro</div>
+            <div class="meta-value">{% if demande %}{{ demande.numero }}{% else %}Généré automatiquement{% endif %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12 col-md-6 mb-3">
+          <label class="form-label" for="{{ form.delai_souhaite.id_for_label }}">{{ form.delai_souhaite.label }}</label>
+          {{ form.delai_souhaite }}
+          {% if form.delai_souhaite.help_text %}<div class="field-help">{{ form.delai_souhaite.help_text }}</div>{% endif %}
+          {% if form.delai_souhaite.errors %}<div class="text-danger small mt-1">{{ form.delai_souhaite.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <label class="form-label required-label" for="{{ form.section_analytique.id_for_label }}">{{ form.section_analytique.label }}</label>
+          {{ form.section_analytique }}
+          {% if form.section_analytique.help_text %}<div class="field-help">{{ form.section_analytique.help_text }}</div>{% endif %}
+          {% if form.section_analytique.errors %}<div class="text-danger small mt-1">{{ form.section_analytique.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-8 mb-3">
+          <label class="form-label required-label" for="{{ form.adresse_livraison.id_for_label }}">{{ form.adresse_livraison.label }}</label>
+          {{ form.adresse_livraison }}
+          {% if form.adresse_livraison.errors %}<div class="text-danger small mt-1">{{ form.adresse_livraison.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <label class="form-label required-label" for="{{ form.categorie.id_for_label }}">{{ form.categorie.label }}</label>
+          {{ form.categorie }}
+          {% if form.categorie.help_text %}<div class="field-help">{{ form.categorie.help_text }}</div>{% endif %}
+          {% if form.categorie.errors %}<div class="text-danger small mt-1">{{ form.categorie.errors|striptags }}</div>{% endif %}
+        </div>
+        <div class="col-12">
+          <div class="form-check-shell">
+            {{ form.est_demande_de_prix }}
+            <label class="ml-2 mb-0" for="{{ form.est_demande_de_prix.id_for_label }}">{{ form.est_demande_de_prix.label }}</label>
+          </div>
+          <small class="text-muted d-block mt-1">{{ form.est_demande_de_prix.help_text }}</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+        <div class="section-title mb-0">Articles</div>
+        {% if not service_achat_mode %}
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2 mt-md-0" id="add-line-btn">
+          <i class="fas fa-plus mr-1"></i>Ajouter une ligne
+        </button>
+        {% endif %}
+      </div>
+      <div class="section-intro">Chaque ligne doit décrire un besoin clair. Choisissez un article catalogue quand il existe, sinon cochez hors catalogue et complétez les informations dédiées.</div>
+
+      {{ formset.management_form }}
+      <div id="line-formset">
+        {% for line_form in formset %}
+        <div class="line-card js-line-form" data-form-index="{{ forloop.counter0 }}">
+          {{ line_form.id }}
+          {% if line_form.non_field_errors %}
+          <div class="alert alert-danger py-2">{{ line_form.non_field_errors|striptags }}</div>
+          {% endif %}
+          <div class="line-header">
+            <h5 class="line-title">Ligne {{ forloop.counter }}</h5>
+            {% if not service_achat_mode %}
+            <button type="button" class="btn btn-outline-danger btn-sm remove-line-btn">Supprimer</button>
+            {% endif %}
+          </div>
+          <div class="line-block">
+            <div class="row">
+              <div class="col-12 col-lg-7 mb-3 mb-lg-0">
+                <label class="form-label" for="{{ line_form.article_catalogue.id_for_label }}">{{ line_form.article_catalogue.label }}</label>
+                {{ line_form.article_catalogue }}
+                {% if line_form.article_catalogue.help_text %}<div class="field-help">{{ line_form.article_catalogue.help_text }}</div>{% endif %}
+              </div>
+              <div class="col-12 col-lg-5">
+                <div class="preview-card js-article-preview">
+                  <div class="preview-empty js-preview-empty">Aperçu catalogue</div>
+                  <img class="preview-image js-preview-image d-none" alt="Aperçu article">
+                  <div class="small text-muted js-preview-reference mt-2"></div>
+                  <div class="small js-preview-description"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="line-block line-soft-panel">
+            <div class="line-block-title">Données de commande</div>
+            <div class="row line-mini-grid">
+              <div class="col-12 col-md-6 col-xl-2 compact-field mb-3 mb-xl-0">
+                <div class="form-check-shell">
+                  {{ line_form.hors_catalogue }}
+                  <label class="ml-2 mb-0" for="{{ line_form.hors_catalogue.id_for_label }}">Article hors catalogue</label>
+                </div>
+              </div>
+              <div class="col-6 col-md-3 col-xl-1 compact-field mb-3 mb-xl-0">
+                <label class="form-label required-label" for="{{ line_form.quantite.id_for_label }}">{{ line_form.quantite.label }}</label>
+                {{ line_form.quantite }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-1 compact-field mb-3 mb-xl-0">
+                <label class="form-label required-label" for="{{ line_form.qte_stock.id_for_label }}">{{ line_form.qte_stock.label }}</label>
+                {{ line_form.qte_stock }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="{{ line_form.prix_unitaire.id_for_label }}">{{ line_form.prix_unitaire.label }}</label>
+                {{ line_form.prix_unitaire }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="{{ line_form.prix_total.id_for_label }}">{{ line_form.prix_total.label }}</label>
+                {{ line_form.prix_total }}
+                {% if line_form.prix_total.help_text %}<div class="field-help">{{ line_form.prix_total.help_text }}</div>{% endif %}
+              </div>
+              <div class="col-12 col-md-6 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="{{ line_form.reference_fournisseur.id_for_label }}">{{ line_form.reference_fournisseur.label }}</label>
+                {{ line_form.reference_fournisseur }}
+              </div>
+              <div class="col-12 col-md-6 col-xl-2 compact-field">
+                <label class="form-label" for="{{ line_form.fournisseur_retenu.id_for_label }}">{{ line_form.fournisseur_retenu.label }}</label>
+                {{ line_form.fournisseur_retenu }}
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-12 col-lg-8 js-hors-catalogue-fields {% if not line_form.instance.hors_catalogue and not line_form.hors_catalogue.value %}hidden-block{% endif %}">
+              <div class="line-block line-soft-panel">
+                <div class="line-block-title">Détail hors catalogue</div>
+                <div class="row line-mini-grid">
+                  <div class="col-12 col-md-5 compact-field mb-3 mb-md-0">
+                    <label class="form-label" for="{{ line_form.nouvelle_designation.id_for_label }}">{{ line_form.nouvelle_designation.label }} <span class="text-warning" title="Obligatoire si la ligne est hors catalogue">*</span></label>
+                    {{ line_form.nouvelle_designation }}
+                  </div>
+                  <div class="col-12 col-md-3 compact-field mb-3 mb-md-0">
+                    <label class="form-label" for="{{ line_form.nouvelle_photo.id_for_label }}">{{ line_form.nouvelle_photo.label }}</label>
+                    {{ line_form.nouvelle_photo }}
+                  </div>
+                  <div class="col-12 col-md-4 compact-field">
+                    <label class="form-label" for="{{ line_form.nouvelle_description.id_for_label }}">{{ line_form.nouvelle_description.label }}</label>
+                    {{ line_form.nouvelle_description }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="line-block line-soft-panel">
+                <div class="line-block-title">Compléments</div>
+                <div class="row line-mini-grid">
+                  <div class="col-12 compact-field mb-3">
+                    <label class="form-label" for="{{ line_form.engin_concerne.id_for_label }}">{{ line_form.engin_concerne.label }}</label>
+                    {{ line_form.engin_concerne }}
+                  </div>
+                  <div class="col-12 compact-field">
+                    <label class="form-label" for="{{ line_form.commentaire.id_for_label }}">{{ line_form.commentaire.label }}</label>
+                    {{ line_form.commentaire }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="d-none">{{ line_form.DELETE }}</div>
+        </div>
+        {% empty %}
+        <div class="placeholder-card">Ajoutez votre première ligne d'article.</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <a href="{% url 'achats:demande_list' %}" class="btn btn-outline-secondary">Annuler</a>
+      {% if service_achat_mode %}
+      <button type="submit" class="btn btn-primary">Enregistrer les compléments achat</button>
+      {% else %}
+      <button type="submit" name="action" value="brouillon" class="btn btn-outline-primary">Enregistrer en brouillon</button>
+      <button type="submit" name="action" value="soumettre" class="btn btn-primary">Soumettre pour devis</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<template id="empty-line-template">
+  <div class="line-card js-line-form" data-form-index="__prefix__">
+    __FORM_HTML__
+  </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const formsetContainer = document.getElementById('line-formset');
+    const totalForms = document.getElementById('id_lignes-TOTAL_FORMS');
+    const addButton = document.getElementById('add-line-btn');
+    const demandeForm = document.getElementById('demande-form');
+    const serviceAchatMode = {{ service_achat_mode|default:False|yesno:'true,false' }};
+
+    function initializeSelect2(context) {
+      if (typeof $ === 'undefined' || !$.fn.select2) {
+        return;
+      }
+      $(context).find('.js-article-catalogue-select').each(function () {
+        const element = $(this);
+        if (element.hasClass('select2-hidden-accessible')) {
+          element.select2('destroy');
+        }
+        element.select2({
+          theme: 'bootstrap4',
+          width: '100%',
+          placeholder: 'Rechercher un article du catalogue',
+          allowClear: true
+        });
+      });
+    }
+
+    function updatePreview(line) {
+      const select = line.querySelector('.js-article-catalogue-select');
+      const previewEmpty = line.querySelector('.js-preview-empty');
+      const previewImage = line.querySelector('.js-preview-image');
+      const previewReference = line.querySelector('.js-preview-reference');
+      const previewDescription = line.querySelector('.js-preview-description');
+      if (!select) {
+        return;
+      }
+      const option = select.options[select.selectedIndex];
+      if (!option || !option.value) {
+        previewEmpty.classList.remove('d-none');
+        previewImage.classList.add('d-none');
+        previewReference.textContent = '';
+        previewDescription.textContent = '';
+        return;
+      }
+      previewEmpty.classList.add('d-none');
+      previewReference.textContent = option.dataset.reference || '';
+      previewDescription.textContent = option.dataset.description || '';
+      if (option.dataset.photo) {
+        previewImage.src = option.dataset.photo;
+        previewImage.classList.remove('d-none');
+      } else {
+        previewImage.classList.add('d-none');
+      }
+    }
+
+    function updateCalculatedFields(line) {
+      const select = line.querySelector('.js-article-catalogue-select');
+      const quantityInput = line.querySelector('input[name$="-quantite"]');
+      const stockInput = line.querySelector('input[name$="-qte_stock"]');
+      const priceInput = line.querySelector('input[name$="-prix_unitaire"]');
+      const totalInput = line.querySelector('input[name$="-prix_total"]');
+      const horsCatalogueCheckbox = line.querySelector('.js-hors-catalogue-toggle');
+
+      if (!quantityInput || !stockInput || !priceInput || !totalInput) {
+        return;
+      }
+
+      const isHorsCatalogue = horsCatalogueCheckbox && horsCatalogueCheckbox.checked;
+      const option = select ? select.options[select.selectedIndex] : null;
+
+      if (!isHorsCatalogue && option && option.value) {
+        if (option.dataset.stock !== undefined && option.dataset.stock !== '') {
+          stockInput.value = option.dataset.stock;
+        }
+        if (option.dataset.price !== undefined && option.dataset.price !== '') {
+          priceInput.value = option.dataset.price;
+        }
+      } else if (isHorsCatalogue) {
+        stockInput.value = '';
+        priceInput.value = '';
+      }
+
+      const quantity = parseFloat(quantityInput.value || '0');
+      const unitPrice = parseFloat(priceInput.value || '0');
+      if (!Number.isNaN(quantity) && !Number.isNaN(unitPrice) && quantity > 0 && unitPrice > 0) {
+        totalInput.value = (quantity * unitPrice).toFixed(2);
+      } else {
+        totalInput.value = '';
+      }
+    }
+
+    function updateSupplierReference(line) {
+      const supplierSelect = line.querySelector('select[name$="-fournisseur_retenu"]');
+      const referenceInput = line.querySelector('input[name$="-reference_fournisseur"]');
+
+      if (!supplierSelect || !referenceInput) {
+        return;
+      }
+
+      const selectedOption = supplierSelect.options[supplierSelect.selectedIndex];
+      referenceInput.value = selectedOption && supplierSelect.value
+        ? (selectedOption.dataset.referenceFournisseur || '')
+        : '';
+    }
+
+    function updateHorsCatalogue(line) {
+      const checkbox = line.querySelector('.js-hors-catalogue-toggle');
+      const blocks = line.querySelectorAll('.js-hors-catalogue-fields');
+      if (!checkbox) {
+        return;
+      }
+      blocks.forEach((block) => {
+        block.classList.toggle('hidden-block', !checkbox.checked);
+      });
+    }
+
+    function bindLine(line) {
+      const checkbox = line.querySelector('.js-hors-catalogue-toggle');
+      const select = line.querySelector('.js-article-catalogue-select');
+      const removeBtn = line.querySelector('.remove-line-btn');
+      if (checkbox) {
+        checkbox.addEventListener('change', function () {
+          updateHorsCatalogue(line);
+          updateCalculatedFields(line);
+        });
+      }
+      if (select) {
+        select.addEventListener('change', function () {
+          updatePreview(line);
+          updateCalculatedFields(line);
+          updateSupplierReference(line);
+        });
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+          $(select).on('select2:select select2:clear', function () {
+            updatePreview(line);
+            updateCalculatedFields(line);
+            updateSupplierReference(line);
+          });
+        }
+      }
+      const supplierSelect = line.querySelector('select[name$="-fournisseur_retenu"]');
+      if (supplierSelect) {
+        supplierSelect.addEventListener('change', function () {
+          updateSupplierReference(line);
+        });
+      }
+      const quantityInput = line.querySelector('input[name$="-quantite"]');
+      const priceInput = line.querySelector('input[name$="-prix_unitaire"]');
+      if (quantityInput) {
+        quantityInput.addEventListener('input', function () {
+          updateCalculatedFields(line);
+        });
+      }
+      if (priceInput) {
+        priceInput.addEventListener('input', function () {
+          updateCalculatedFields(line);
+        });
+      }
+      if (removeBtn && !serviceAchatMode) {
+        removeBtn.addEventListener('click', function () {
+          const deleteInput = line.querySelector('input[type="checkbox"][name$="-DELETE"]');
+          if (deleteInput) {
+            deleteInput.checked = true;
+            line.style.display = 'none';
+          } else {
+            line.remove();
+            totalForms.value = String(Math.max(0, parseInt(totalForms.value, 10) - 1));
+          }
+        });
+      }
+      initializeSelect2(line);
+      updateHorsCatalogue(line);
+      updatePreview(line);
+      updateCalculatedFields(line);
+      updateSupplierReference(line);
+    }
+
+    function buildEmptyFormHtml(index) {
+      const empty = `
+        <input type="hidden" name="lignes-${index}-id" id="id_lignes-${index}-id">
+        <div class="line-header">
+          <h5 class="line-title">Nouvelle ligne</h5>
+          <button type="button" class="btn btn-outline-danger btn-sm remove-line-btn">Supprimer</button>
+        </div>
+        <div class="line-grid">
+          <div class="span-6">
+            <label class="form-label" for="id_lignes-${index}-article_catalogue">Article du catalogue</label>
+            <select name="lignes-${index}-article_catalogue" id="id_lignes-${index}-article_catalogue" class="form-control js-article-catalogue-select" data-placeholder="Rechercher un article du catalogue">
+              {{ formset.empty_form.article_catalogue.as_widget|escapejs }}
+            </select>
+          </div>
+        </div>`;
+      return empty;
+    }
+
+    document.querySelectorAll('.js-line-form').forEach(bindLine);
+
+    if (demandeForm) {
+      demandeForm.addEventListener('submit', function () {
+        demandeForm.querySelectorAll('.js-auto-filled-field').forEach(function (field) {
+          if (!field.hasAttribute('data-keep-disabled')) {
+            field.disabled = false;
+          }
+        });
+      });
+    }
+
+    if (addButton) {
+      addButton.addEventListener('click', function () {
+        const index = parseInt(totalForms.value, 10);
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = `{{ formset.empty_form.id.as_widget|escapejs }}`;
+        const line = document.createElement('div');
+        line.className = 'line-card js-line-form';
+        line.dataset.formIndex = index;
+        line.innerHTML = `
+          {{ formset.empty_form.id.as_widget|escapejs }}
+          <div class="line-header">
+            <h5 class="line-title">Nouvelle ligne</h5>
+            <button type="button" class="btn btn-outline-danger btn-sm remove-line-btn">Supprimer</button>
+          </div>
+          <div class="line-block">
+            <div class="row">
+              <div class="col-12 col-lg-7 mb-3 mb-lg-0">
+                <label class="form-label" for="id_lignes-__prefix__-article_catalogue">Article du catalogue</label>
+                {{ formset.empty_form.article_catalogue.as_widget|escapejs }}
+              </div>
+              <div class="col-12 col-lg-5">
+                <div class="preview-card js-article-preview">
+                  <div class="preview-empty js-preview-empty">Aperçu catalogue</div>
+                  <img class="preview-image js-preview-image d-none" alt="Aperçu article">
+                  <div class="small text-muted js-preview-reference mt-2"></div>
+                  <div class="small js-preview-description"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="line-block line-soft-panel">
+            <div class="line-block-title">Données de commande</div>
+            <div class="row line-mini-grid">
+              <div class="col-12 col-md-6 col-xl-2 compact-field mb-3 mb-xl-0">
+                <div class="form-check-shell">
+                  {{ formset.empty_form.hors_catalogue.as_widget|escapejs }}
+                  <label class="ml-2 mb-0" for="id_lignes-__prefix__-hors_catalogue">Article hors catalogue</label>
+                </div>
+              </div>
+              <div class="col-6 col-md-3 col-xl-1 compact-field mb-3 mb-xl-0">
+                <label class="form-label required-label" for="id_lignes-__prefix__-quantite">Qté</label>
+                {{ formset.empty_form.quantite.as_widget|escapejs }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-1 compact-field mb-3 mb-xl-0">
+                <label class="form-label required-label" for="id_lignes-__prefix__-qte_stock">Stock</label>
+                {{ formset.empty_form.qte_stock.as_widget|escapejs }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="id_lignes-__prefix__-prix_unitaire">PU HT</label>
+                {{ formset.empty_form.prix_unitaire.as_widget|escapejs }}
+              </div>
+              <div class="col-6 col-md-3 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="id_lignes-__prefix__-prix_total">Total HT</label>
+                {{ formset.empty_form.prix_total.as_widget|escapejs }}
+              </div>
+              <div class="col-12 col-md-6 col-xl-2 compact-field mb-3 mb-xl-0">
+                <label class="form-label" for="id_lignes-__prefix__-reference_fournisseur">Réf. fournisseur</label>
+                {{ formset.empty_form.reference_fournisseur.as_widget|escapejs }}
+              </div>
+              <div class="col-12 col-md-6 col-xl-2 compact-field">
+                <label class="form-label" for="id_lignes-__prefix__-fournisseur_retenu">Fournisseur</label>
+                {{ formset.empty_form.fournisseur_retenu.as_widget|escapejs }}
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-12 col-lg-8 js-hors-catalogue-fields hidden-block">
+              <div class="line-block line-soft-panel">
+                <div class="line-block-title">Détail hors catalogue</div>
+                <div class="row line-mini-grid">
+                  <div class="col-12 col-md-5 compact-field mb-3 mb-md-0">
+                    <label class="form-label" for="id_lignes-__prefix__-nouvelle_designation">Désignation hors catalogue <span class="text-warning" title="Obligatoire si la ligne est hors catalogue">*</span></label>
+                    {{ formset.empty_form.nouvelle_designation.as_widget|escapejs }}
+                  </div>
+                  <div class="col-12 col-md-3 compact-field mb-3 mb-md-0">
+                    <label class="form-label" for="id_lignes-__prefix__-nouvelle_photo">Photo hors catalogue</label>
+                    {{ formset.empty_form.nouvelle_photo.as_widget|escapejs }}
+                  </div>
+                  <div class="col-12 col-md-4 compact-field">
+                    <label class="form-label" for="id_lignes-__prefix__-nouvelle_description">Description hors catalogue</label>
+                    {{ formset.empty_form.nouvelle_description.as_widget|escapejs }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-lg-4">
+              <div class="line-block line-soft-panel">
+                <div class="line-block-title">Compléments</div>
+                <div class="row line-mini-grid">
+                  <div class="col-12 compact-field mb-3">
+                    <label class="form-label" for="id_lignes-__prefix__-engin_concerne">Engin</label>
+                    {{ formset.empty_form.engin_concerne.as_widget|escapejs }}
+                  </div>
+                  <div class="col-12 compact-field">
+                    <label class="form-label" for="id_lignes-__prefix__-commentaire">Commentaire achat</label>
+                    {{ formset.empty_form.commentaire.as_widget|escapejs }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {{ formset.empty_form.DELETE.as_widget|escapejs }}
+        `.replace(/__prefix__/g, index);
+        formsetContainer.appendChild(line);
+        totalForms.value = String(index + 1);
+        bindLine(line);
+      });
+    }
+  });
+</script>
+{% endblock %}

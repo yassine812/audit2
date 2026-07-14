@@ -1,0 +1,36 @@
+{% extends 'gestion_documentaire/base_gestion_documentaire.html' %}
+
+{% block title %}{% if object %}Modifier{% else %}Nouveau{% endif %} document{% endblock %}
+
+{% block content %}
+<div class="gd-shell">
+  <div class="gd-card p-3 p-md-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start mb-3">
+      <div>
+        <h3 class="gd-title">{% if object %}Modifier le document{% else %}Nouveau document{% endif %}</h3>
+        <p class="gd-subtitle">Saisie structurée selon la procédure documentaire QSE.</p>
+      </div>
+      <a href="{% if object %}{% url 'gestion_documentaire:document_detail' object.pk %}{% else %}{% url 'gestion_documentaire:document_list' %}{% endif %}" class="btn btn-outline-secondary mt-2 mt-md-0">Retour</a>
+    </div>
+
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <div class="row">
+        {% for field in form %}
+        <div class="col-12 {% if field.name == 'objet' or field.name == 'domaine_application' or field.name == 'definitions' or field.name == 'responsabilites' or field.name == 'regles_etapes' or field.name == 'modalites_diffusion' or field.name == 'modalites_modification' or field.name == 'modalites_archivage' or field.name == 'poste_service_activite' or field.name == 'prerequis' or field.name == 'equipements_outils_logiciels' or field.name == 'etapes_detaillees' or field.name == 'points_controle' or field.name == 'criteres_acceptation' or field.name == 'consignes_securite' or field.name == 'enregistrements_a_completer' or field.name == 'anomalies_actions' or field.name == 'visas_validations' or field.name == 'motif_remplacement' %}col-md-12{% else %}col-md-6{% endif %} mb-3">
+          <label class="gd-form-label {% if field.field.required %}required-label{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="small text-muted mt-1">{{ field.help_text }}</div>{% endif %}
+          {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

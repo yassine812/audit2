@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+</head>
+<body>
+    <h2>Welcome to Our Platform AB Serve!</h2>
+    <p>Your account has been successfully created. Here are your login details:</p>
+    <ul>
+        <li><strong>Username:</strong> {{ username }}</li>
+        <li><strong>Password:</strong> {{ password }}</li>
+    </ul>
+    <p>Please keep this information secure and do not share it with anyone.</p>
+    <p>To log in to your account, click the button below:</p>
+    <p>
+        <a href="{{ login_url }}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+            Log In
+        </a>
+    </p>
+    <p>If the button above does not work, copy and paste the following link into your browser:</p>
+    <p>Thank you,</p>
+    <p>The AB Serve Team</p>
+</body>
+</html>

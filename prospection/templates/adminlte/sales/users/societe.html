@@ -1,0 +1,419 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion des Filiales</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">Filiales</li>
+                </ol>
+            </div>
+        </div>
+    
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addSocieteModal">
+                    <i class="fas fa-plus"></i> Ajouter
+                </button>
+            </div>
+        </div>
+    </div>    
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header justify-content-between align-items-center">
+                        <div class="card-tools float-left">
+                            <form id="searchForm" method="GET" action="" class="d-flex">
+                                <div class="input-group input-group-sm" style="width: 150px;">
+                                    <input type="text" name="search" class="form-control" placeholder="Rechercher" value="{{ request.GET.search }}">
+                                    <div class="input-group-append">
+                                        <button type="submit" class="btn btn-default">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>                
+                        <div class="card-tools mx-auto" style="text-align: center;">
+                            <small id="paginationInfo" style="font-size: 90%;">
+                                {{ societes.start_index }} - {{ societes.end_index }} sur {{ societes.paginator.count }}
+                            </small>
+                            <ul id="pagination" class="pagination pagination-sm justify-content-center" style="margin-top:0">
+                                {% if societes.has_other_pages %}
+                                    <li class="page-item"><a class="page-link" href="#" data-page="1">&laquo;</a></li>
+                                    {% for i in societes.paginator.page_range %}
+                                        <li class="page-item {% if societes.number == i %}active{% endif %}">
+                                            <a class="page-link" href="#" data-page="{{ i }}">{{ i }}</a>
+                                        </li>
+                                    {% endfor %}
+                                    <li class="page-item"><a class="page-link" href="#" data-page="{{ societes.paginator.num_pages }}">&raquo;</a></li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <table id="filiales" class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="text-align:center;">Nom</th>
+                                    <th style="text-align:center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for societe in societes %}
+                                <tr style="text-align:center" data-id="{{ societe.id }}">
+                                    <td>{{ societe.nom }}</td>
+                                    <td>
+                                        <button type="button" class="btn btn-warning btn-sm edit-btn" data-id="{{ societe.id }}">
+                                            <i class="fas fa-edit"></i> Modifier
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="{{ societe.id }}">
+                                            <i class="fas fa-trash"></i> Supprimer
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Add Societe Modal -->
+<div class="modal fade" id="addSocieteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter une Filiale</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addSocieteForm" method="post" action="{% url 'prospection:add_societe' %}">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="nom">Nom</label>
+                        <input type="text" class="form-control" id="nom" name="nom" placeholder="Entrez le nom de la filiale" required>
+                        <small id="nom-error" class="text-danger"></small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Societe Modal (unique, sera rempli dynamiquement) -->
+<div class="modal fade" id="editSocieteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Modifier la Filiale</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editSocieteForm" method="post" action="">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="edit-nom">Nom</label>
+                        <input type="text" class="form-control" id="edit-nom" name="nom" required>
+                        <small id="edit-nom-error" class="text-danger"></small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Societe Modal (unique, sera rempli dynamiquement) -->
+<div class="modal fade" id="deleteSocieteModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Supprimer la Filiale</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer "<span id="societe-to-delete"></span>" ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Supprimer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+$(document).ready(function() {
+    var currentPage = 1;
+    var currentSearch = '';
+    var societeToDelete = null;
+
+    var table = $('#filiales').DataTable({
+        "paging": false,
+        "searching": false,
+        "ordering": false,
+        "info": false,
+        "autoWidth": false,
+        "responsive": true,
+        "columnDefs": [
+            { "className": "dt-center", "targets": "_all" }
+        ],
+        "language": {
+            "emptyTable": "<div class='alert'><i class='fas fa-info-circle'></i> Aucune filiale trouvé.</div>"
+        }
+    });
+
+    function loadSocietes(search, page) {
+        currentSearch = search || '';
+        currentPage = page || 1;
+        
+        $.ajax({
+            url: window.location.pathname,
+            type: 'GET',
+            data: {
+                search: search,
+                page: page
+            },
+            success: function(response) {
+                // Mettre à jour le tableau
+                table.clear();
+                $.each(response.societes, function(i, societe) {
+                    table.row.add([
+                        societe.nom,
+                        `<button type="button" class="btn btn-warning btn-sm edit-btn" data-id="${societe.id}">
+                            <i class="fas fa-edit"></i> Modifier
+                        </button>
+                        <button type="button" class="btn btn-danger btn-sm delete-btn" data-id="${societe.id}">
+                            <i class="fas fa-trash"></i> Supprimer
+                        </button>`
+                    ]);
+                });
+                table.draw(false);
+                
+                updatePagination(response.page, response.pages, response.total);
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: 'Erreur lors du chargement des données'
+                });
+            }
+        });
+    }
+
+    // Mettre à jour la pagination
+    function updatePagination(page, totalPages, totalItems) {
+        var pagination = $('#pagination');
+        pagination.empty();
+        
+        if (totalPages > 1) {
+            pagination.append(`<li class="page-item"><a class="page-link" href="#" data-page="1">&laquo;</a></li>`);
+            
+            for (var i = 1; i <= totalPages; i++) {
+                var active = i == page ? 'active' : '';
+                pagination.append(`<li class="page-item ${active}"><a class="page-link" href="#" data-page="${i}">${i}</a></li>`);
+            }
+            
+            pagination.append(`<li class="page-item"><a class="page-link" href="#" data-page="${totalPages}">&raquo;</a></li>`);
+        }
+        
+        var start = ((page - 1) * 10) + 1;
+        var end = Math.min(page * 10, totalItems);
+        $('#paginationInfo').text(`${start} - ${end} sur ${totalItems}`);
+    }
+
+    // Recherche AJAX
+    $('#searchForm').on('submit', function(e) {
+        e.preventDefault();
+        loadSocietes($(this).find('[name="search"]').val(), 1);
+    });
+
+    // Pagination AJAX
+    $(document).on('click', '#pagination a', function(e) {
+        e.preventDefault();
+        loadSocietes(currentSearch, $(this).data('page'));
+    });
+
+    // Ajout AJAX
+    $('#addSocieteForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        
+        submitBtn.prop('disabled', true);
+        $('#nom-error').text('');
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': form.find('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#addSocieteModal').modal('hide');
+                    form[0].reset();
+                    loadSocietes(currentSearch, 1);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else if (response.errors) {
+                    $.each(response.errors, function(field, message) {
+                        $(`#${field}-error`).text(message);
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue'
+                });
+            },
+            complete: function() {
+                submitBtn.prop('disabled', false);
+            }
+        });
+    });
+
+    // Préparation de la modification
+    $(document).on('click', '.edit-btn', function() {
+        var societeId = $(this).data('id');
+        var societeNom = $(this).closest('tr').find('td:first').text();
+        
+        $('#edit-nom').val(societeNom);
+        $('#editSocieteForm').attr('action', `/prospection/edit-societe/${societeId}/`);
+        $('#editSocieteModal').modal('show');
+    });
+
+    // Modification AJAX
+    $('#editSocieteForm').on('submit', function(e) {
+        e.preventDefault();
+        var form = $(this);
+        var submitBtn = form.find('button[type="submit"]');
+        
+        submitBtn.prop('disabled', true);
+        $('#edit-nom-error').text('');
+        
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': form.find('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#editSocieteModal').modal('hide');
+                    loadSocietes(currentSearch, currentPage);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else if (response.errors) {
+                    $.each(response.errors, function(field, message) {
+                        $(`#edit-${field}-error`).text(message);
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue'
+                });
+            },
+            complete: function() {
+                submitBtn.prop('disabled', false);
+            }
+        });
+    });
+
+    // Préparation de la suppression
+    $(document).on('click', '.delete-btn', function() {
+        societeToDelete = $(this).data('id');
+        var societeNom = $(this).closest('tr').find('td:first').text();
+        
+        $('#societe-to-delete').text(societeNom);
+        $('#deleteSocieteModal').modal('show');
+    });
+
+    // Suppression AJAX
+    $('#confirmDelete').on('click', function() {
+        var btn = $(this);
+        btn.prop('disabled', true);
+        
+        $.ajax({
+            url: `/prospection/delete-societe/${societeToDelete}/`,
+            type: 'POST',
+            data: {
+                csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#deleteSocieteModal').modal('hide');
+                    loadSocietes(currentSearch, currentPage);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Succès',
+                        text: response.success,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
+            },
+            error: function(xhr) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: xhr.responseJSON?.error || 'Une erreur est survenue'
+                });
+            },
+            complete: function() {
+                btn.prop('disabled', false);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

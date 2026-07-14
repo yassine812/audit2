@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"><style>
+body { font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+.header { background: #6b6b6b; color: white; padding: 16px 20px; border-radius: 4px 4px 0 0; }
+.header h2 { margin: 0; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; }
+.body { background: #f9f9f9; border: 1px solid #ddd; padding: 20px; border-radius: 0 0 4px 4px; }
+.info-row { display: flex; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+.info-label { font-weight: bold; width: 180px; flex-shrink: 0; color: #555; font-size: .88rem; }
+.info-value { font-size: .88rem; }
+.btn { display: inline-block; padding: 10px 22px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; margin-top: 12px; }
+.footer { text-align: center; color: #aaa; font-size: .75rem; margin-top: 16px; }
+</style></head>
+<body>
+<div class="header">
+  <h2>Demande de Congé — Notification</h2>
+</div>
+<div class="body">
+  <p>Bonjour,</p>
+  <p>
+    Une nouvelle demande de congé a été soumise par
+    <strong>{{ demande.nom }} {{ demande.prenom }}</strong>
+    et nécessite votre validation.
+  </p>
+  <div style="margin: 16px 0;">
+    <div class="info-row">
+      <span class="info-label">Section :</span>
+      <span class="info-value">{{ demande.section|default:"—" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Absence du :</span>
+      <span class="info-value">{{ demande.date_debut|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Au (inclus) :</span>
+      <span class="info-value">{{ demande.date_fin|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Date de reprise :</span>
+      <span class="info-value">{{ demande.date_reprise|date:"d/m/Y" }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Nombre de jours :</span>
+      <span class="info-value">{{ demande.nombre_jours }} jour(s)</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Type (imputation) :</span>
+      <span class="info-value">{{ demande.get_type_conge_display }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Date de la demande :</span>
+      <span class="info-value">{{ demande.date_demande|date:"d/m/Y" }}</span>
+    </div>
+  </div>
+  <p>Veuillez vous connecter pour valider ou refuser cette demande.</p>
+  {% if request %}
+  <a class="btn" href="{{ request.scheme }}://{{ request.get_host }}{% url 'conge:valider' demande.pk %}">
+    Traiter la demande
+  </a>
+  {% endif %}
+</div>
+<div class="footer">
+  Ce message a été généré automatiquement — merci de ne pas y répondre.
+</div>
+</body>
+</html>

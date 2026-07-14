@@ -1,0 +1,190 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ action }} utilisateur{% endblock %}
+
+{% block admin_content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0">
+          <i class="fas fa-user-edit mr-2"></i>{{ action }} utilisateur
+          {% if object %} — {{ object.username }}{% endif %}
+        </h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="{% url 'administration:dashboard' %}">Administration</a></li>
+          <li class="breadcrumb-item"><a href="{% url 'administration:utilisateurs' %}">Utilisateurs</a></li>
+          <li class="breadcrumb-item active">{{ action }}</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <!-- Informations générales -->
+      <div class="card card-outline card-primary">
+        <div class="card-header"><h3 class="card-title">Informations générales</h3></div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.username.label }}</label>
+                {{ form.username }}
+                {% if form.username.errors %}<small class="text-danger">{{ form.username.errors.0 }}</small>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.first_name.label }}</label>
+                {{ form.first_name }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.last_name.label }}</label>
+                {{ form.last_name }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.email.label }}</label>
+                {{ form.email }}
+                {% if form.email.errors %}<small class="text-danger">{{ form.email.errors.0 }}</small>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.telephone.label }}</label>
+                {{ form.telephone }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.timezone.label }}</label>
+                {{ form.timezone }}
+              </div>
+            </div>
+          </div>
+
+          {% if form.password1 %}
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>{{ form.password1.label }}</label>
+                {{ form.password1 }}
+                {% if form.password1.errors %}<small class="text-danger">{{ form.password1.errors.0 }}</small>{% endif %}
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label>{{ form.password2.label }}</label>
+                {{ form.password2 }}
+                {% if form.password2.errors %}<small class="text-danger">{{ form.password2.errors.0 }}</small>{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Organisation -->
+      <div class="card card-outline card-success">
+        <div class="card-header"><h3 class="card-title">Organisation</h3></div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.section.label }}</label>
+                {{ form.section }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.societe.label }}</label>
+                {{ form.societe }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.customer.label }}</label>
+                {{ form.customer }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.cout_horaire.label }}</label>
+                {{ form.cout_horaire }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.pays.label }}</label>
+                {{ form.pays }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.adresse.label }}</label>
+                {{ form.adresse }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>{{ form.vat_code.label }}</label>
+                {{ form.vat_code }}
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>{{ form.societes.label }}</label>
+            <div class="row">
+              {% for cb in form.societes %}
+              <div class="col-md-3">
+                <div class="form-check">
+                  {{ cb.tag }}
+                  <label class="form-check-label" for="{{ cb.id_for_label }}">{{ cb.choice_label }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rôles -->
+      <div class="card card-outline card-warning">
+        <div class="card-header"><h3 class="card-title">Rôles & Permissions</h3></div>
+        <div class="card-body">
+          <div class="row">
+            {# Checkboxes rôles #}
+            {% for field in form %}
+              {% if field.field.widget.input_type == "checkbox" %}
+              <div class="col-md-3 mb-2">
+                <div class="form-check">
+                  {{ field }}
+                  <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+              </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save mr-1"></i>{{ action }}
+        </button>
+        <a href="{% url 'administration:utilisateurs' %}" class="btn btn-default ml-2">Annuler</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

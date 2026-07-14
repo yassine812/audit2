@@ -1,0 +1,38 @@
+{% extends 'gestion_documentaire/base_gestion_documentaire.html' %}
+{% block title %}Tableau de bord documentaire{% endblock %}
+{% block extra_css %}{{ block.super }}
+<style>
+  .metric { padding:1.25rem; display:flex; align-items:center; gap:1rem; height:100%; }
+  .metric-icon { width:52px; height:52px; border-radius:14px; display:grid; place-items:center; font-size:1.35rem; }
+  .metric-value { font-size:1.65rem; line-height:1; font-weight:800; color:#172033; }
+  .recent-folder { display:flex; align-items:center; gap:.7rem; padding:.75rem; border-bottom:1px solid #edf1f7; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="gd-shell">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+    <div><h3 class="gd-title">Tableau de bord documentaire</h3><p class="gd-subtitle">Vue synthétique de la bibliothèque accessible à votre profil.</p></div>
+    <a href="{% url 'gestion_documentaire:document_list' %}" class="btn btn-primary"><i class="fas fa-folder-open mr-1"></i>Ouvrir la bibliothèque</a>
+  </div>
+  <div class="row">
+    <div class="col-6 col-xl-3 mb-3"><div class="gd-card metric"><span class="metric-icon bg-primary text-white"><i class="fas fa-folder"></i></span><span><span class="metric-value d-block">{{ total_dossiers }}</span><small class="text-muted">Dossiers accessibles</small></span></div></div>
+    <div class="col-6 col-xl-3 mb-3"><div class="gd-card metric"><span class="metric-icon bg-success text-white"><i class="fas fa-file-alt"></i></span><span><span class="metric-value d-block">{{ total_fichiers }}</span><small class="text-muted">Fichiers</small></span></div></div>
+    <div class="col-6 col-xl-3 mb-3"><div class="gd-card metric"><span class="metric-icon bg-info text-white"><i class="fas fa-database"></i></span><span><span class="metric-value d-block">{{ total_taille|filesizeformat }}</span><small class="text-muted">Espace utilisé</small></span></div></div>
+    <div class="col-6 col-xl-3 mb-3"><div class="gd-card metric"><span class="metric-icon bg-warning text-white"><i class="fas fa-lock"></i></span><span><span class="metric-value d-block">{{ dossiers_restraints }}</span><small class="text-muted">Accès limités</small></span></div></div>
+  </div>
+  <div class="row">
+    <div class="col-12 col-lg-7 mb-3"><div class="gd-card h-100">
+      <div class="p-3 border-bottom"><h5 class="mb-0">Fichiers récemment modifiés</h5></div>
+      <div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Fichier</th><th>Dossier</th><th>Modification</th><th></th></tr></thead><tbody>
+      {% for item in fichiers_recents %}<tr><td><i class="far fa-file-alt text-primary mr-2"></i>{{ item.nom }}</td><td>{{ item.dossier.nom|default:'Dossiers globaux' }}</td><td>{{ item.date_modification|date:'d/m/Y H:i' }}</td><td>{% if item.peut_telecharger %}<a href="{% url 'gestion_documentaire:telecharger_fichier_bibliotheque' item.pk %}" class="btn btn-sm btn-light"><i class="fas fa-download"></i></a>{% endif %}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-4">Aucun fichier.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div></div>
+    <div class="col-12 col-lg-5 mb-3"><div class="gd-card h-100">
+      <div class="p-3 border-bottom"><h5 class="mb-0">Dossiers récents</h5></div>
+      {% for dossier in dossiers_recents %}<a class="recent-folder text-dark" href="{% url 'gestion_documentaire:dossier_detail' dossier.pk %}"><i class="fas fa-folder fa-lg" style="color:{{ dossier.couleur }}"></i><span class="text-truncate flex-grow-1">{{ dossier.nom }}</span>{% if dossier.acces_restreint %}<i class="fas fa-lock text-muted"></i>{% endif %}</a>
+      {% empty %}<div class="text-center text-muted py-4">Aucun dossier.</div>{% endfor %}
+    </div></div>
+  </div>
+</div>
+{% endblock %}

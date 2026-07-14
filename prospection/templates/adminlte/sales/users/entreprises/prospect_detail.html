@@ -1,0 +1,1010 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% load prospect_tags %}
+
+{% block body %}
+<div>
+  <!-- Page header -->
+  <section class="content-header pb-0">
+    <div class="container-fluid">
+      <div class="row align-items-center">
+        <div class="col-lg-8 col-12">
+          <div class="d-flex align-items-center flex-wrap">
+            <span class="badge badge-primary mr-2 p-2" aria-hidden="true"><i class="fas fa-building"></i></span>
+            <h1 class="h3 mb-0 font-weight-bold text-primary">
+              {% if entreprise and entreprise.nom %}{{ entreprise.nom }}{% else %}Entreprise inconnue{% endif %}
+            </h1>
+            {% if entreprise and entreprise.secteur_activite %}
+              <span class="ml-2 badge badge-light text-muted">{{ entreprise.secteur_activite }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-lg-4 col-12 text-lg-right mt-2 mt-lg-0">
+          <a href="{% url 'prospection:prospects_list' %}" class="btn btn-sm btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux prospects
+          </a>
+        </div>
+      </div>
+    </div>
+    <hr class="mt-3 mb-0"/>
+  </section>
+
+  <!-- Main content -->
+  <section class="content pt-3">
+    <div class="container-fluid">
+
+      {% if messages %}
+      <div class="alert-area mb-3" role="region" aria-live="polite">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm mb-2" role="alert">
+            <i class="fas fa-info-circle mr-2"></i>{{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Fermer"><span aria-hidden="true">&times;</span></button>
+          </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="row">
+        <!-- Left column -->
+        <div class="col-xl-8">
+          <div class="card card-primary card-outline shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h3 class="card-title mb-0">
+                <i class="fas fa-layer-group mr-2"></i>Informations structurées
+                {% if last_research and last_research.summary %}
+                  <span class="ml-2 badge badge-{{ last_research.confidence|default:'medium'|confidence_badge }}">{{ last_research.confidence|default:'medium'|confidence_label }}</span>
+                {% endif %}
+              </h3>
+              <div class="card-tools d-flex align-items-center">
+                {% if last_research %}
+                  <small class="text-muted mr-3"><i class="far fa-clock mr-1"></i>Dernière recherche : {{ last_research.created_at|date:"d/m/Y H:i" }}</small>
+                {% endif %}
+                <button class="btn btn-sm btn-tool" data-card-widget="collapse" aria-label="Réduire"><i class="fas fa-minus"></i></button>
+              </div>
+            </div>
+            <div class="card-body">
+              {% if last_research and last_research.summary %}
+              <div class="callout callout-primary py-3">
+                <h5 class="mb-1"><i class="far fa-sticky-note mr-2"></i>Résumé</h5>
+                <p class="mb-0 text-secondary">{{ last_research.summary }}</p>
+              </div>
+              {% endif %}
+
+              {% if grouped_infos %}
+              <div id="researchAccordion" class="accordion" role="tablist">
+                {% for grp in grouped_infos %}
+                {% with collapse_id="collapse_"|add:forloop.counter header_id="researchHeader_"|add:forloop.counter %}
+                <div class="card mb-2 border-0 shadow-sm">
+                  <div id="{{ header_id }}" class="card-header bg-light py-2 d-flex justify-content-between align-items-center collapsible-header" role="button" data-target="#{{ collapse_id }}" data-bs-target="#{{ collapse_id }}" aria-expanded="false" aria-controls="{{ collapse_id }}" tabindex="0">
+                    <div>
+                      <strong>Recherche du {{ grp.research.created_at|date:"d/m/Y H:i" }}</strong>
+                      {% if grp.research.created_by %}
+                        <small class="text-muted">• par {{ grp.research.created_by.username }}</small>
+                      {% endif %}
+                    </div>
+                    <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                  </div>
+                  <div id="{{ collapse_id }}" class="collapse" role="region" aria-labelledby="{{ header_id }}">
+                    <div class="card-body bg-white">
+                      <div class="row">
+                        <!-- Emails -->
+                        <div class="col-md-6 col-12 mb-3">
+                          {% if grp.emails %}
+                          <h6 class="mb-2"><i class="far fa-envelope text-primary mr-1"></i> Emails <span class="badge badge-secondary">{{ grp.emails|length }}</span></h6>
+                          <ul class="list-unstyled mb-0">
+                            {% for info in grp.emails %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                              <span>
+                                {{ info.value }} {% if info.label %}<small class="text-muted">({{ info.label }})</small>{% endif %}
+                                {% if info.source_url %}<a href="{{ info.source_url }}" target="_blank" rel="noopener" class="ml-1" aria-label="Source"><i class="fas fa-link"></i></a>{% endif %}
+                              </span>
+                              <button type="button" class="btn btn-xs btn-outline-secondary copy-btn" data-copy="{{ info.value }}" title="Copier" aria-label="Copier l'email {{ info.value }}"><i class="far fa-copy"></i></button>
+                            </li>
+                            {% endfor %}
+                          </ul>
+                          {% endif %}
+                        </div>
+
+                        <!-- Téléphones -->
+                        <div class="col-md-6 col-12 mb-3">
+                          {% if grp.phones %}
+                          <h6 class="mb-2"><i class="fas fa-phone text-success mr-1"></i> Téléphones <span class="badge badge-secondary">{{ grp.phones|length }}</span></h6>
+                          <ul class="list-unstyled mb-0">
+                            {% for info in grp.phones %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                              <span>
+                                {{ info.value }} {% if info.label %}<small class="text-muted">({{ info.label }})</small>{% endif %}
+                                {% if info.source_url %}<a href="{{ info.source_url }}" target="_blank" rel="noopener" class="ml-1" aria-label="Source"><i class="fas fa-link"></i></a>{% endif %}
+                              </span>
+                              <button type="button" class="btn btn-xs btn-outline-secondary copy-btn" data-copy="{{ info.value }}" title="Copier" aria-label="Copier le téléphone {{ info.value }}"><i class="far fa-copy"></i></button>
+                            </li>
+                            {% endfor %}
+                          </ul>
+                          {% endif %}
+                        </div>
+
+                        <!-- Sites web -->
+                        <div class="col-md-6 col-12 mb-3">
+                          {% if grp.websites %}
+                          <h6 class="mb-2"><i class="fas fa-globe text-warning mr-1"></i> Sites web <span class="badge badge-secondary">{{ grp.websites|length }}</span></h6>
+                          <ul class="list-unstyled mb-0">
+                            {% for info in grp.websites %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                              <span>
+                                <a href="{{ info.value }}" target="_blank" rel="noopener">{{ info.value }}</a>
+                                {% if info.label %}<small class="text-muted">({{ info.label }})</small>{% endif %}
+                              </span>
+                              <button type="button" class="btn btn-xs btn-outline-secondary copy-btn" data-copy="{{ info.value }}" title="Copier" aria-label="Copier le site web"><i class="far fa-copy"></i></button>
+                            </li>
+                            {% endfor %}
+                          </ul>
+                          {% endif %}
+                        </div>
+
+                        <!-- Réseaux sociaux -->
+                        <div class="col-md-6 col-12 mb-3">
+                          {% if grp.socials %}
+                          <h6 class="mb-2"><i class="fab fa-linkedin text-info mr-1"></i> Réseaux sociaux <span class="badge badge-secondary">{{ grp.socials|length }}</span></h6>
+                          <ul class="list-unstyled mb-0">
+                            {% for info in grp.socials %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                              <span>
+                                <a href="{{ info.value }}" target="_blank" rel="noopener">{{ info.value }}</a>
+                                {% if info.label %}<small class="text-muted">({{ info.label }})</small>{% endif %}
+                              </span>
+                              <button type="button" class="btn btn-xs btn-outline-secondary copy-btn" data-copy="{{ info.value }}" title="Copier" aria-label="Copier le lien"><i class="far fa-copy"></i></button>
+                            </li>
+                            {% endfor %}
+                          </ul>
+                          {% endif %}
+                        </div>
+
+                        <!-- Adresses -->
+                        <div class="col-md-12 col-12 mb-3">
+                          {% if grp.addresses %}
+                          <h6 class="mb-2"><i class="fas fa-map-marker-alt text-danger mr-1"></i> Adresses <span class="badge badge-secondary">{{ grp.addresses|length }}</span></h6>
+                          <ul class="list-unstyled mb-0">
+                            {% for info in grp.addresses %}
+                            <li class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                              <span>
+                                <i class="fas fa-building mr-1 text-muted"></i>
+                                {{ info.value }}
+                                {% if info.label %}<small class="text-muted">({{ info.label }})</small>{% endif %}
+                                {% if info.source_url %}<a href="{{ info.source_url }}" target="_blank" rel="noopener" class="ml-1" aria-label="Source"><i class="fas fa-link"></i></a>{% endif %}
+                              </span>
+                              <button type="button" class="btn btn-xs btn-outline-secondary copy-btn" data-copy="{{ info.value }}" title="Copier" aria-label="Copier l'adresse"><i class="far fa-copy"></i></button>
+                            </li>
+                            {% endfor %}
+                          </ul>
+                          {% endif %}
+                        </div>
+                      </div>
+
+                      {% if not grp.emails and not grp.phones and not grp.websites and not grp.socials and not grp.addresses and not grp.summary %}
+                      <div class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle fa-2x mb-2"></i>
+                        <p>Aucune information trouvée pour cette recherche.</p>
+                      </div>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+                {% endwith %}
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="text-center text-muted py-5">
+                <i class="far fa-folder-open fa-2x mb-3" aria-hidden="true"></i>
+                <p class="mb-3">Aucune recherche trouvée pour ce prospect.</p>
+                <button class="btn btn-primary btn-elevated" data-toggle="modal" data-target="#aiModalDetail">
+                  <i class="fas fa-robot mr-1"></i> Lancer une recherche AI
+                </button>
+              </div>
+              {% endif %}
+
+              <hr class="my-4">
+
+              <!-- Charts row -->
+              <div class="row">
+                <div class="col-md-6 col-12 mb-3">
+                  <div class="card shadow-sm border-0 h-100">
+                    <div id="infoPieHeader" class="card-header bg-white border-0 py-2 d-flex justify-content-between align-items-center collapsible-header" data-target="#infoPieCollapse" data-bs-target="#infoPieCollapse" aria-expanded="false" aria-controls="infoPieCollapse" tabindex="0">
+                      <h6 class="text-dark mb-0">Répartition des infos</h6>
+                      <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </div>
+                    <div id="infoPieCollapse" class="collapse" role="region" aria-labelledby="infoPieHeader">
+                      <div class="card-body">
+                        <canvas id="infoPie" height="250"></canvas>
+                        <div id="infoPieEmpty" class="text-center text-muted small d-none">Aucune donnée à afficher.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6 col-12 mb-3">
+                  <div class="card shadow-sm border-0 h-100">
+                    <div id="historyBarHeader" class="card-header bg-white border-0 py-2 d-flex justify-content-between align-items-center collapsible-header" data-target="#historyBarCollapse" data-bs-target="#historyBarCollapse" aria-expanded="false" aria-controls="historyBarCollapse" tabindex="0">
+                      <h6 class="text-dark mb-0">Nouvelles infos par recherche</h6>
+                      <i class="fas fa-chevron-down chevron-icon" aria-hidden="true"></i>
+                    </div>
+                    <div id="historyBarCollapse" class="collapse" role="region" aria-labelledby="historyBarHeader">
+                      <div class="card-body">
+                        <canvas id="historyBar" height="250"></canvas>
+                        <div id="historyBarEmpty" class="text-center text-muted small d-none">Aucune donnée à afficher.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Right column (sticky) -->
+        <div class="col-xl-4">
+          <div class="sticky-top" style="top:1rem;">
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header d-flex align-items-center bg-white">
+                <h5 class="mb-0 text-dark"><i class="fas fa-id-card mr-2 text-primary"></i> Informations entreprise</h5>
+              </div>
+              <div class="card-body">
+                {% if entreprise %}
+                <ul class="list-unstyled mb-0">
+                  {% if entreprise.secteur_activite %}
+                  <li class="mb-2"><i class="fas fa-industry text-secondary mr-2" aria-hidden="true"></i><strong>Secteur :</strong> <span class="text-muted">{{ entreprise.secteur_activite }}</span></li>
+                  {% endif %}
+                  {% if entreprise.adresse %}
+                  <li class="mb-2"><i class="fas fa-map-marker-alt text-danger mr-2" aria-hidden="true"></i><strong>Adresse :</strong> <span class="text-muted">{{ entreprise.adresse }}</span></li>
+                  {% endif %}
+                  {% if entreprise.telephone %}
+                  <li class="mb-2 d-flex justify-content-between align-items-center">
+                    <div><i class="fas fa-phone text-success mr-2" aria-hidden="true"></i><strong>Téléphone :</strong> <span class="text-muted">{{ entreprise.telephone }}</span></div>
+                    <button type="button" class="btn btn-xs btn-outline-primary copy-btn" data-copy="{{ entreprise.telephone }}" title="Copier" data-toggle="tooltip" aria-label="Copier le téléphone"><i class="far fa-copy"></i></button>
+                  </li>
+                  {% endif %}
+                  {% if entreprise.email %}
+                  <li class="mb-2 d-flex justify-content-between align-items-center">
+                    <div><i class="far fa-envelope text-primary mr-2" aria-hidden="true"></i><strong>Email :</strong> <span class="text-muted">{{ entreprise.email }}</span></div>
+                    <button type="button" class="btn btn-xs btn-outline-primary copy-btn" data-copy="{{ entreprise.email }}" title="Copier" data-toggle="tooltip" aria-label="Copier l'email"><i class="far fa-copy"></i></button>
+                  </li>
+                  {% endif %}
+                </ul>
+                {% else %}
+                <div class="text-muted">Aucune information d'entreprise disponible.</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+              <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-robot mr-2"></i> Recherche AI</h5>
+              </div>
+              <div class="card-body">
+                <button type="button" class="btn btn-primary btn-block btn-elevated" data-toggle="modal" data-target="#aiModalDetail">
+                  <i class="fas fa-search mr-2"></i> Lancer une recherche
+                </button>
+              </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+              <div class="card-header bg-white border-0">
+                <h5 class="mb-0 text-dark"><i class="fas fa-history mr-2"></i> Historique</h5>
+              </div>
+              <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                  {% for r in researches %}
+                  <li class="list-group-item">
+                    <strong>{{ r.created_at|date:"d/m/Y H:i" }}</strong>
+                    {% if r.created_by %}<small class="text-muted"> par {{ r.created_by.username }}</small>{% endif %}
+                  </li>
+                  {% empty %}
+                  <li class="list-group-item text-muted text-center py-4">Aucune recherche</li>
+                  {% endfor %}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Modal AI - Version améliorée -->
+<div class="modal fade" id="aiModalDetail" tabindex="-1" aria-labelledby="aiModalDetailLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-gradient-primary text-white border-0">
+        <h5 class="modal-title" id="aiModalDetailLabel">
+          <i class="fas fa-robot mr-2 animate-pulse"></i> Recherche AI Avancée – <strong>{{ entreprise.nom }}</strong>
+        </h5>
+        <button type="button" class="close text-white ai-close-modal" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      
+      <div class="modal-body p-4">
+        <!-- Zone de recherche -->
+        <div id="aiSearchForm">
+          <div class="alert alert-info border-0 mb-4">
+            <i class="fas fa-info-circle mr-2"></i>
+            <strong>Information :</strong> La recherche AI analyse le web pour trouver des informations professionnelles vérifiées (emails, téléphones, sites web, réseaux sociaux).
+          </div>
+          
+          <form method="post" action="{% url 'prospection:trigger_prospect_research' entreprise.id %}" class="ai-research-form" id="aiForm">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="inpCountry" class="font-weight-bold">
+                    <i class="fas fa-globe text-primary mr-1"></i> Pays du prospect
+                    <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" 
+                         id="inpCountry" 
+                         name="country" 
+                         class="form-control" 
+                         placeholder="Ex: Tunisie, France, Maroc..." 
+                         required 
+                         aria-label="Pays du prospect">
+                  <small class="form-text text-muted">Saisissez le pays pour optimiser la recherche selon la localisation</small>
+                </div>
+              </div>
+              
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label for="inpLang" class="font-weight-bold">
+                    <i class="fas fa-language text-primary mr-1"></i> Langue préférée
+                    <span class="text-danger">*</span>
+                  </label>
+                  <select id="inpLang" name="language" class="form-control" required>
+                    <option value="fr">Français (fr)</option>
+                    <option value="en">Anglais (en)</option>
+                    <option value="ar">Arabe (ar)</option>
+                    <option value="de">Allemand (de)</option>
+                    <option value="it">Italien (it)</option>
+                    <option value="es">Espagnol (es)</option>
+                  </select>
+                  <small class="form-text text-muted">Langue de communication de l'entreprise</small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Options avancées -->
+            <div class="card bg-light border-0 mb-3">
+              <div class="card-header bg-transparent border-0 p-2" style="cursor: pointer;" data-toggle="collapse" data-target="#advancedOptions" aria-expanded="false">
+                <h6 class="mb-0">
+                  <i class="fas fa-cog text-secondary mr-2"></i>
+                  Options avancées
+                  <i class="fas fa-chevron-down float-right mt-1"></i>
+                </h6>
+              </div>
+              <div id="advancedOptions" class="collapse">
+                <div class="card-body pt-2">
+                  <div class="form-group">
+                    <label for="inpNotes" class="font-weight-bold">
+                      <i class="fas fa-sticky-note text-warning mr-1"></i> Instructions spécifiques
+                    </label>
+                    <textarea id="inpNotes" name="notes" class="form-control" rows="3" placeholder="Ex : Chercher le responsable RH, le directeur commercial, le numéro de fax, les horaires d'ouverture..."></textarea>
+                    <small class="form-text text-muted">Précisez ce que vous recherchez pour améliorer la pertinence des résultats</small>
+                  </div>
+                  
+                  <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="searchSocial" checked>
+                    <label class="custom-control-label" for="searchSocial">
+                      <i class="fab fa-linkedin text-primary mr-1"></i> Inclure les réseaux sociaux (LinkedIn, Facebook, Twitter)
+                    </label>
+                  </div>
+                  
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="searchDeep" checked>
+                    <label class="custom-control-label" for="searchDeep">
+                      <i class="fas fa-search-plus text-success mr-1"></i> Recherche approfondie (peut prendre plus de temps)
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="text-right">
+              <button type="button" class="btn btn-outline-secondary ai-close-modal" data-dismiss="modal">
+                <i class="fas fa-times mr-1"></i> Annuler
+              </button>
+              <button type="submit" class="btn btn-primary btn-elevated ai-submit-btn">
+                <i class="fas fa-rocket mr-1"></i> Lancer la recherche
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <!-- Zone de progression (masquée par défaut) -->
+        <div id="aiProgressArea" class="d-none">
+          <div class="text-center mb-4">
+            <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+              <span class="sr-only">Recherche en cours...</span>
+            </div>
+            <h5 class="text-primary font-weight-bold">
+              <i class="fas fa-robot mr-2"></i> Intelligence artificielle en action...
+            </h5>
+            <p class="text-muted mb-0" id="aiProgressText">Analyse des sources web en cours...</p>
+          </div>
+          
+          <div class="progress mb-3" style="height: 25px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+                 role="progressbar" 
+                 style="width: 0%" 
+                 id="aiProgressBar"
+                 aria-valuenow="0" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+              <span class="font-weight-bold">0%</span>
+            </div>
+          </div>
+          
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h6 class="font-weight-bold mb-3">
+                <i class="fas fa-tasks text-info mr-2"></i> Étapes de la recherche
+              </h6>
+              <ul class="list-unstyled mb-0" id="aiStepsList">
+                <li class="mb-2">
+                  <i class="fas fa-spinner fa-spin text-primary mr-2"></i>
+                  <span class="text-muted">Initialisation de la recherche...</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="text-center mt-3">
+            <small class="text-muted">
+              <i class="fas fa-clock mr-1"></i> Temps estimé : 30-60 secondes
+            </small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer border-0 bg-light">
+        <small class="text-muted">
+          <i class="fas fa-shield-alt mr-1"></i> Recherche sécurisée et confidentielle avec Gemini AI
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overlay global (AI) -->
+<div id="aiGlobalOverlay" class="ai-overlay" role="alert" aria-live="assertive">
+  <div class="spinner-border text-primary mr-2" role="status" aria-hidden="true"></div>
+  <span>Recherche AI en cours...</span>
+</div>
+
+<!-- Toasts -->
+<div aria-live="polite" aria-atomic="true" class="position-fixed" style="right: 1rem; bottom: 1rem; z-index: 2100;">
+  <div id="copyToast" class="toast" data-delay="2000" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header">
+      <i class="far fa-copy text-primary mr-2" aria-hidden="true"></i>
+      <strong class="mr-auto">Copié</strong>
+      <small class="text-muted">Maintenant</small>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Fermer"><span aria-hidden="true">&times;</span></button>
+    </div>
+    <div class="toast-body">Valeur copiée dans le presse-papiers.</div>
+  </div>
+  <div id="errorToast" class="toast bg-danger text-white" data-delay="3000" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="toast-header bg-danger text-white">
+      <i class="fas fa-exclamation-circle mr-2" aria-hidden="true"></i>
+      <strong class="mr-auto">Erreur</strong>
+      <button type="button" class="ml-2 mb-1 close text-white" data-dismiss="toast" aria-label="Fermer"><span aria-hidden="true">&times;</span></button>
+    </div>
+    <div class="toast-body">Une erreur est survenue. Veuillez réessayer.</div>
+  </div>
+  <div id="infoToast" class="toast" data-delay="2500" role="alert" aria-live="polite" aria-atomic="true">
+    <div class="toast-header">
+      <i class="fas fa-info-circle text-info mr-2" aria-hidden="true"></i>
+      <strong class="mr-auto">Info</strong>
+      <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Fermer"><span aria-hidden="true">&times;</span></button>
+    </div>
+    <div class="toast-body">Action effectuée.</div>
+  </div>
+</div>
+
+<style>
+  :root { --tw-ring: 0 0 #0000; }
+  .content-header { background: linear-gradient(180deg, rgba(59,130,246,0.08), rgba(255,255,255,0)); border-bottom: 1px solid #eef2ff; }
+  .ai-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.95); z-index: 2000; display: none; align-items: center; justify-content: center; font-weight: 600; backdrop-filter: blur(5px); }
+  .ai-overlay.show { display: flex; }
+  .bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+  .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+  .animate-fade-in { animation: fadeIn 0.5s ease-in; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  .card { transition: transform .2s ease, box-shadow .2s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .btn-elevated { box-shadow: 0 6px 18px rgba(59,130,246,.25); background-image: linear-gradient(135deg,#2563eb 0%, #3b82f6 50%, #60a5fa 100%); border: none; }
+  .btn-elevated:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(59,130,246,.35); }
+  .btn.btn-xs { padding: .2rem .45rem; font-size: .75rem; line-height: 1; border-radius: .2rem; }
+  .collapsible-header { background: #f8fafc; border-bottom: 1px solid #e5e7eb; cursor: pointer; }
+  .collapsible-header:hover { background: #eef2ff; }
+  .collapsible-header:focus { outline: 2px solid #3b82f6; outline-offset: 2px; }
+  .chevron-icon { color: #3b82f6; transition: transform .2s ease, color .2s ease, opacity .2s ease; opacity: .95; }
+  .collapse.show + .card-body .chevron-icon { transform: rotate(180deg); }
+  .list-group-item { transition: background-color .15s ease; }
+  .list-group-item:hover { background-color: #f8fafc; }
+  .text-secondary { color: #64748b !important; }
+  .text-primary { color: #1d4ed8 !important; }
+  .btn-primary { background-color: #2563eb; border-color: #2563eb; }
+  .btn-primary:hover { background-color: #1d4ed8; border-color: #1d4ed8; }
+  @media (max-width: 768px) {
+    h1.h3 { font-size: 1.25rem; }
+    .breadcrumb { font-size: .85rem; }
+    .card-body { padding: 1rem; }
+  }
+  @media (prefers-color-scheme: dark) {
+    .content-header { border-color: rgba(255,255,255,.06); }
+    .collapsible-header { background: rgba(255,255,255,.03); border-color: rgba(255,255,255,.08); }
+    .list-group-item:hover { background-color: rgba(255,255,255,.04); }
+    .ai-overlay { background: rgba(0,0,0,.4); color: #fff; }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const overlay = document.getElementById('aiGlobalOverlay');
+    
+    // Gestion avancée du formulaire de recherche AI
+    document.querySelectorAll('.ai-research-form').forEach(form => {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Validation
+        const country = document.getElementById('inpCountry').value;
+        const language = document.getElementById('inpLang').value;
+        
+        if (!country || !language) {
+          alert('⚠️ Veuillez renseigner le pays et la langue du prospect.');
+          return;
+        }
+        
+        // Afficher la zone de progression
+        document.getElementById('aiSearchForm').classList.add('d-none');
+        document.getElementById('aiProgressArea').classList.remove('d-none');
+        
+        // Désactiver la fermeture du modal
+        document.querySelectorAll('.ai-close-modal').forEach(btn => btn.disabled = true);
+        
+        // Simulation de progression
+        let progress = 0;
+        const steps = [
+          { percent: 15, text: 'Connexion à l\'API Gemini AI...', icon: 'fa-plug' },
+          { percent: 30, text: 'Analyse du nom de l\'entreprise...', icon: 'fa-building' },
+          { percent: 45, text: 'Recherche des informations de contact...', icon: 'fa-search' },
+          { percent: 60, text: 'Vérification des emails et téléphones...', icon: 'fa-envelope' },
+          { percent: 75, text: 'Extraction des réseaux sociaux...', icon: 'fa-share-alt' },
+          { percent: 90, text: 'Validation et structuration des données...', icon: 'fa-check-double' },
+          { percent: 100, text: 'Finalisation de la recherche...', icon: 'fa-rocket' }
+        ];
+        
+        const progressBar = document.getElementById('aiProgressBar');
+        const progressText = document.getElementById('aiProgressText');
+        const stepsList = document.getElementById('aiStepsList');
+        
+        let stepIndex = 0;
+        const progressInterval = setInterval(() => {
+          if (stepIndex < steps.length) {
+            const step = steps[stepIndex];
+            progress = step.percent;
+            
+            // Mettre à jour la barre de progression
+            progressBar.style.width = progress + '%';
+            progressBar.setAttribute('aria-valuenow', progress);
+            progressBar.innerHTML = `<span class="font-weight-bold">${progress}%</span>`;
+            
+            // Mettre à jour le texte
+            progressText.textContent = step.text;
+            
+            // Ajouter l'étape à la liste
+            const prevSteps = stepsList.querySelectorAll('li');
+            prevSteps.forEach(li => {
+              const spinner = li.querySelector('.fa-spinner');
+              if (spinner) {
+                spinner.classList.remove('fa-spinner', 'fa-spin', 'text-primary');
+                spinner.classList.add('fa-check-circle', 'text-success');
+              }
+            });
+            
+            const newStep = document.createElement('li');
+            newStep.className = 'mb-2 animate-fade-in';
+            newStep.innerHTML = `
+              <i class="fas fa-spinner fa-spin text-primary mr-2"></i>
+              <span class="text-muted">${step.text}</span>
+            `;
+            stepsList.appendChild(newStep);
+            
+            stepIndex++;
+          }
+        }, 5000); // Toutes les 5 secondes
+        
+        // Soumettre le formulaire
+        const btn = form.querySelector('.ai-submit-btn');
+        if (btn) { 
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2"></span>Recherche en cours...';
+        }
+        
+        // Overlay global
+        if (overlay) overlay.classList.add('show');
+        
+        // Soumission réelle
+        const formData = new FormData(form);
+        fetch(form.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        })
+        .then(() => {
+          clearInterval(progressInterval);
+          // Rediriger après un court délai
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        })
+        .catch(err => {
+          clearInterval(progressInterval);
+          console.error('Erreur:', err);
+          alert('❌ Une erreur est survenue. Veuillez réessayer.');
+          window.location.reload();
+        });
+      });
+    });
+
+    // Chart data
+    let infoCounts = { emails:0, phones:0, websites:0, socials:0, addresses:0, notes:0 };
+    let historyLabels = [];
+    let historyTotals = [];
+    try {
+      infoCounts = JSON.parse("{{ info_counts_json|escapejs }}") || infoCounts;
+      historyLabels = JSON.parse("{{ history_labels_json|escapejs }}") || [];
+      historyTotals = JSON.parse("{{ history_totals_json|escapejs }}") || [];
+    } catch(e) { console.warn('Chart JSON parse', e); }
+
+    // Pie chart - Filtrer uniquement les catégories avec des valeurs > 0
+    const $pie = document.getElementById('infoPie');
+    const pieEmpty = document.getElementById('infoPieEmpty');
+    if ($pie) {
+      console.log('📊 Données du graphique:', infoCounts);
+      
+      const allZero = Object.values(infoCounts || {}).every(v => (v||0) === 0);
+      if (allZero || typeof Chart === 'undefined') {
+        if (pieEmpty) pieEmpty.classList.remove('d-none');
+        if ($pie) $pie.style.display = 'none';
+        console.log('⚠️ Aucune donnée à afficher dans le Pie chart');
+      } else {
+        try {
+          if (pieEmpty) pieEmpty.classList.add('d-none');
+          if ($pie) $pie.style.display = 'block';
+          
+          // Préparer les données en filtrant les valeurs à 0
+          const allLabels = ['Emails', 'Téléphones', 'Sites web', 'Réseaux sociaux', 'Adresses', 'Notes'];
+          const allKeys = ['emails', 'phones', 'websites', 'socials', 'addresses', 'notes'];
+          const allColors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#6b7280'];
+          
+          const filteredData = [];
+          const filteredLabels = [];
+          const filteredColors = [];
+          
+          allKeys.forEach((key, index) => {
+            const value = infoCounts[key] || 0;
+            if (value > 0) {
+              filteredData.push(value);
+              filteredLabels.push(allLabels[index]);
+              filteredColors.push(allColors[index]);
+            }
+          });
+          
+          console.log('📊 Données filtrées:', {
+            labels: filteredLabels,
+            data: filteredData
+          });
+          
+          if (filteredData.length === 0) {
+            if (pieEmpty) pieEmpty.classList.remove('d-none');
+            if ($pie) $pie.style.display = 'none';
+            console.log('⚠️ Toutes les valeurs sont à 0');
+            return;
+          }
+          
+          new Chart($pie, {
+            type: 'doughnut',
+            data: {
+              labels: filteredLabels,
+              datasets: [{
+                data: filteredData,
+                backgroundColor: filteredColors,
+                borderWidth: 2,
+                borderColor: '#fff'
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              animation: { duration: 500 },
+              plugins: {
+                legend: {
+                  position: 'bottom',
+                  labels: {
+                    padding: 15,
+                    font: { size: 12 },
+                    usePointStyle: true
+                  }
+                },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      const label = context.label || '';
+                      const value = context.parsed || 0;
+                      const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                      const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                      return label + ': ' + value + ' (' + percentage + '%)';
+                    }
+                  }
+                }
+              }
+            }
+          });
+          console.log('✅ Graphique Pie chart créé avec succès');
+        } catch(e) {
+          console.error('❌ Erreur création Pie chart:', e);
+          if (pieEmpty) pieEmpty.classList.remove('d-none');
+        }
+      }
+    }
+
+    // Bar chart
+    const $bar = document.getElementById('historyBar');
+    const barEmpty = document.getElementById('historyBarEmpty');
+    if ($bar) {
+      const allZeroBar = (historyTotals||[]).every(v => (v||0) === 0);
+      if (!historyLabels.length || allZeroBar || typeof Chart === 'undefined') {
+        if (barEmpty) barEmpty.classList.remove('d-none');
+        if ($bar) $bar.style.display = 'none';
+      } else {
+        try {
+          if (barEmpty) barEmpty.classList.add('d-none');
+          if ($bar) $bar.style.display = 'block';
+          
+          new Chart($bar, {
+            type: 'bar',
+            data: {
+              labels: historyLabels,
+              datasets: [{
+                label: 'Nouvelles informations',
+                data: historyTotals,
+                backgroundColor: '#3b82f6',
+                borderColor: '#2563eb',
+                borderWidth: 1,
+                borderRadius: 4
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: true,
+              animation: { duration: 500 },
+              plugins: {
+                legend: {
+                  display: true,
+                  position: 'top',
+                  labels: {
+                    font: { size: 12 },
+                    usePointStyle: true
+                  }
+                },
+                tooltip: {
+                  callbacks: {
+                    title: function(context) {
+                      return 'Recherche du ' + context[0].label;
+                    },
+                    label: function(context) {
+                      const value = context.parsed.y || 0;
+                      return value + ' nouvelle(s) information(s)';
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    stepSize: 1,
+                    font: { size: 11 }
+                  },
+                  grid: {
+                    display: true,
+                    color: 'rgba(0, 0, 0, 0.05)'
+                  },
+                  title: {
+                    display: true,
+                    text: 'Nombre d\'informations',
+                    font: { size: 12, weight: 'bold' }
+                  }
+                },
+                x: {
+                  ticks: {
+                    font: { size: 11 }
+                  },
+                  grid: {
+                    display: false
+                  }
+                }
+              }
+            }
+          });
+          console.log('✅ Graphique Bar chart créé avec succès');
+        } catch(e) {
+          console.error('❌ Erreur création Bar chart:', e);
+          if (barEmpty) barEmpty.classList.remove('d-none');
+        }
+      }
+    }
+
+    // Tooltips
+    if (typeof $ !== 'undefined' && typeof $.fn.tooltip === 'function') { $('[data-toggle="tooltip"]').tooltip(); }
+
+    // Copy buttons + toasts
+    const copyToastEl = document.getElementById('copyToast');
+    const errorToastEl = document.getElementById('errorToast');
+    const showToast = (el) => {
+      if (!el) return;
+      if (typeof $ !== 'undefined' && $(el).toast) { $(el).toast('show'); }
+      else { el.style.display = 'block'; setTimeout(()=>{ el.style.display='none'; }, 2000); }
+    };
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const val = btn.getAttribute('data-copy') || '';
+        try {
+          if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(val); }
+          else {
+            const ta = document.createElement('textarea'); ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+          }
+          showToast(copyToastEl);
+        } catch(err) {
+          console.error('Copy failed', err); showToast(errorToastEl);
+        }
+      });
+    });
+
+    // Keyboard accessibility for collapses
+    const attachKeyToggle = (hdrSel) => {
+      document.querySelectorAll(hdrSel).forEach(h => {
+        h.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); h.click(); } });
+      });
+    };
+    attachKeyToggle('#infoPieHeader, #historyBarHeader, #researchAccordion .collapsible-header');
+
+    const getTargetSelector = (el) => {
+      const ds = el.getAttribute('data-bs-target') || el.getAttribute('data-target');
+      if (ds && ds !== '#' && /^#.+/.test(ds)) return ds;
+      const ac = el.getAttribute('aria-controls');
+      if (ac) return `#${ac}`;
+      return null;
+    };
+    document.addEventListener('click', (ev) => {
+      const hdr = ev.target.closest('#infoPieHeader, #historyBarHeader, #researchAccordion .collapsible-header');
+      if (!hdr) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const sel = getTargetSelector(hdr);
+      let tgt = sel ? document.querySelector(sel) : null;
+      if (!tgt && hdr.nextElementSibling && hdr.nextElementSibling.classList.contains('collapse')) {
+        tgt = hdr.nextElementSibling;
+      }
+      if (!tgt) return;
+      const hasBS4 = (typeof $ !== 'undefined' && $.fn && typeof $.fn.collapse === 'function');
+      const hasBS5 = (typeof bootstrap !== 'undefined' && bootstrap.Collapse);
+      if (hasBS4) { $(tgt).collapse('toggle'); return; }
+      if (hasBS5) { const inst = bootstrap.Collapse.getOrCreateInstance(tgt, { toggle: false }); inst.toggle(); return; }
+      // Manual fallback only when no Bootstrap JS present
+      const willOpen = !tgt.classList.contains('show');
+      const parentSel = tgt.getAttribute('data-bs-parent') || tgt.getAttribute('data-parent');
+      const showEl = (el) => { el.classList.add('show'); el.style.display = 'block'; };
+      const hideEl = (el) => { el.classList.remove('show'); el.style.display = 'none'; };
+      if (willOpen) {
+        if (parentSel) {
+          try { document.querySelector(parentSel)?.querySelectorAll('.collapse.show').forEach(other => { if (other !== tgt) hideEl(other); }); } catch(_) {}
+        }
+        showEl(tgt);
+      } else {
+        hideEl(tgt);
+      }
+      const icon = hdr.querySelector('.chevron-icon');
+      if (icon) icon.style.transform = willOpen ? 'rotate(180deg)' : 'rotate(0)';
+      hdr.classList.toggle('open', !!willOpen);
+      hdr.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+
+    // jQuery present? rotate chevrons on collapse events
+    if (typeof $ !== 'undefined') {
+      $('#researchAccordion .collapse').on('show.bs.collapse', function(){ $(this).prev('.collapsible-header').addClass('open').find('.chevron-icon').css('transform','rotate(180deg)'); });
+      $('#researchAccordion .collapse').on('hide.bs.collapse', function(){ $(this).prev('.collapsible-header').removeClass('open').find('.chevron-icon').css('transform','rotate(0)'); });
+      $('#infoPieCollapse').on('show.bs.collapse', function(){ $('#infoPieHeader .chevron-icon').css('transform','rotate(180deg)'); });
+      $('#infoPieCollapse').on('hide.bs.collapse', function(){ $('#infoPieHeader .chevron-icon').css('transform','rotate(0)'); });
+      $('#historyBarCollapse').on('show.bs.collapse', function(){ $('#historyBarHeader .chevron-icon').css('transform','rotate(180deg)'); });
+      $('#historyBarCollapse').on('hide.bs.collapse', function(){ $('#historyBarHeader .chevron-icon').css('transform','rotate(0)'); });
+    }
+
+    // Fallback: if Bootstrap JS (collapse) is not available, emulate toggle behavior, display, chevrons, and accordion
+    (function(){
+      const hasBootstrap4 = (typeof $ !== 'undefined' && $.fn && typeof $.fn.collapse === 'function');
+      const hasBootstrap5 = (typeof bootstrap !== 'undefined' && bootstrap.Collapse);
+      if (hasBootstrap4 || hasBootstrap5) return;
+
+      const headers = document.querySelectorAll('#infoPieHeader, #historyBarHeader, #researchAccordion .collapsible-header');
+      const getTarget = (el) => {
+        const sel = el.getAttribute('data-bs-target') || el.getAttribute('data-target');
+        if (!sel) return null;
+        try { return document.querySelector(sel); } catch(_) { return null; }
+      };
+      const setChevron = (hdr, open) => {
+        const icon = hdr.querySelector('.chevron-icon');
+        if (icon) icon.style.transform = open ? 'rotate(180deg)' : 'rotate(0)';
+        hdr.classList.toggle('open', !!open);
+        hdr.setAttribute('aria-expanded', open ? 'true' : 'false');
+      };
+      const showEl = (el) => { el.classList.add('show'); el.style.display = 'block'; };
+      const hideEl = (el) => { el.classList.remove('show'); el.style.display = 'none'; };
+
+      headers.forEach(hdr => {
+        const target = getTarget(hdr);
+        if (!target) return;
+        // Initialize chevron according to current state
+        const initiallyOpen = target.classList.contains('show');
+        setChevron(hdr, initiallyOpen);
+        target.style.display = initiallyOpen ? 'block' : 'none';
+        hdr.addEventListener('click', (e) => {
+          // Allow keyboard handler above to call click(); just toggle here
+          const isOpen = target.classList.contains('show');
+          if (isOpen) {
+            hideEl(target);
+            setChevron(hdr, false);
+          } else {
+            // If accordion behavior is requested
+            const parentSel = target.getAttribute('data-bs-parent') || target.getAttribute('data-parent');
+            if (parentSel) {
+              try {
+                const parent = document.querySelector(parentSel);
+                if (parent) {
+                  parent.querySelectorAll('.collapse.show').forEach(other => {
+                    if (other !== target) hideEl(other);
+                  });
+                }
+              } catch(_) {}
+            }
+            showEl(target);
+            setChevron(hdr, true);
+          }
+        });
+      });
+
+      // Also observe class changes to keep headers in sync if state changes elsewhere
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach(m => {
+          if (m.type === 'attributes' && m.attributeName === 'class') {
+            const collapseEl = m.target;
+            const hdr = collapseEl.previousElementSibling;
+            if (hdr && hdr.classList.contains('collapsible-header')) {
+              const open = collapseEl.classList.contains('show');
+              setChevron(hdr, open);
+              collapseEl.style.display = open ? 'block' : 'none';
+            }
+          }
+        });
+      });
+      document.querySelectorAll('#infoPieCollapse, #historyBarCollapse, #researchAccordion .collapse').forEach(el => {
+        observer.observe(el, { attributes: true });
+      });
+    })();
+  });
+</script>
+{% endblock %}

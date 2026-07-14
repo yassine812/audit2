@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <title>Rappel — LAP 8 jours requise</title>
+</head>
+
+<body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px">
+    <div
+        style="max-width:600px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)">
+        <div style="background:#007bff;color:#fff;padding:20px 24px">
+            <h2 style="margin:0">⚠️ Rappel — LAP 8 jours requise</h2>
+        </div>
+        <div style="padding:24px">
+            <p>Bonjour,</p>
+            <p>L'accident de travail suivant nécessite la finalisation de la <strong>Liste d'Actions de Progrès (LAP) 8
+                    jours</strong> :</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Référence</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.reference }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Victime</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.victime_nom_prenom }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Date accident
+                    </td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.date_accident|date:"d/m/Y" }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa">Société</td>
+                    <td style="padding:8px;border:1px solid #dee2e6">{{ accident.societe }}</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px;border:1px solid #dee2e6;font-weight:700;background:#f8f9fa;color:#007bff">
+                        Échéance 8 jours</td>
+                    <td style="padding:8px;border:1px solid #dee2e6;color:#007bff;font-weight:700">{{
+                        accident.echeance_8j|date:"d/m/Y H:i" }}</td>
+                </tr>
+            </table>
+            <p>Veuillez compléter et soumettre la LAP 8 jours dans les meilleurs délais.</p>
+            <p style="color:#6c757d;font-size:.85em">Module Accidents de Travail — ERP Industriel</p>
+        </div>
+    </div>
+</body>
+
+</html>

@@ -1,0 +1,262 @@
+{% extends 'conge/base.html' %}
+{% load static %}
+
+{% block title %}Valider la demande #{{ demande.pk }}{% endblock %}
+
+{% block breadcrumb %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;">
+  <div>
+    <h1 style="margin: 0; font-size: 2rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem; color: var(--gray-900);">
+      <i class="fas fa-gavel" style="color: var(--warning); font-size: 1.75rem;"></i>
+      Traiter demande #{{ demande.pk }}
+    </h1>
+  </div>
+  <nav style="font-size: 0.875rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+    <a href="/" style="color: var(--primary); text-decoration: none;">Accueil</a>
+    <span style="color: var(--gray-400);">•</span>
+    <a href="{% url 'conge:liste' %}" style="color: var(--primary); text-decoration: none;">Congés</a>
+    <span style="color: var(--gray-400);">•</span>
+    <a href="{% url 'conge:detail' demande.pk %}" style="color: var(--primary); text-decoration: none;">#{{ demande.pk }}</a>
+    <span style="color: var(--gray-400);">•</span>
+    <span style="color: var(--gray-600); font-weight: 600;">Validation</span>
+  </nav>
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="max-width: 60rem; margin: 0 auto; padding: 0 1rem;">
+
+    {# ── Récapitulatif de la demande (Moderne) ───────────────────── #}
+    <div class="card" style="margin-bottom: 1.5rem; box-shadow: var(--shadow-md); border-radius: var(--radius-lg); border: 1px solid var(--gray-200); overflow: hidden;">
+      <div style="background: linear-gradient(135deg, var(--primary), var(--primary-dark)); padding: 1.25rem; color: white;">
+        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fas fa-info-circle"></i>Récapitulatif de la demande
+        </h3>
+      </div>
+      <div style="padding: 1.5rem;">
+        <div style="box-shadow: none; border: none; padding: 0;">
+
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; gap: 1rem;">
+            <div style="display: flex; align-items: center;">
+              <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve"
+                   style="height: 48px;" onerror="this.style.display='none'">
+            </div>
+            <div style="text-align: right; color: var(--gray-600); font-size: 0.875rem;">
+              <div style="margin: 0.25rem 0;"><strong>📅 Demande du :</strong> {{ demande.date_demande|date:"d/m/Y" }}</div>
+              <div style="margin: 0.25rem 0;"><strong>🏢 Section :</strong> {{ demande.section|default:"—" }}</div>
+            </div>
+          </div>
+
+          <div style="background: linear-gradient(135deg, var(--primary-light), #e0f9ff)); padding: 1rem; border-radius: var(--radius); border-left: 4px solid var(--primary); margin-bottom: 1.5rem; font-weight: 700; text-align: center; font-size: 1.125rem; color: var(--primary-dark);">
+            📄 DEMANDE DE CONGÉS
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; margin-top: 1.5rem;">
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">👤 NOM</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">{{ demande.nom }}</div>
+            </div>
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">👥 PRÉNOM</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">{{ demande.prenom }}</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">📅 DU</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">{{ demande.date_debut|date:"d/m/Y" }}</div>
+            </div>
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">📅 AU</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">{{ demande.date_fin|date:"d/m/Y" }} <em style="color: var(--gray-600); font-size: 0.75rem;">(inclus)</em></div>
+            </div>
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">🔄 REPRISE</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">{{ demande.date_reprise|date:"d/m/Y" }}</div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">⏰ JOURS</label>
+              <div style="background: var(--primary-light); padding: 0.75rem; border-radius: var(--radius); color: var(--primary-dark); font-weight: 600;">
+                {{ demande.nombre_jours }} jour{{ demande.nombre_jours|pluralize }}
+              </div>
+            </div>
+            <div>
+              <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; display: block; margin-bottom: 0.25rem;">📋 IMPUTATION</label>
+              <div style="background: var(--gray-50); padding: 0.75rem; border-radius: var(--radius); color: var(--gray-900);">
+                {{ demande.get_type_conge_display }}
+                {% if demande.evenement_familial_precision %}
+                  <em style="color: var(--gray-600);">— {{ demande.evenement_familial_precision }}</em>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {# Signature du demandeur #}
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--gray-200);">
+            <label style="font-weight: 700; color: var(--gray-900); font-size: 0.875rem; text-transform: uppercase; display: block; margin-bottom: 0.75rem;">✍️ Signature du demandeur</label>
+            <div class="sig-display" style="max-width: 280px; background: var(--gray-50); padding: 1rem; border-radius: var(--radius); border: 2px dashed var(--gray-300);">
+              {% if demande.signature_demandeur %}
+                <img src="{{ demande.signature_demandeur }}" alt="Signature demandeur" style="width: 100%; display: block;">
+              {% else %}
+                <div style="text-align: center; color: var(--gray-400); font-size: 0.875rem;">Aucune signature</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {# ── Formulaire de décision ───────────────────────────────── #}
+    <form method="post" id="validation-form" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="action" id="action-input" value="">
+      {{ form.signature_responsable }}
+
+      {# Erreurs globales #}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {% for e in form.non_field_errors %}<div>{{ e }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="card card-outline card-warning">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-pen mr-2"></i>Votre décision
+          </h3>
+        </div>
+        <div class="card-body">
+
+          {# Signature responsable #}
+          <div class="form-group">
+            <label class="font-weight-bold">
+              Signature du responsable :
+              <small class="font-weight-normal text-muted">(obligatoire pour valider)</small>
+            </label>
+            {% if form.signature_responsable.errors %}
+              <div class="invalid-feedback d-block">{{ form.signature_responsable.errors.0 }}</div>
+            {% endif %}
+            <div class="sig-wrapper mt-1">
+              <canvas id="sig-canvas-responsable"></canvas>
+              <button type="button" class="btn btn-sm btn-outline-secondary sig-clear-btn"
+                      id="clear-sig-responsable">
+                <i class="fas fa-eraser"></i> Effacer
+              </button>
+              <div id="sig-placeholder-responsable" class="sig-placeholder">
+                <i class="fas fa-pen mr-2"></i>Signez ici pour valider…
+              </div>
+            </div>
+          </div>
+
+          {# Motif de refus #}
+          <div class="form-group" id="refus-group">
+            <label class="font-weight-bold">
+              Motif du refus :
+              <small class="font-weight-normal text-muted">(obligatoire si refusé)</small>
+            </label>
+            {{ form.commentaire_refus }}
+            {% if form.commentaire_refus.errors %}
+              <div class="invalid-feedback d-block">{{ form.commentaire_refus.errors.0 }}</div>
+            {% endif %}
+          </div>
+
+        </div>
+
+        <div class="card-footer d-flex justify-content-between">
+          <a href="{% url 'conge:detail' demande.pk %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left mr-1"></i>Annuler
+          </a>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-danger" id="btn-refuser">
+              <i class="fas fa-times mr-1"></i>Refuser
+            </button>
+            <button type="button" class="btn btn-success" id="btn-valider">
+              <i class="fas fa-check mr-1"></i>Valider
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block conge_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+  /* ── Signature pad responsable ──────────────────────────────── */
+  var pad = initSignaturePad(
+    'sig-canvas-responsable',
+    'id_signature_responsable',
+    'clear-sig-responsable',
+    'sig-placeholder-responsable'
+  );
+
+  /* ── Bouton Valider ─────────────────────────────────────────── */
+  document.getElementById('btn-valider').addEventListener('click', function () {
+    if (!pad || pad.isEmpty()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Signature manquante',
+        text: 'La signature électronique est obligatoire pour valider.',
+        confirmButtonText: 'OK'
+      }).then(function() {
+        document.querySelector('.sig-wrapper').scrollIntoView({ behavior: 'smooth' });
+      });
+      return;
+    }
+    Swal.fire({
+      icon: 'question',
+      title: 'Confirmer la validation ?',
+      text: 'Cette action validera la demande de congé et notifiera le demandeur.',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-check mr-1"></i>Valider',
+      cancelButtonText: 'Annuler',
+      confirmButtonColor: '#28a745',
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        document.getElementById('id_signature_responsable').value = pad.toDataURL('image/png');
+        document.getElementById('action-input').value = 'valider';
+        document.getElementById('validation-form').submit();
+      }
+    });
+  });
+
+  /* ── Bouton Refuser ─────────────────────────────────────────── */
+  document.getElementById('btn-refuser').addEventListener('click', function () {
+    var commentaire = document.querySelector('[name="commentaire_refus"]').value.trim();
+    if (!commentaire) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Motif manquant',
+        text: 'Le motif du refus est obligatoire.',
+        confirmButtonText: 'OK'
+      }).then(function() {
+        document.querySelector('[name="commentaire_refus"]').focus();
+      });
+      return;
+    }
+    Swal.fire({
+      icon: 'warning',
+      title: 'Confirmer le refus ?',
+      text: 'Cette action refusera la demande et notifiera le demandeur.',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-times mr-1"></i>Refuser',
+      cancelButtonText: 'Annuler',
+      confirmButtonColor: '#dc3545',
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        document.getElementById('action-input').value = 'refuser';
+        document.getElementById('validation-form').submit();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

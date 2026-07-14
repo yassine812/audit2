@@ -1,0 +1,209 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}Mon Profil{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root {
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --accent-color: #4895ef;
+    --border-radius: 12px;
+    --box-shadow: 0 8px 20px rgba(0,0,0,.1);
+  }
+  .profile-card,.settings-card{border-radius:var(--border-radius);box-shadow:var(--box-shadow);border:none;overflow:hidden;transition:transform .3s ease;}
+  .profile-card:hover{transform:translateY(-5px);}
+  .profile-header{background:linear-gradient(135deg,var(--primary-color),var(--secondary-color));color:#fff;padding:1.5rem;text-align:center;}
+  .profile-avatar{width:120px;height:120px;border-radius:50%;border:4px solid #fff;margin:0 auto;background:#fff;display:flex;align-items:center;justify-content:center;}
+  .profile-avatar i{color:var(--primary-color);font-size:4rem;}
+  .profile-details{padding:1.5rem;}
+  .detail-item{padding:.8rem 0;border-bottom:1px solid rgba(0,0,0,.05);display:flex;justify-content:space-between;}
+  .detail-item:last-child{border-bottom:none;}
+  .detail-label{font-weight:600;color:#212529;}
+  .detail-value{color:#6c757d;}
+  .settings-tabs .nav-link{border:none;color:#6c757d;font-weight:500;padding:.8rem 1.5rem;}
+  .settings-tabs .nav-link.active{color:var(--primary-color);background:transparent;border-bottom:3px solid var(--primary-color);}
+  .section-title{font-weight:600;margin-bottom:1.5rem;position:relative;padding-bottom:.5rem;}
+  .section-title:after{content:'';position:absolute;left:0;bottom:0;width:50px;height:3px;background:var(--primary-color);}
+  .error-message{color:#f72585;font-size:.85rem;margin-top:.3rem;display:none;}
+  .success-message{color:#4cc9f0;font-weight:500;margin-top:1rem;display:none;}
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+  <div class="col-sm-6"><h1 class="m-0">Paramètres du profil</h1></div>
+  <div class="col-sm-6">
+    <ol class="breadcrumb float-sm-right">
+      <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+      <li class="breadcrumb-item active">Profil</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <!-- Fiche profil -->
+    <div class="col-md-4 mb-4">
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="profile-avatar"><i class="fas fa-user-circle"></i></div>
+          <h3 class="mt-3 mb-1">{{ user.username }}</h3>
+          <p class="text-light mb-0">{{ user.get_full_name }}</p>
+        </div>
+        <div class="profile-details">
+          <div class="detail-item">
+            <span class="detail-label">Email</span>
+            <span class="detail-value" id="display-email">{{ user.email }}</span>
+          </div>
+          {% if user.telephone %}
+          <div class="detail-item">
+            <span class="detail-label">Téléphone</span>
+            <span class="detail-value" id="display-telephone">{{ user.telephone }}</span>
+          </div>
+          {% endif %}
+          {% if user.societe %}
+          <div class="detail-item">
+            <span class="detail-label">Filiale</span>
+            <span class="detail-value">{{ user.societe.nom }}</span>
+          </div>
+          {% endif %}
+          <div class="detail-item">
+            <span class="detail-label">Rôle</span>
+            <span class="detail-value">
+              {% if user.is_superuser %}Super Utilisateur
+              {% elif user.is_RO %}Administrateur
+              {% elif user.is_RC %}Responsable Commercial
+              {% elif user.is_C %}Commercial
+              {% elif user.is_CE %}Chargé d'études
+              {% elif user.is_RS %}Responsable Sécurité
+              {% elif user.is_OP %}Opérateur
+              {% else %}Utilisateur{% endif %}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formulaires -->
+    <div class="col-md-8 mb-4">
+      <div class="settings-card card">
+        <div class="card-header">
+          <ul class="nav settings-tabs">
+            <li class="nav-item">
+              <a class="nav-link active" href="#settings" data-toggle="tab">
+                <i class="fas fa-cog mr-2"></i>Paramètres
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body">
+          <div id="global-message"></div>
+          <h5 class="section-title">Informations sur le profil</h5>
+          <form id="profile-form" method="post" action="{% url 'update_profile' %}">
+            {% csrf_token %}
+            <div class="form-group">
+              <label for="username">Nom d'utilisateur</label>
+              <input type="text" class="form-control" id="username" value="{{ user.username }}" readonly>
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+              <div class="error-message" id="email-error"></div>
+            </div>
+            {% if user.telephone is not None %}
+            <div class="form-group">
+              <label for="telephone">Téléphone</label>
+              <input type="text" class="form-control" id="telephone" name="telephone" value="{{ user.telephone }}">
+              <div class="error-message" id="telephone-error"></div>
+            </div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-save mr-2"></i>Mettre à jour le profil
+            </button>
+            <div class="success-message" id="profile-success"></div>
+          </form>
+
+          <hr class="my-4">
+
+          <h5 class="section-title">Changer le mot de passe</h5>
+          <form id="password-form" method="post" action="{% url 'change_password' %}">
+            {% csrf_token %}
+            <div class="form-group">
+              <label>Ancien mot de passe</label>
+              <input type="password" class="form-control" id="old_password" name="old_password" required>
+              <div class="error-message" id="old_password-error"></div>
+            </div>
+            <div class="form-group">
+              <label>Nouveau mot de passe</label>
+              <input type="password" class="form-control" id="new_password1" name="new_password1" required>
+              <div class="error-message" id="new_password1-error"></div>
+            </div>
+            <div class="form-group">
+              <label>Confirmer le nouveau mot de passe</label>
+              <input type="password" class="form-control" id="new_password2" name="new_password2" required>
+              <div class="error-message" id="new_password2-error"></div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-key mr-2"></i>Changer le mot de passe
+            </button>
+            <div class="success-message" id="password-success"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function(){
+  $('#profile-form').on('submit',function(e){
+    e.preventDefault();
+    $('#email,#telephone').removeClass('is-invalid');
+    $('#email-error,#telephone-error').hide();
+    $.ajax({type:'POST',url:$(this).attr('action'),data:$(this).serialize(),success:function(r){
+      if(r.success){
+        $('#profile-success').text(r.message).fadeIn().delay(3000).fadeOut();
+        if(r.email) $('#display-email').text(r.email);
+      } else {
+        if(r.errors.email){$('#email').addClass('is-invalid');$('#email-error').text(r.errors.email[0]).show();}
+        if(r.errors.telephone){$('#telephone').addClass('is-invalid');$('#telephone-error').text(r.errors.telephone[0]).show();}
+        if(r.errors.__all__) showGlobalError(r.errors.__all__[0]);
+      }
+    },error:function(){showGlobalError("Une erreur s'est produite.");}});
+  });
+
+  $('#password-form').on('submit',function(e){
+    e.preventDefault();
+    $('#old_password,#new_password1,#new_password2').removeClass('is-invalid');
+    $('#old_password-error,#new_password1-error,#new_password2-error').hide();
+    $.ajax({type:'POST',url:$(this).attr('action'),data:$(this).serialize(),success:function(r){
+      if(r.success){
+        $('#password-success').text(r.message).fadeIn().delay(3000).fadeOut();
+        $('#password-form')[0].reset();
+      } else {
+        ['old_password','new_password1','new_password2'].forEach(function(f){
+          if(r.errors[f]){$('#'+f).addClass('is-invalid');$('#'+f+'-error').text(r.errors[f][0]).show();}
+        });
+        if(r.errors.__all__) showGlobalError(r.errors.__all__[0]);
+      }
+    },error:function(){showGlobalError("Une erreur s'est produite.");}});
+  });
+
+  $('input').on('input',function(){$(this).removeClass('is-invalid');$(this).next('.error-message').hide();});
+
+  function showGlobalError(msg){
+    $('#global-message').html(
+      '<div class="alert alert-danger alert-dismissible fade show">'+
+      '<i class="fas fa-exclamation-circle mr-2"></i>'+msg+
+      '<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button></div>'
+    );
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends 'audit/base.html' %}
+{% block content %}
+<div class="row">
+	<div class="col-12">
+		<div class="card card-outline card-primary">
+			<div class="card-header d-flex justify-content-between">
+				<h3 class="card-title">Critères d'évaluation</h3>
+				<a class="btn btn-primary btn-sm" href="{% url 'audit:critere-create' %}">Ajouter</a>
+			</div>
+			<div class="card-body">
+				{% include 'audit/includes/pagination.html' %}
+										<div class="table-responsive">
+<table id="criteres-table" class="table table-striped table-hover" style="width:100%">
+							<thead><tr><th>Thème</th><th>Critère</th><th>Consulter</th><th>Actions</th></tr></thead>
+							<tbody>
+								{% for o in object_list %}
+									<tr>
+										<td>{{ o.theme }}</td>
+										<td>{{ o.texte|truncatechars:80 }}</td>
+										<td>
+											{% for chap in o.chapitre_norme.all %}
+												{% if chap.norme and chap.norme.fichier %}
+													<a href="{{ chap.norme.fichier.url }}{% if chap.num_page %}#page={{ chap.num_page }}{% endif %}" target="_blank" rel="noopener" class="btn btn-xs btn-outline-secondary mb-1" title="{{ chap.norme.nom }} — {{ chap.reference }}{% if chap.num_page %} p.{{ chap.num_page }}{% endif %}">
+														<i class="fas fa-file-pdf"></i> {{ chap.reference }}{% if chap.num_page %} p.{{ chap.num_page }}{% endif %}
+													</a>
+												{% endif %}
+											{% empty %}
+												<em class="text-muted small">—</em>
+											{% endfor %}
+										</td>
+									<td>
+										<a class="btn btn-sm btn-outline-primary" href="{% url 'audit:critere-edit' o.pk %}">Modifier</a>
+									<button type="button" class="btn btn-sm btn-outline-warning js-deactivate" 
+										data-url="{% url 'audit:critere-delete' o.pk %}" 
+										data-name="{{ o.texte|truncatewords:10 }}">
+										Désactiver
+									</button>
+									{% if o.pk not in used_critere_ids %}
+									<button type="button" class="btn btn-sm btn-outline-danger js-delete" 
+										data-url="{% url 'audit:critere-delete' o.pk %}" 
+										data-name="{{ o.texte|truncatewords:10 }}">
+										Supprimer
+									</button>
+									{% else %}
+									<button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Ce critère est déjà utilisé">Supprimer</button>
+									{% endif %}
+									</td>
+								</tr>
+							{% empty %}
+									<tr><td colspan="3" class="text-center text-muted">Aucun élément n'existe pour cette table.</td></tr>
+							{% endfor %}
+						</tbody>
+					</table>
+					</div>
+				{% include 'audit/includes/pagination.html' %}
+			</div>
+		</div>
+	</div>
+	<div class="filter-sidebar-panel js-filter-sidebar">
+		<div class="card card-secondary">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h3 class="card-title">Filtres</h3>
+				<button type="button" class="btn btn-tool js-filter-close" aria-label="Fermer"><i class="fas fa-times"></i></button>
+			</div>
+			<div class="card-body">
+				<form method="get">
+					<div class="form-group">
+						<label>Recherche</label>
+						<input type="text" name="q" class="form-control" value="{{ request.GET.q }}" placeholder="Texte critère / thème">
+					</div>
+					<div class="form-group">
+						<label>Thème</label>
+						<select name="theme" class="form-control select2">
+							<option value="">Tous</option>
+							{% for theme in themes %}
+								<option value="{{ theme.id }}" {% if request.GET.theme == theme.id|stringformat:'s' %}selected{% endif %}>{{ theme.texte }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					<div class="filter-actions">
+						<button class="btn btn-primary btn-block" type="submit"><i class="fas fa-search mr-1"></i>Appliquer</button>
+						<a href="{% url 'audit:critere-list' %}" class="btn btn-secondary btn-block mt-2">Réinitialiser</a>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.1/css/responsive.dataTables.min.css">
+<style>
+	#criteres-table td { overflow-wrap: anywhere; }
+	#criteres-table td .btn { white-space: nowrap; }
+	#criteres-table thead th { white-space: nowrap; vertical-align: middle; }
+	#criteres-table thead th:nth-child(1) { min-width: 140px; }
+	#criteres-table thead th:nth-child(2) { min-width: 260px; }
+	#criteres-table thead th:nth-child(3) { min-width: 110px; text-align: center; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.4.1/js/dataTables.responsive.min.js"></script>
+<script>
+	$(function(){
+		(function normalizeTableColumns(){
+			var $table = $('#criteres-table');
+			var $thead = $table.find('thead tr').first();
+			var $tbodyFirst = $table.find('tbody tr').first();
+			if (!$thead.length || !$tbodyFirst.length) return;
+			var headCount = $thead.children('th').length;
+			var bodyCount = $tbodyFirst.children('td').length;
+			if (headCount < bodyCount) { for (var i = headCount; i < bodyCount; i++) { $thead.append('<th></th>'); } }
+			else if (bodyCount < headCount) { $table.find('tbody tr').each(function(){ var $tr = $(this); var tdcount = $tr.children('td').length; for (var j = tdcount; j < headCount; j++) { $tr.append('<td></td>'); } }); }
+		})();
+
+		$('#criteres-table').DataTable({ scrollX: true, responsive: false, autoWidth: false, lengthChange: false, searching: false, paging: false, info: false, columnDefs: [{ orderable: false, targets: -1 }] });
+
+		// SweetAlert handlers
+		$('.js-deactivate').on('click', function() {
+			var btn = $(this), url = btn.data('url'), name = btn.data('name') || 'élément';
+			Swal.fire({title: 'Désactiver ?', text: 'Voulez-vous désactiver "' + name + '" ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#f0ad4e', cancelButtonColor: '#6c757d', confirmButtonText: 'Oui, désactiver', cancelButtonText: 'Annuler'}).then(function(result) {
+				if (result.isConfirmed) { $.ajax({url: url, type: 'POST', data: {_action: 'deactivate', csrfmiddlewaretoken: '{{ csrf_token }}'}, success: function() { Swal.fire('Désactivé !', 'Élément désactivé avec succès.', 'success').then(function() { window.location.reload(); }); }, error: function() { Swal.fire('Erreur', 'Impossible de désactiver cet élément.', 'error'); }}); }
+			});
+		});
+		$('.js-delete').on('click', function() {
+			var btn = $(this), url = btn.data('url'), name = btn.data('name') || 'élément';
+			Swal.fire({title: 'Supprimer définitivement ?', text: 'Voulez-vous vraiment supprimer "' + name + '" ? Cette action est irréversible !', icon: 'error', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'Oui, supprimer', cancelButtonText: 'Annuler'}).then(function(result) {
+				if (result.isConfirmed) { $.ajax({url: url, type: 'POST', data: {csrfmiddlewaretoken: '{{ csrf_token }}'}, success: function() { Swal.fire('Supprimé !', 'Élément supprimé avec succès.', 'success').then(function() { window.location.reload(); }); }, error: function() { Swal.fire('Erreur', 'Impossible de supprimer cet élément.', 'error'); }}); }
+			});
+		});
+	});
+</script>
+{% endblock %}

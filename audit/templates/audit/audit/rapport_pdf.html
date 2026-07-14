@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Rapport Audit — {{ audit.numero }}</title>
+<style>
+  /* ── Page setup ── */
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 18mm 12mm;
+    @top-left {
+      content: "";
+    }
+    @bottom-center {
+      content: "Page " counter(page) " / " counter(pages);
+      font-family: Arial, sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5pt;
+    color: #222;
+    background: #fff;
+    line-height: 1.4;
+  }
+
+  /* ── HEADER ── */
+  .pdf-header {
+    display: table;
+    width: 100%;
+    border-bottom: 2.5pt solid #1a1a2e;
+    padding-bottom: 6pt;
+    margin-bottom: 10pt;
+  }
+  .pdf-header-logo { display: table-cell; width: 110pt; vertical-align: middle; }
+  .pdf-header-title { display: table-cell; vertical-align: middle; text-align: center; padding: 0 8pt; }
+  .pdf-header-title .main-title { font-size: 13pt; font-weight: bold; color: #1a1a2e; text-transform: uppercase; letter-spacing: .04em; }
+  .pdf-header-title .sub-title { font-size: 9pt; color: #555; margin-top: 3pt; }
+  .pdf-header-meta { display: table-cell; width: 130pt; vertical-align: middle; text-align: right; font-size: 8pt; color: #444; }
+  .pdf-header-meta .score {
+    font-size: 22pt;
+    font-weight: 900;
+    display: block;
+    margin-top: 2pt;
+  }
+  .pdf-header-meta .score-label { font-size: 7pt; color: #888; text-transform: uppercase; letter-spacing: .06em; }
+  .score-green  { color: #1e7e34; }
+  .score-orange { color: #b8860b; }
+  .score-red    { color: #c62828; }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-size: 8pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #1a1a2e;
+    background: #f0f4ff;
+    padding: 4pt 6pt;
+    border-left: 3pt solid #1a1a2e;
+    margin: 10pt 0 5pt 0;
+  }
+
+  /* ── KPI row ── */
+  .kpi-row { display: table; width: 100%; margin-bottom: 8pt; border-spacing: 4pt; }
+  .kpi-cell { display: table-cell; text-align: center; padding: 6pt 4pt; border: 1pt solid #dee2e6; border-radius: 3pt; }
+  .kpi-num { font-size: 18pt; font-weight: 900; line-height: 1; }
+  .kpi-label { font-size: 7pt; text-transform: uppercase; letter-spacing: .05em; color: #555; margin-top: 2pt; }
+  .kpi-c   { background: #f0faf2; color: #1e7e34; }
+  .kpi-pc  { background: #fffdf0; color: #b8860b; }
+  .kpi-nc  { background: #fff5f5; color: #c62828; }
+  .kpi-na  { background: #faf5ff; color: #6a1b9a; }
+  .kpi-pct { background: #f0f4ff; color: #1a237e; }
+
+  /* ── Participants table ── */
+  .info-table { width: 100%; border-collapse: collapse; margin-bottom: 6pt; }
+  .info-table th { background: #1a1a2e; color: #fff; font-size: 8pt; padding: 3.5pt 5pt; text-align: left; }
+  .info-table td { font-size: 8.5pt; padding: 3pt 5pt; border-bottom: 0.5pt solid #e9ecef; vertical-align: top; }
+  .info-table tr:nth-child(even) td { background: #f8f9fa; }
+
+  /* ── SWOT ── */
+  .swot-grid { display: table; width: 100%; border-spacing: 4pt; margin-bottom: 8pt; }
+  .swot-row  { display: table-row; }
+  .swot-cell { display: table-cell; width: 50%; padding: 6pt 8pt; border: 1pt solid #dee2e6; vertical-align: top; }
+  .swot-cell-title { font-size: 8pt; font-weight: bold; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4pt; padding-bottom: 3pt; border-bottom: 1.5pt solid; }
+  .swot-forts  .swot-cell-title  { color: #1e7e34; border-color: #1e7e34; }
+  .swot-risques .swot-cell-title { color: #c62828; border-color: #c62828; }
+  .swot-opport .swot-cell-title  { color: #1565c0; border-color: #1565c0; }
+  .swot-sensib .swot-cell-title  { color: #e65100; border-color: #e65100; }
+  .swot-content { font-size: 8.5pt; color: #333; white-space: pre-wrap; line-height: 1.45; }
+  .swot-empty   { color: #aaa; font-style: italic; font-size: 8pt; }
+
+  /* ── Criteria table ── */
+  .criteria-table { width: 100%; border-collapse: collapse; font-size: 8pt; }
+  .criteria-table thead th {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 4pt 4pt;
+    text-align: left;
+    font-size: 7.5pt;
+    border: 0.5pt solid #333;
+  }
+  .criteria-table tbody td {
+    padding: 3.5pt 4pt;
+    border: 0.5pt solid #ddd;
+    vertical-align: top;
+    line-height: 1.35;
+  }
+  .criteria-table tbody tr:nth-child(even) td { background: #f9f9fb; }
+  .criteria-table tbody tr:hover td { background: #f0f4ff; }
+
+  .num-cell { text-align: center; font-weight: bold; color: #1a3a6e; width: 22pt; }
+  .theme-cell { color: #5c6bc0; font-weight: 600; width: 70pt; }
+
+  .pill { display: inline-block; padding: 1.5pt 5pt; border-radius: 10pt; font-weight: bold; font-size: 7.5pt; }
+  .pill-C  { background: #e6f4ea; color: #1e7e34; border: 0.5pt solid #a5d6a7; }
+  .pill-PC { background: #fff8e1; color: #b8860b; border: 0.5pt solid #ffe082; }
+  .pill-NC { background: #fdecea; color: #c62828; border: 0.5pt solid #ef9a9a; }
+  .pill-NA { background: #f3e5f5; color: #6a1b9a; border: 0.5pt solid #ce93d8; }
+
+  .preuve-chip { font-size: 7pt; color: #1a73e8; background: #e8f0fe; padding: 1pt 3pt; border-radius: 2pt; display: inline-block; margin: 1pt; }
+
+  /* ── Commentaire ── */
+  .comment-box { background: #f8f9fa; border-left: 3pt solid #dee2e6; padding: 5pt 8pt; font-size: 8.5pt; margin-top: 8pt; }
+
+  /* ── Page break ── */
+  .page-break { page-break-before: always; }
+  .no-break   { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+{# ── HEADER ── #}
+<div class="pdf-header">
+  <div class="pdf-header-logo">
+    {% if logo_b64 %}
+    <img src="{{ logo_b64 }}" alt="AB Serve" style="width:110pt;height:auto;display:block;">
+    {% endif %}
+  </div>
+
+  <div class="pdf-header-title">
+    <div class="main-title">{{ audit.formulaire.titre }}</div>
+    <div class="sub-title">
+      Rapport d'audit &mdash; <strong>{{ audit.numero }}</strong>
+      {% if audit.formulaire.section %} &mdash; {{ audit.formulaire.section.Nom }}{% endif %}
+    </div>
+  </div>
+
+  <div class="pdf-header-meta">
+    <div>Date : <strong>{{ audit.date_audit|date:"d/m/Y" }}</strong></div>
+    <div>Statut : <strong>{{ audit.get_statut_display }}</strong></div>
+    {% if audit.responsable_audit %}
+    <div>Responsable : <strong>{{ audit.responsable_audit.get_full_name|default:audit.responsable_audit.username }}</strong></div>
+    {% endif %}
+    {% with pct=resultat.niveau_prestation_pct|floatformat:1 %}
+    <span class="score {% if resultat.niveau_prestation_pct >= 80 %}score-green{% elif resultat.niveau_prestation_pct >= 50 %}score-orange{% else %}score-red{% endif %}">{{ pct }}%</span>
+    {% endwith %}
+    <div class="score-label">Niveau prestation</div>
+  </div>
+</div>
+
+{# ── KPI ROW ── #}
+{% load i18n %}
+<div class="kpi-row no-break">
+  <div class="kpi-cell kpi-c">
+    <div class="kpi-num">{{ code_counts.C|default:0 }}</div>
+    <div class="kpi-label">Conformes</div>
+  </div>
+  <div class="kpi-cell kpi-pc">
+    <div class="kpi-num">{{ code_counts.PC|default:0 }}</div>
+    <div class="kpi-label">Partiels</div>
+  </div>
+  <div class="kpi-cell kpi-nc">
+    <div class="kpi-num">{{ code_counts.NC|default:0 }}</div>
+    <div class="kpi-label">Non conformes</div>
+  </div>
+  <div class="kpi-cell kpi-na">
+    <div class="kpi-num">{{ code_counts.NA|default:0 }}</div>
+    <div class="kpi-label">Non applicables</div>
+  </div>
+  <div class="kpi-cell kpi-pct">
+    <div class="kpi-num" style="font-size:14pt">{{ resultat.niveau_prestation_pct|floatformat:1 }}%</div>
+    <div class="kpi-label">Score global</div>
+  </div>
+</div>
+
+{# ── PARTICIPANTS ── #}
+{% if audit.participants.all %}
+<div class="section-title">Personnes rencontrées</div>
+<table class="info-table no-break">
+  <thead>
+    <tr><th>Nom / Prénom</th><th>Fonction</th><th>Type</th></tr>
+  </thead>
+  <tbody>
+    {% for p in audit.participants.all %}
+    <tr>
+      <td>{% if p.user %}{{ p.user.get_full_name|default:p.user.username }}{% else %}{{ p.nom_externe }}{% endif %}</td>
+      <td>{{ p.fonction }}</td>
+      <td>{% if p.est_auditeur_externe %}Externe{% else %}Interne{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{# ── SWOT ── #}
+{% if resultat.points_forts or resultat.risques or resultat.opportunites or resultat.points_sensibles %}
+<div class="section-title">Analyse SWOT</div>
+<div class="swot-grid no-break">
+  <div class="swot-row">
+    <div class="swot-cell swot-forts">
+      <div class="swot-cell-title">&#10003; Points forts</div>
+      {% if resultat.points_forts %}
+      <div class="swot-content">{{ resultat.points_forts }}</div>
+      {% else %}<div class="swot-empty">—</div>{% endif %}
+    </div>
+    <div class="swot-cell swot-risques">
+      <div class="swot-cell-title">&#9888; Risques</div>
+      {% if resultat.risques %}
+      <div class="swot-content">{{ resultat.risques }}</div>
+      {% else %}<div class="swot-empty">—</div>{% endif %}
+    </div>
+  </div>
+  <div class="swot-row">
+    <div class="swot-cell swot-opport">
+      <div class="swot-cell-title">&#8599; Opportunités d'amélioration</div>
+      {% if resultat.opportunites %}
+      <div class="swot-content">{{ resultat.opportunites }}</div>
+      {% else %}<div class="swot-empty">—</div>{% endif %}
+    </div>
+    <div class="swot-cell swot-sensib">
+      <div class="swot-cell-title">&#9679; Points sensibles</div>
+      {% if resultat.points_sensibles %}
+      <div class="swot-content">{{ resultat.points_sensibles }}</div>
+      {% else %}<div class="swot-empty">—</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ── CRITERIA TABLE ── #}
+<div class="section-title" style="margin-top:12pt">Détail des critères évalués ({{ lignes_data|length }} critères)</div>
+<table class="criteria-table">
+  <thead>
+    <tr>
+      <th style="width:18pt">N°</th>
+      <th style="width:60pt">Thème</th>
+      <th>Critère</th>
+      <th style="width:28pt;text-align:center">Cot.</th>
+      <th style="width:130pt">Commentaire</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for ld in lignes_data %}
+    <tr class="no-break">
+      <td class="num-cell">{{ ld.num }}</td>
+      <td class="theme-cell">{{ ld.ligne.critere.theme }}</td>
+      <td>{{ ld.ligne.critere.texte }}</td>
+      <td style="text-align:center">
+        {% if ld.cotation %}
+        <span class="pill pill-{{ ld.cotation.code }}">{{ ld.cotation.code }}</span>
+        {% else %}<span style="color:#bbb">—</span>{% endif %}
+      </td>
+      <td>
+        {% if ld.reponse and ld.reponse.commentaire %}{{ ld.reponse.commentaire }}{% else %}<span style="color:#bbb">—</span>{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" style="text-align:center;color:#aaa;padding:8pt">Aucune ligne.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# ── CONTEXTE ── #}
+{% if audit.commentaire %}
+<div class="section-title" style="margin-top:12pt">Contexte &amp; Commentaires</div>
+<div class="comment-box">{{ audit.commentaire }}</div>
+{% endif %}
+
+{# ── FOOTER INFO ── #}
+<div style="margin-top:14pt;padding-top:5pt;border-top:1pt solid #dee2e6;font-size:7.5pt;color:#888;text-align:right">
+  Rapport généré le {% now "d/m/Y à H:i" %} — {{ audit.numero }}
+</div>
+
+</body>
+</html>

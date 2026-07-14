@@ -1,0 +1,1134 @@
+{% extends "accident_travail/base.html" %}
+{% load static %}
+{% load at_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+{% block nav_creer %}active{% endblock %}
+
+{% block extra_css %}
+<style>
+    .wizard-section {
+        display: none;
+    }
+
+    .wizard-section.active {
+        display: block;
+    }
+
+    .wizard-nav-btn {
+        min-width: 130px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+    }
+
+    .checkbox-toggle label {
+        cursor: pointer;
+    }
+
+    /* Corps humain siège des lésions */
+    .siege-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: .5rem;
+    }
+
+    /* Barre de progression wizard moderne */
+    .step-wizard {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: relative;
+        padding: 0;
+        margin: 0;
+    }
+
+    .step-wizard::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: #dee2e6;
+        z-index: 0;
+        transform: translateY(-50%);
+    }
+
+    .step-wizard .step {
+        position: relative;
+        flex: 1;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: #6c757d;
+        background: #fff;
+        padding: 8px 12px;
+        border-radius: 20px;
+        border: 2px solid #dee2e6;
+        z-index: 1;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        margin: 0 4px;
+    }
+
+    .step-wizard .step:hover {
+        background: #f8f9fa;
+        border-color: #adb5bd;
+    }
+
+    .step-wizard .step.done {
+        background: #28a745;
+        color: #fff;
+        border-color: #28a745;
+    }
+
+    .step-wizard .step.active {
+        background: #007bff;
+        color: #fff;
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.2);
+        transform: scale(1.05);
+    }
+
+    /* Corriger les select et radio */
+    select.form-control,
+    input[type="text"].form-control,
+    input[type="date"].form-control,
+    input[type="time"].form-control,
+    input[type="number"].form-control,
+    textarea.form-control {
+        width: 100% !important;
+    }
+
+    /* Radio buttons style moderne */
+    .form-check-inline {
+        margin-right: 1rem;
+    }
+
+    .form-check-input {
+        margin-top: 0.25rem;
+    }
+
+    /* ═══ RESPONSIVE DESIGN ═══ */
+    
+    /* Mobile (< 576px) */
+    @media (max-width: 575.98px) {
+        .step-wizard .step {
+            font-size: 9px;
+            padding: 5px 3px;
+            margin: 0 1px;
+            border-radius: 10px;
+        }
+        
+        .step-wizard::before {
+            height: 2px;
+        }
+        
+        .wizard-nav-btn {
+            min-width: auto;
+            width: 100%;
+            font-size: 13px;
+            padding: 10px;
+            justify-content: center;
+        }
+        
+        h5 {
+            font-size: 1rem;
+        }
+        
+        h6 {
+            font-size: 0.95rem;
+        }
+        
+        .card-header h3.card-title {
+            font-size: 0.9rem;
+        }
+        
+        /* Forcer les colonnes à occuper toute la largeur sur mobile */
+        [class*="col-md-"] {
+            margin-bottom: 15px;
+        }
+        
+        /* Boutons de type de flèche plus petits sur mobile */
+        .arrow-type-btn {
+            font-size: 11px;
+            padding: 4px 8px !important;
+        }
+        
+        /* Réduire l'espacement des checkboxes sur mobile */
+        .form-check {
+            margin-bottom: 0.3rem;
+        }
+    }
+    
+    /* Tablettes portrait (576px - 767px) */
+    @media (min-width: 576px) and (max-width: 767.98px) {
+        .step-wizard .step {
+            font-size: 10px;
+            padding: 6px 6px;
+        }
+        
+        .wizard-nav-btn {
+            min-width: 110px;
+            font-size: 13px;
+        }
+    }
+    
+    /* Tablettes paysage (768px - 991px) */
+    @media (min-width: 768px) and (max-width: 991.98px) {
+        .step-wizard .step {
+            font-size: 11px;
+            padding: 6px 8px;
+        }
+    }
+    
+    /* Canvas responsive */
+    #siege-canvas {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    #corps-humain-img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Container responsive pour le schéma corporel */
+    @media (max-width: 575.98px) {
+        #siege-container {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-file-medical-alt mr-2 text-danger"></i>{{ title }}</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_dashboard' %}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'at:at_liste' %}">Liste</a></li>
+            <li class="breadcrumb-item active">Formulaire 24h</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if from_quick %}
+<div class="alert alert-warning alert-dismissible border-left border-warning" style="border-left-width:4px!important">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    <div class="d-flex align-items-start">
+        <i class="fas fa-bolt fa-lg text-warning mr-3 mt-1"></i>
+        <div>
+            <strong>Brouillon créé avec succès — {{ form.instance.reference }}</strong><br>
+            <span>Complétez maintenant la déclaration 24h, ou sortez et revenez plus tard.<br>
+            <small class="text-muted">Si vous ne la remplissez pas maintenant, un rappel vous sera envoyé dans <strong>12 heures</strong> pour compléter la déclaration complète 24h.</small></span>
+            <div class="mt-2">
+                <a href="{% url 'at:at_detail' form.instance.pk %}" class="btn btn-sm btn-dark mr-2">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Sortir, je remplirai plus tard
+                </a>
+                <strong class="text-success"><i class="fas fa-arrow-down mr-1"></i>Continuer ci-dessous</strong>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+<!-- Modal aide -->
+<div class="modal fade" id="modalAide" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="fas fa-info-circle mr-2"></i>Règles d'usage du document</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <ol>
+                    <li><strong>Prévenir</strong> immédiatement votre N+1 et le service RH/QSE.</li>
+                    <li><strong>Compléter</strong> ce formulaire dans les 24h suivant l'accident.</li>
+                    <li><strong>Envoyer</strong> le formulaire signé au service RH et QSE.</li>
+                    <li><strong>Mettre en œuvre</strong> les actions correctives immédiates identifiées.</li>
+                </ol>
+                <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    Tout accident, même bénin, doit être déclaré dans les 24h.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Barre de progression wizard -->
+<div class="card card-outline card-primary mb-0">
+    <div class="card-body py-2 px-3">
+        <div class="step-wizard" id="wizard-steps">
+            <div class="step active" data-step="1">1. Type &amp; Employeur</div>
+            <div class="step" data-step="2">2. Accident</div>
+            <div class="step" data-step="3">3. Lésions &amp; EPI</div>
+            <div class="step" data-step="4">4. Soins &amp; Conséquences</div>
+            <div class="step" data-step="5">5. Témoins &amp; Tiers</div>
+            <div class="step" data-step="6">6. Actions correctives</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title" id="section-title">1. Type d'accident &amp; Employeur</h3>
+        <div class="card-tools">
+            <button class="btn btn-info btn-sm" data-toggle="modal" data-target="#modalAide">
+                <i class="fas fa-question-circle mr-1"></i>Aide
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="post" id="accident-form" {% if form.instance.pk %}action="{% url 'at:at_update_24h' form.instance.pk %}"{% else %}action="{% url 'at:at_create_24h' %}"{% endif %}>
+            {% csrf_token %}
+            {% if from_quick %}<input type="hidden" name="from_quick" value="1">{% endif %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <!-- ─── Section 1 : Type & Employeur ─────────────────────── -->
+            <div class="wizard-section active" data-section="1">
+                {% if form.instance.pk %}
+                <div class="alert alert-secondary py-2 small mb-3"><i class="fas fa-info-circle mr-1"></i>
+                    <strong>Informations issues de la création rapide</strong> — Type, société et section ont été définis lors de la création et ne peuvent pas être modifiés ici.
+                    <div class="mt-1">
+                        <span class="mr-3"><strong>Type :</strong> {{ form.instance.get_type_accident_display }}</span>
+                        <span class="mr-3"><strong>Société :</strong> {{ form.instance.societe }}</span>
+                    </div>
+                </div>
+                {{ form.type_accident.as_hidden }}
+                {{ form.societe.as_hidden }}
+                {% else %}
+                <div class="form-group">
+                    <label class="font-weight-bold">Type d'accident <span class="text-danger">*</span></label>
+                    <div class="d-flex flex-wrap" style="gap:1rem">
+                        {% for radio in form.type_accident %}
+                        <div class="custom-control custom-radio">
+                            {{ radio.tag }}
+                            <label class="custom-control-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.type_accident.errors %}<div class="text-danger small mt-1">{{ form.type_accident.errors }}</div>{% endif %}
+                </div>
+                <hr>
+                {% endif %}
+                <h5>L'employeur</h5>
+                <div class="row">
+                    {% if not form.instance.pk %}
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label>{{ form.societe.label }} <span class="text-danger">*</span></label>
+                            {{ form.societe }}
+                            {% if form.societe.errors %}<div class="text-danger small">{{ form.societe.errors }}</div>{% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label>{{ form.section.label }}</label>
+                            {{ form.section }}
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label>{{ form.site.label }}</label>
+                            {{ form.site }}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>{{ form.victime_nom_prenom.label }} <span class="text-danger">*</span></label>
+                            {% if form.instance.pk %}
+                            <p class="form-control-plaintext font-weight-bold">{{ form.instance.victime_nom_prenom }}</p>
+                            {{ form.victime_nom_prenom.as_hidden }}
+                            {% else %}
+                            {{ form.victime_nom_prenom }}
+                            {% if form.victime_nom_prenom.errors %}<div class="text-danger small">{{ form.victime_nom_prenom.errors }}</div>{% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Section 2 : Informations accident ─────────────────── -->
+            <div class="wizard-section" data-section="2">
+                <h5>Informations relatives à l'accident</h5>
+                <div class="row">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group">
+                            <label>{{ form.date_accident.label }} <span class="text-danger">*</span></label>
+                            {% if form.instance.pk %}
+                            <p class="form-control-plaintext font-weight-bold">{{ form.instance.date_accident|date:"d/m/Y" }}</p>
+                            {{ form.date_accident.as_hidden }}
+                            {% else %}
+                            {{ form.date_accident }}
+                            {% if form.date_accident.errors %}<div class="text-danger small">{{ form.date_accident.errors }}</div>{% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group">
+                            <label>{{ form.heure_accident.label }}</label>
+                            {{ form.heure_accident }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-sm-12">
+                        <div class="form-group">
+                            <label>{{ form.lieu_accident.label }}</label>
+                            {{ form.lieu_accident }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-sm-12">
+                        <div class="form-group">
+                            <label>{{ form.lieu_type.label }}</label>
+                            {{ form.lieu_type }}
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-sm-12">
+                        <div class="form-group">
+                            <label>{{ form.lieu_precisions.label }}</label>
+                            {{ form.lieu_precisions }}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>{{ form.activite_victime.label }}</label>
+                            {{ form.activite_victime }}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>{{ form.nature_accident.label }}</label>
+                            {{ form.nature_accident }}
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <label>{{ form.objet_contact.label }}</label>
+                            {{ form.objet_contact }}
+                        </div>
+                    </div>
+                </div>
+                <h6>Horaires de travail</h6>
+                <div class="row">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group"><label>Début vacation 1</label>{{ form.horaire_debut1 }}</div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group"><label>Fin vacation 1</label>{{ form.horaire_fin1 }}</div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group"><label>Début vacation 2</label>{{ form.horaire_debut2 }}</div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group"><label>Fin vacation 2</label>{{ form.horaire_fin2 }}</div>
+                    </div>
+                </div>
+                <h6>Constatation</h6>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group"><label>{{ form.accident_constate_le.label }}</label>{{form.accident_constate_le}}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group"><label>{{ form.accident_constate_heure.label }}</label>{{form.accident_constate_heure}}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group"><label>{{ form.accident_constate_par.label }}</label>{{form.accident_constate_par}}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group"><label>{{ form.accident_connu_le.label }}</label>{{form.accident_connu_le}}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Section 3 : Lésions & EPI ─────────────────────────── -->
+            <div class="wizard-section" data-section="3">
+                <h5>Éléments matériels <i class="fas fa-question-circle text-info" data-toggle="tooltip"
+                        title="Cochez les éléments qui ont directement causé ou contribué à l'accident."></i></h5>
+                <div class="row">
+                    {% for choice in form.elements_materiels %}
+                    <div class="col-md-4 col-6">
+                        <div class="custom-control custom-checkbox">
+                            {{ choice.tag }}
+                            <label class="custom-control-label" for="{{ choice.id_for_label }}">{{choice.choice_label}}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <hr>
+                <h5>Siège des lésions</h5>
+                <div class="row">
+                    {% for choice in form.siege_lesions %}
+                    <div class="col-md-4 col-6">
+                        <div class="custom-control custom-checkbox">
+                            {{ choice.tag }}
+                            <label class="custom-control-label" for="{{ choice.id_for_label }}">{{choice.choice_label}}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- ── Schéma corporel — indication siège des blessures ── -->
+                <div class="card card-outline card-secondary mt-3">
+                    <div class="card-header py-2">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-map-marker-alt mr-2 text-danger"></i>
+                            Indiquer le siège des blessures avec une flèche
+                            <small class="text-muted ml-2">Cliquez sur le schéma pour placer une flèche</small>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <!-- Barre de type de flèche -->
+                        <div class="d-flex align-items-center flex-wrap mb-2" style="gap:.5rem">
+                            <span class="font-weight-bold small mr-1">Type de flèche :</span>
+                            <button type="button" class="btn btn-sm btn-outline-danger arrow-type-btn active" data-type="up">
+                                ↑ Simple
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger arrow-type-btn" data-type="down">
+                                ↓ Bas
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger arrow-type-btn" data-type="updown">
+                                ↕ Double
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger arrow-type-btn" data-type="right">
+                                → Droite
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger arrow-type-btn" data-type="diag">
+                                ↗ Diagonale
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ml-auto" id="btn-clear-schema">
+                                <i class="fas fa-eraser mr-1"></i>Effacer tout
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-dark" id="btn-undo-schema">
+                                <i class="fas fa-undo mr-1"></i>Annuler
+                            </button>
+                        </div>
+                        <!-- Canvas principal + image SVG -->
+                        <div style="position:relative;display:inline-block;border:1px solid #dee2e6;border-radius:4px;background:#fff;overflow:hidden">
+                            <img id="corps-humain-img"
+                                 src="{% static 'accident_travail/img/corps_humain.svg' %}"
+                                 alt="Schéma corporel"
+                                 style="display:block;max-width:100%;height:auto;user-select:none;pointer-events:none">
+                            <canvas id="siege-canvas"
+                                    style="position:absolute;top:0;left:0;cursor:crosshair"></canvas>
+                        </div>
+                        <!-- Champs cachés pour stocker l'image annotée et les données des flèches -->
+                        {{ form.siege_lesions_schema }}
+                        {{ form.siege_lesions_arrows_data }}
+                        {% if form.instance.pk and form.instance.siege_lesions_arrows_data %}
+                        {{ form.instance.siege_lesions_arrows_data|json_script:"arrows-data-json" }}
+                        {% endif %}
+                        {% if form.instance.siege_lesions_schema %}
+                        <p class="small text-success mt-1"><i class="fas fa-check-circle mr-1"></i>Schéma enregistré</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr>
+                <h5>Nature des lésions</h5>
+                <div class="row">
+                    {% for choice in form.nature_lesions %}
+                    <div class="col-md-4 col-6">
+                        <div class="custom-control custom-checkbox">
+                            {{ choice.tag }}
+                            <label class="custom-control-label" for="{{ choice.id_for_label }}">{{choice.choice_label}}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <hr>
+                <h5>EPI</h5>
+                <div class="form-group">
+                    <label class="d-block">{{ form.epi_endommage.label }}</label>
+                    <div class="d-flex flex-wrap" style="gap:.75rem">
+                        {% for radio in form.epi_endommage %}
+                        <div class="custom-control custom-radio">
+                            {{ radio.tag }}
+                            <label class="custom-control-label" for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-group" id="block-epi-precisions">
+                    <label>{{ form.epi_precisions.label }}</label>
+                    {{ form.epi_precisions }}
+                </div>
+            </div>
+
+            <!-- ─── Section 4 : Soins & Conséquences ──────────────────── -->
+            <div class="wizard-section" data-section="4">
+                <h5>Premiers soins</h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.premiers_soins.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.premiers_soins %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group"><label>{{ form.premiers_soins_par.label }}</label>{{form.premiers_soins_par}}</div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="form-group"><label>{{ form.premiers_soins_lesquels.label }}</label>{{form.premiers_soins_lesquels}}</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.consultation_medecin.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.consultation_medecin %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8 col-sm-12">
+                        <div class="form-group"><label>{{ form.consultation_medecin_info.label }}</label>{{form.consultation_medecin_info}}</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.transport_hopital.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.transport_hopital %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8 col-sm-12">
+                        <div class="form-group"><label>{{ form.transport_hopital_nom.label }}</label>{{form.transport_hopital_nom}}</div>
+                    </div>
+                </div>
+                <hr>
+                <h5>Conséquences</h5>
+                <div class="form-group">
+                    <label>{{ form.consequence.label }}</label>
+                    {{ form.consequence }}
+                </div>
+                <div class="row">
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.rapport_police.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.rapport_police %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group"><label>{{ form.rapport_police_par.label }}</label>{{form.rapport_police_par}}</div>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.autres_victimes.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.autres_victimes %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Section 5 : Témoins & Tiers ───────────────────────── -->
+            <div class="wizard-section" data-section="5">
+                <h5>Témoin / 1ère personne avisée</h5>
+                <div class="row">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group"><label>{{ form.temoin_ou_premiere_personne.label }}</label>{{form.temoin_ou_premiere_personne}}</div>
+                    </div>
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-group"><label>{{ form.temoin_nom_prenom.label }}</label>{{form.temoin_nom_prenom}}</div>
+                    </div>
+                    <div class="col-md-5 col-sm-12">
+                        <div class="form-group"><label>{{ form.temoin_adresse.label }}</label>{{ form.temoin_adresse }}
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <h5>Tiers impliqué</h5>
+                <div class="row">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="form-group">
+                            <label class="d-block">{{ form.tiers_implique.label }}</label>
+                            <div class="d-flex flex-wrap" style="gap:.75rem">
+                                {% for r in form.tiers_implique %}
+                                <div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-5 col-sm-6" id="block-tiers">
+                        <div class="form-group"><label>{{ form.tiers_nom_adresse.label }}</label>{{form.tiers_nom_adresse}}</div>
+                    </div>
+                    <div class="col-md-4 col-sm-12" id="block-tiers-assurance">
+                        <div class="form-group"><label>{{ form.tiers_assurance.label }}</label>{{form.tiers_assurance}}</div>
+                    </div>
+                </div>
+                <hr>
+                <div class="form-group">
+                    <label>{{ form.qr_hse.label }}</label>{{ form.qr_hse }}
+                </div>
+                <div class="form-group">
+                    <label>{{ form.reserves.label }}</label>{{ form.reserves }}
+                </div>
+            </div>
+
+            <!-- ─── Section 6 : Actions correctives immédiates ────────── -->
+            <div class="wizard-section" data-section="6">
+                <h5><i class="fas fa-bolt mr-2 text-warning"></i>Actions correctives immédiates</h5>
+                <p class="text-muted small">Listez les mesures prises immédiatement pour éviter tout nouvel accident.
+                </p>
+
+                {{ action_formset.management_form }}
+                <div class="table-responsive">
+                <table class="table table-bordered table-sm" id="actions-table-24h">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width:5%">N°</th>
+                            <th style="width:72%">Description de l'action</th>
+                            <th style="width:20%">Responsable</th>
+                            <th style="width:3%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="formset-actions">
+                    {% for form_action in action_formset %}
+                    <tr class="formset-row">
+                        {% if form_action.non_field_errors %}<td colspan="4"><div class="alert alert-danger p-1 small">{{form_action.non_field_errors}}</div></td>{% endif %}
+                        {{ form_action.id }}
+                        {{ form_action.DELETE }}
+                        <td class="text-center small text-muted row-num">{{ forloop.counter }}</td>
+                        <td>{{ form_action.description }}</td>
+                        <td>{{ form_action.pilote }}</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-danger delete-row-btn" title="Supprimer cette action">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+                <button type="button" id="add-action" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-plus mr-1"></i>Ajouter une action
+                </button>
+            </div>
+
+            <!-- Navigation wizard -->
+            <div class="d-flex flex-column flex-sm-row justify-content-between mt-4" style="gap:.5rem">
+                <button type="button" id="btn-prev" class="btn btn-outline-secondary wizard-nav-btn" style="display:none">
+                    <i class="fas fa-arrow-left"></i> Précédent
+                </button>
+                <div class="ml-sm-auto d-flex flex-column flex-sm-row" style="gap:.5rem">
+                    <button type="button" id="btn-next" class="btn btn-primary wizard-nav-btn">
+                        Suivant <i class="fas fa-arrow-right"></i>
+                    </button>
+                    <button type="submit" name="sauvegarder" id="btn-submit" class="btn btn-success wizard-nav-btn"
+                        style="display:none">
+                        <i class="fas fa-save mr-1"></i>Sauvegarder
+                    </button>
+                    {% if form.instance.pk and form.instance.statut == '24h' %}
+                    <button type="submit" name="soumettre_48h" class="btn btn-danger wizard-nav-btn"
+                        style="display:none" id="btn-soumettre">
+                        <i class="fas fa-arrow-right mr-1"></i>Soumettre → 48h
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // CSRF token helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    const TOTAL_SECTIONS = 6;
+    let currentSection = 1;
+    const sectionTitles = {
+        1: '1. Type d\'accident &amp; Employeur',
+        2: '2. Informations relatives à l\'accident',
+        3: '3. Éléments matériels &amp; Lésions &amp; EPI',
+        4: '4. Premiers soins &amp; Conséquences',
+        5: '5. Témoins &amp; Tiers',
+        6: '6. Actions correctives immédiates',
+    };
+
+    // Determine which sections have errors (for error-jump on page load)
+    const sectionHasError = {};
+    {% for section_num in "123456" %}
+    (function() {
+        const s = document.querySelector('.wizard-section[data-section="{{ section_num }}"]');
+        if (s) {
+            const hasErr = s.querySelector('.text-danger,.alert-danger');
+            if (hasErr) sectionHasError[{{ section_num }}] = true;
+        }
+    })();
+    {% endfor %}
+
+    function showSection(n) {
+        document.querySelectorAll('.wizard-section').forEach(s => s.classList.remove('active'));
+        document.querySelector(`.wizard-section[data-section="${n}"]`).classList.add('active');
+        document.querySelectorAll('#wizard-steps .step').forEach(s => {
+            s.classList.remove('active', 'done');
+            const sn = parseInt(s.dataset.step);
+            if (sn < n) s.classList.add('done');
+            if (sn === n) s.classList.add('active');
+        });
+        document.getElementById('section-title').innerHTML = sectionTitles[n];
+        document.getElementById('btn-prev').style.display = n > 1 ? 'inline-flex' : 'none';
+        document.getElementById('btn-next').style.display = n < TOTAL_SECTIONS ? 'inline-flex' : 'none';
+        document.getElementById('btn-submit').style.display = n === TOTAL_SECTIONS ? 'inline-flex' : 'none';
+        const btnSoumettre = document.getElementById('btn-soumettre');
+        if (btnSoumettre) btnSoumettre.style.display = n === TOTAL_SECTIONS ? 'inline-flex' : 'none';
+        window.scrollTo(0, 0);
+        currentSection = n;
+    }
+
+    // Make wizard step indicators clickable
+    document.querySelectorAll('#wizard-steps .step').forEach(function(stepEl) {
+        stepEl.style.cursor = 'pointer';
+        stepEl.addEventListener('click', function() {
+            showSection(parseInt(this.dataset.step));
+        });
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+        {% if form.instance.pk %}
+        // Auto-save avant de changer de section
+        const _f = document.getElementById('accident-form');
+        if (_f) {
+            const _d = new FormData(_f);
+            _d.append('auto_save', '1');
+            fetch('{% url "at:at_auto_save" form.instance.pk %}', {
+                method: 'POST', body: _d,
+                headers: { 'X-CSRFToken': getCookie('csrftoken') }
+            }).then(r => r.json()).then(d => {
+                if (d.saved) toastr.info('Sauvegardé', '', { timeOut: 1500 });
+            }).catch(() => {});
+        }
+        {% endif %}
+        if (currentSection < TOTAL_SECTIONS) showSection(currentSection + 1);
+    });
+    document.getElementById('btn-prev').addEventListener('click', () => {
+        if (currentSection > 1) showSection(currentSection - 1);
+    });
+
+    // AJAX sections / sites
+    document.querySelector('[name="societe"]')?.addEventListener('change', function () {
+        const societeId = this.value;
+        if (!societeId) return;
+        fetch(`/accidents/api/sections/${societeId}/`)
+            .then(r => r.json())
+            .then(data => {
+                const sel = document.querySelector('[name="section"]');
+                sel.innerHTML = '<option value="">---------</option>';
+                data.sections.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id}">${s.nom}</option>`;
+                });
+            });
+    });
+    document.querySelector('[name="section"]')?.addEventListener('change', function () {
+        const sectionId = this.value;
+        if (!sectionId) return;
+        fetch(`/accidents/api/sites/${sectionId}/`)
+            .then(r => r.json())
+            .then(data => {
+                const sel = document.querySelector('[name="site"]');
+                sel.innerHTML = '<option value="">---------</option>';
+                data.sites.forEach(s => {
+                    sel.innerHTML += `<option value="${s.id}">${s.nom}</option>`;
+                });
+            });
+    });
+
+    // Ajouter une ligne action corrective (formset)
+    let formsetCount = {{ action_formset.total_form_count }};
+
+    function renumberRows() {
+        var n = 1;
+        document.querySelectorAll('#formset-actions .formset-row').forEach(function (row) {
+            var delChk = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+            var cell   = row.querySelector('.row-num');
+            if (delChk && delChk.checked) {
+                if (cell) cell.textContent = '—';
+            } else {
+                if (cell) cell.textContent = n++;
+            }
+        });
+    }
+
+    document.getElementById('add-action')?.addEventListener('click', function () {
+        const container  = document.getElementById('formset-actions');
+        const totalForms = document.querySelector('[name="actions-TOTAL_FORMS"]');
+        const template   = container.querySelector('.formset-row');
+        if (!template) return;
+        const newRow = template.cloneNode(true);
+        newRow.innerHTML = newRow.innerHTML.replace(/__prefix__|actions-\d+/g, m => m.includes('__prefix__') ? `actions-${formsetCount}` : `actions-${formsetCount}`);
+        newRow.querySelectorAll('input,select,textarea').forEach(el => {
+            el.name = el.name.replace(/actions-\d+/, `actions-${formsetCount}`);
+            el.id   = el.id.replace(/actions-\d+/, `actions-${formsetCount}`);
+            if (el.type !== 'checkbox') el.value = '';
+            else el.checked = false;
+        });
+        container.appendChild(newRow);
+        
+        // Ajouter l'événement de suppression au bouton
+        const deleteBtn = newRow.querySelector('.delete-row-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function() {
+                deleteActionRow(newRow);
+            });
+        }
+        
+        formsetCount++;
+        totalForms.value = formsetCount;
+        renumberRows();
+    });
+
+    // Fonction pour supprimer une ligne d'action
+    function deleteActionRow(row) {
+        const deleteCheckbox = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+        if (deleteCheckbox) {
+            deleteCheckbox.checked = true;
+        }
+        row.style.display = 'none';
+        renumberRows();
+    }
+
+    // Attacher les événements de suppression aux boutons existants
+    document.querySelectorAll('.delete-row-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            deleteActionRow(row);
+        });
+    });
+
+    document.querySelectorAll('#formset-actions input[type="checkbox"][name$="-DELETE"]').forEach(function (chk) {
+        chk.addEventListener('change', renumberRows);
+    });
+
+    renumberRows();
+
+    // Auto-save brouillon (si accident existant)
+    {% if form.instance.pk %}
+    setInterval(() => {
+        const form = document.getElementById('accident-form');
+        if (!form) return;
+        const data = new FormData(form);
+        data.append('auto_save', '1');
+        fetch('{% url "at:at_auto_save" form.instance.pk %}', {
+            method: 'POST',
+            body: data,
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+            .then(r => r.json())
+            .then(d => { if (d.saved) toastr.info('Brouillon sauvegardé', '', { timeOut: 2000 }); });
+    }, 30000);
+    {% endif %}
+
+    // Tooltips
+    $('[data-toggle="tooltip"]').tooltip();
+
+    // Jump to first section with errors, or start at 1
+    const firstErrSection = Object.keys(sectionHasError).map(Number).sort()[0];
+    showSection(firstErrSection || 1);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Canvas — Annotation siège des blessures
+    // ─────────────────────────────────────────────────────────────────────────
+    (function () {
+        const img    = document.getElementById('corps-humain-img');
+        const canvas = document.getElementById('siege-canvas');
+        if (!canvas || !img) return;
+        const ctx    = canvas.getContext('2d');
+        let arrowType = 'up';
+        const arrows  = [];   // {x, y, type}
+
+        // Références aux champs cachés
+        const hiddenInput = document.getElementById('{{ form.siege_lesions_schema.id_for_label }}');
+        const hiddenArrowsData = document.getElementById('{{ form.siege_lesions_arrows_data.id_for_label }}');
+
+        // Restaurer les données des flèches si elles existent
+        (function restoreArrows() {
+            try {
+                const arrowsDataElement = document.getElementById('arrows-data-json');
+                if (arrowsDataElement) {
+                    const savedArrows = JSON.parse(arrowsDataElement.textContent);
+                    if (Array.isArray(savedArrows) && savedArrows.length > 0) {
+                        arrows.push(...savedArrows);
+                        console.log('Flèches restaurées:', savedArrows.length);
+                    }
+                }
+            } catch (e) {
+                // Pas de données sauvegardées ou erreur de parsing
+            }
+        })();
+
+        function resizeCanvas() {
+            const rect = img.getBoundingClientRect();
+            // SVG base dimensions from viewBox
+            const SVG_BASE_W = 460;
+            const SVG_BASE_H = 280;
+            
+            canvas.width  = rect.width;
+            canvas.height = rect.height;
+            canvas.style.width  = rect.width  + 'px';
+            canvas.style.height = rect.height + 'px';
+            redraw();
+        }
+
+        function drawArrow(cx, cy, type, scale) {
+            scale = scale || 1;
+            const s = 14 * scale;
+            ctx.save();
+            ctx.strokeStyle = '#e74c3c';
+            ctx.fillStyle   = '#e74c3c';
+            ctx.lineWidth   = 2 * scale;
+            ctx.lineCap     = 'round';
+
+            function arrowHead(x1, y1, x2, y2) {
+                const angle = Math.atan2(y2 - y1, x2 - x1);
+                const hl = 6 * scale;
+                ctx.beginPath();
+                ctx.moveTo(x2, y2);
+                ctx.lineTo(x2 - hl * Math.cos(angle - 0.4), y2 - hl * Math.sin(angle - 0.4));
+                ctx.lineTo(x2 - hl * Math.cos(angle + 0.4), y2 - hl * Math.sin(angle + 0.4));
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            if (type === 'up') {
+                ctx.beginPath(); ctx.moveTo(cx, cy + s); ctx.lineTo(cx, cy - s); ctx.stroke();
+                arrowHead(cx, cy + s, cx, cy - s);
+            } else if (type === 'down') {
+                ctx.beginPath(); ctx.moveTo(cx, cy - s); ctx.lineTo(cx, cy + s); ctx.stroke();
+                arrowHead(cx, cy - s, cx, cy + s);
+            } else if (type === 'updown') {
+                ctx.beginPath(); ctx.moveTo(cx, cy - s); ctx.lineTo(cx, cy + s); ctx.stroke();
+                arrowHead(cx, cy + s, cx, cy - s);
+                arrowHead(cx, cy - s, cx, cy + s);
+            } else if (type === 'right') {
+                ctx.beginPath(); ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy); ctx.stroke();
+                arrowHead(cx - s, cy, cx + s, cy);
+            } else if (type === 'diag') {
+                const d = s * 0.707;
+                ctx.beginPath(); ctx.moveTo(cx - d, cy + d); ctx.lineTo(cx + d, cy - d); ctx.stroke();
+                arrowHead(cx - d, cy + d, cx + d, cy - d);
+            }
+            ctx.restore();
+        }
+
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const SVG_BASE_W = 460;
+            const SVG_BASE_H = 280;
+            const scaleX = canvas.width  / SVG_BASE_W;
+            const scaleY = canvas.height / SVG_BASE_H;
+            arrows.forEach(function(a) {
+                drawArrow(a.x * scaleX, a.y * scaleY, a.type, Math.min(scaleX, scaleY));
+            });
+        }
+
+        function saveToInput() {
+            if (hiddenInput) {
+                hiddenInput.value = arrows.length > 0 ? canvas.toDataURL('image/png') : '';
+            }
+            if (hiddenArrowsData) {
+                hiddenArrowsData.value = JSON.stringify(arrows);
+            }
+        }
+
+        // Arrow type buttons
+        document.querySelectorAll('.arrow-type-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.arrow-type-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                arrowType = this.dataset.type;
+            });
+        });
+
+        // Click on canvas to place arrow
+        canvas.addEventListener('click', function(e) {
+            const rect = canvas.getBoundingClientRect();
+            const SVG_BASE_W = 460;
+            const SVG_BASE_H = 280;
+            const scaleX = SVG_BASE_W / canvas.width;
+            const scaleY = SVG_BASE_H / canvas.height;
+            const cx = (e.clientX - rect.left) * scaleX;
+            const cy = (e.clientY - rect.top)  * scaleY;
+            arrows.push({x: cx, y: cy, type: arrowType});
+            redraw();
+            saveToInput();
+        });
+
+        // Clear button
+        document.getElementById('btn-clear-schema')?.addEventListener('click', function() {
+            arrows.length = 0;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            saveToInput();
+        });
+
+        // Undo button
+        document.getElementById('btn-undo-schema')?.addEventListener('click', function() {
+            arrows.pop();
+            redraw();
+            saveToInput();
+        });
+
+        // Init canvas size once image is loaded
+        function initCanvas() {
+            if (img.offsetWidth > 0 && img.offsetHeight > 0) {
+                resizeCanvas();
+            } else {
+                setTimeout(initCanvas, 50);
+            }
+        }
+        
+        if (img.complete) {
+            initCanvas();
+        } else {
+            img.addEventListener('load', initCanvas);
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,416 @@
+{% extends "accident_travail/base.html" %}
+{% load at_tags %}
+
+{% block title %}Arbre des causes — {{ accident.reference }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .arbre-container {
+        width: 100%;
+        overflow-x: auto;
+        background: white;
+        padding: 30px;
+        position: relative;
+    }
+
+    .arbre-title {
+        text-align: center;
+        color: white;
+        background: #4a90e2;
+        padding: 15px;
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 30px;
+        border-radius: 5px;
+    }
+
+    .cause-group {
+        margin-bottom: 60px;
+        position: relative;
+    }
+
+    .cause-principale {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+        border: 2px solid #e74c3c;
+        border-radius: 10px;
+        padding: 15px 25px;
+        font-weight: 600;
+        color: #333;
+        text-align: center;
+        display: inline-block;
+        min-width: 150px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        cursor: pointer;
+        margin-bottom: 20px;
+    }
+
+    .branches-container {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+        margin-left: 50px;
+    }
+
+    .branch {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        position: relative;
+    }
+
+    .pourquoi-node {
+        background: white;
+        border: 2px solid #4a90e2;
+        border-radius: 8px;
+        padding: 12px 20px;
+        min-width: 140px;
+        min-height: 60px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+    }
+
+    .pourquoi-node:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .pourquoi-node.level-5 {
+        border-color: #ff9800;
+        background: linear-gradient(135deg, #fff4e6 0%, #ffe0b2 100%);
+    }
+
+    .pourquoi-node input {
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: center;
+        font-size: 0.9rem;
+        outline: none;
+    }
+
+    .arrow-connector {
+        width: 15px;
+        height: 2px;
+        background: #4a90e2;
+        position: relative;
+    }
+
+    .arrow-connector::after {
+        content: '';
+        position: absolute;
+        right: -6px;
+        top: -3px;
+        width: 0;
+        height: 0;
+        border-left: 8px solid #4a90e2;
+        border-top: 4px solid transparent;
+        border-bottom: 4px solid transparent;
+    }
+
+    .btn-add-cause {
+        margin: 20px 0;
+    }
+
+    .btn-add-branch {
+        margin-left: 50px;
+        margin-top: 10px;
+        font-size: 0.85rem;
+    }
+
+    .node-actions {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        display: none;
+    }
+
+    .pourquoi-node:hover .node-actions,
+    .cause-principale:hover .node-actions {
+        display: block;
+    }
+
+    .btn-delete-node {
+        background: #e74c3c;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .toolbar-arbre {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-project-diagram mr-2 text-secondary"></i>Arbre des causes — {{ accident.reference }}</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_detail' accident.pk %}">{{ accident.reference }}</a></li>
+            <li class="breadcrumb-item active">Arbre des causes</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex">
+        <h3 class="card-title">Arbre des causes - Méthode des 5 Pourquoi</h3>
+        <div class="card-tools">
+            <button class="btn btn-sm btn-info" data-toggle="modal" data-target="#modalAideArbre">
+                <i class="fas fa-question-circle mr-1"></i>Aide
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="toolbar-arbre">
+            {% if can_edit %}
+            <button id="btn-add-cause" class="btn btn-danger btn-sm">
+                <i class="fas fa-plus mr-1"></i>Ajouter une cause
+            </button>
+            <button id="btn-save-arbre" class="btn btn-success btn-sm">
+                <i class="fas fa-save mr-1"></i>Sauvegarder
+            </button>
+            {% endif %}
+            <button id="btn-export" class="btn btn-secondary btn-sm">
+                <i class="fas fa-download mr-1"></i>Exporter
+            </button>
+        </div>
+
+        <div class="arbre-container">
+            <div class="arbre-title">Arbre des causes</div>
+            <div id="causes-container"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal aide arbre -->
+<div class="modal fade" id="modalAideArbre" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-secondary text-white">
+                <h5 class="modal-title"><i class="fas fa-question-circle mr-2"></i>Méthode des 5 Pourquoi</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>L'arbre des causes permet d'identifier les causes profondes d'un accident en utilisant la méthode des 5 Pourquoi.</p>
+                <ol>
+                    <li>Identifiez les <strong>causes principales</strong> de l'accident.</li>
+                    <li>Pour chaque cause, créez des branches d'analyse.</li>
+                    <li>Demandez <strong>« Pourquoi ? »</strong> jusqu'à 5 fois pour chaque branche.</li>
+                    <li>Les réponses au 5ème Pourquoi (en orange) sont les causes racines prioritaires.</li>
+                </ol>
+                <div class="alert alert-info">
+                    <strong>Conseil :</strong> Cliquez sur les cases pour modifier le texte. Vous pouvez ajouter plusieurs causes et plusieurs branches par cause.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    const ARBRE_API_URL = "{% url 'at:at_arbre_causes_api' accident.pk %}";
+    const CAN_EDIT = {{ can_edit|yesno:"true,false" }};
+
+    let arbreData = {{ arbre_json|safe }};
+    
+    // Structure de données : { causes: [{label: "Cause 1", branches: [{pourquoi: ["p1", "p2", "p3", "p4", "p5"]}]}] }
+    if (!arbreData.causes) {
+        arbreData = { causes: [] };
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function renderArbre() {
+        const container = document.getElementById('causes-container');
+        container.innerHTML = '';
+
+        arbreData.causes.forEach((cause, causeIndex) => {
+            const causeGroup = document.createElement('div');
+            causeGroup.className = 'cause-group';
+            causeGroup.innerHTML = `
+                <div class="cause-principale" onclick="editCause(${causeIndex})">
+                    ${cause.label || 'Cause ' + (causeIndex + 1)}
+                    ${CAN_EDIT ? `<div class="node-actions"><button class="btn-delete-node" onclick="event.stopPropagation(); deleteCause(${causeIndex})"><i class="fas fa-times"></i></button></div>` : ''}
+                </div>
+            `;
+
+            const branchesContainer = document.createElement('div');
+            branchesContainer.className = 'branches-container';
+
+            cause.branches.forEach((branch, branchIndex) => {
+                const branchDiv = document.createElement('div');
+                branchDiv.className = 'branch';
+
+                for (let i = 0; i < 5; i++) {
+                    if (i > 0) {
+                        const arrow = document.createElement('div');
+                        arrow.className = 'arrow-connector';
+                        branchDiv.appendChild(arrow);
+                    }
+
+                    const node = document.createElement('div');
+                    node.className = `pourquoi-node ${i === 4 ? 'level-5' : ''}`;
+                    const value = branch.pourquoi[i] || '';
+                    
+                    if (CAN_EDIT) {
+                        node.innerHTML = `
+                            <input type="text" 
+                                   value="${value}" 
+                                   placeholder="Pourquoi ${i + 1} ?" 
+                                   onchange="updatePourquoi(${causeIndex}, ${branchIndex}, ${i}, this.value)"
+                                   onfocus="this.select()">
+                            <div class="node-actions">
+                                <button class="btn-delete-node" onclick="event.stopPropagation(); deleteBranch(${causeIndex}, ${branchIndex})">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        node.textContent = value || `Pourquoi ${i + 1} ?`;
+                    }
+                    
+                    branchDiv.appendChild(node);
+                }
+
+                branchesContainer.appendChild(branchDiv);
+            });
+
+            causeGroup.appendChild(branchesContainer);
+
+            if (CAN_EDIT) {
+                const addBranchBtn = document.createElement('button');
+                addBranchBtn.className = 'btn btn-sm btn-outline-primary btn-add-branch';
+                addBranchBtn.innerHTML = '<i class="fas fa-plus mr-1"></i>Ajouter une branche';
+                addBranchBtn.onclick = () => addBranch(causeIndex);
+                causeGroup.appendChild(addBranchBtn);
+            }
+
+            container.appendChild(causeGroup);
+        });
+    }
+
+    function addCause() {
+        const newCause = {
+            label: `Cause ${arbreData.causes.length + 1}`,
+            branches: [
+                { pourquoi: ['', '', '', '', ''] },
+                { pourquoi: ['', '', '', '', ''] },
+                { pourquoi: ['', '', '', '', ''] }
+            ]
+        };
+        arbreData.causes.push(newCause);
+        renderArbre();
+    }
+
+    function addBranch(causeIndex) {
+        const newBranch = { pourquoi: ['', '', '', '', ''] };
+        arbreData.causes[causeIndex].branches.push(newBranch);
+        renderArbre();
+    }
+
+    function editCause(causeIndex) {
+        if (!CAN_EDIT) return;
+        const newLabel = prompt('Nom de la cause :', arbreData.causes[causeIndex].label);
+        if (newLabel !== null) {
+            arbreData.causes[causeIndex].label = newLabel;
+            renderArbre();
+        }
+    }
+
+    function deleteCause(causeIndex) {
+        if (!confirm('Supprimer cette cause et toutes ses branches ?')) return;
+        arbreData.causes.splice(causeIndex, 1);
+        renderArbre();
+    }
+
+    function deleteBranch(causeIndex, branchIndex) {
+        if (!confirm('Supprimer cette branche ?')) return;
+        arbreData.causes[causeIndex].branches.splice(branchIndex, 1);
+        renderArbre();
+    }
+
+    function updatePourquoi(causeIndex, branchIndex, pourquoiIndex, value) {
+        arbreData.causes[causeIndex].branches[branchIndex].pourquoi[pourquoiIndex] = value;
+    }
+
+    function saveArbre() {
+        fetch(ARBRE_API_URL, {
+            method: 'POST',
+            body: JSON.stringify(arbreData),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') {
+                toastr.success('Arbre des causes sauvegardé avec succès');
+            } else {
+                toastr.error('Erreur : ' + data.message);
+            }
+        })
+        .catch(err => {
+            toastr.error('Erreur de connexion : ' + err);
+        });
+    }
+
+    function exportArbre() {
+        const dataStr = JSON.stringify(arbreData, null, 2);
+        const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+        const exportFileDefaultName = 'arbre_causes_{{ accident.reference }}.json';
+
+        const linkElement = document.createElement('a');
+        linkElement.setAttribute('href', dataUri);
+        linkElement.setAttribute('download', exportFileDefaultName);
+        linkElement.click();
+    }
+
+    // Initialisation
+    document.addEventListener('DOMContentLoaded', function() {
+        renderArbre();
+
+        if (CAN_EDIT) {
+            document.getElementById('btn-add-cause').addEventListener('click', addCause);
+            document.getElementById('btn-save-arbre').addEventListener('click', saveArbre);
+        }
+        
+        document.getElementById('btn-export').addEventListener('click', exportArbre);
+    });
+</script>
+{% endblock %}

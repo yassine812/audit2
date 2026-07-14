@@ -1,0 +1,873 @@
+{% extends "accident_travail/base.html" %}
+{% load at_tags %}
+
+{% block title %}Analyse 48h — {{ accident.reference }}{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-search mr-2 text-info"></i>Analyse 48h — {{ accident.reference }}</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'at:at_dashboard' %}">Tableau de bord</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'at:at_detail' accident.pk %}">{{ accident.reference }}</a></li>
+            <li class="breadcrumb-item active">Analyse 48h</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+{% if en_retard_48h %}
+<div class="alert alert-danger alert-dismissible">
+    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+    <i class="fas fa-exclamation-triangle mr-2"></i>
+    <strong>RETARD :</strong> L'échéance de l'analyse 48h était le <strong>{{ echeance_48h|date:"d/m/Y H:i" }}</strong>. Ce formulaire est soumis <strong>en retard</strong>.
+</div>
+{% elif heures_restantes_48h is not None %}
+<div class="alert alert-{% if heures_restantes_48h < 6 %}warning{% else %}info{% endif %}">
+    <i class="fas fa-clock mr-2"></i>
+    Échéance analyse 48h : <strong>{{ echeance_48h|date:"d/m/Y H:i" }}</strong>
+    — il reste <strong>{{ heures_restantes_48h }}h</strong>.
+</div>
+{% endif %}
+<form method="post" id="form-48h">
+    {% csrf_token %}
+
+    <ul class="nav nav-tabs" id="tabs48h" role="tablist">
+        <li class="nav-item"><a class="nav-link active" data-toggle="tab" href="#tab-entete">En-tête</a></li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-victime">Victime &amp; Formations</a></li>
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="tab" href="#tab-questionnaire">
+                Questionnaire
+                <span id="q-autosave-indicator"
+                      class="badge badge-success ml-1"
+                      style="opacity:0;transition:opacity .4s;font-size:.65rem">
+                    <i class="fas fa-check"></i> Enregistré
+                </span>
+            </a>
+        </li>
+        <li class="nav-item"><a class="nav-link" data-toggle="tab" href="#tab-activite">Description activité</a></li>
+        {% if show_causes_tab %}
+        <li class="nav-item"><a id="tab-arbre-link" class="nav-link" data-toggle="tab" href="#tab-arbre"><i class="fas fa-sitemap mr-1"></i>Causes (5 Pourquoi)</a></li>
+        {% endif %}
+    </ul>
+
+    <div class="tab-content border border-top-0 p-3 bg-white">
+
+        <!-- Onglet 1 : En-tête -->
+        <div class="tab-pane fade show active" id="tab-entete">
+            <h5>Informations générales</h5>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="form-group"><label>{{ form.date_analyse.label }}</label>{{ form.date_analyse }}</div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Heure de l'accident</label>
+                        <input type="time" class="form-control" value="{{ accident.heure_accident|default:'' }}" readonly>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>Société</label>
+                        <p class="form-control-plaintext">{{ accident.societe|default:'—' }}</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label>{{ form.horaire_travail.label }}</label>
+                        {{ form.horaire_travail }}
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <h5 class="mb-2">Participants à l'analyse</h5>
+            <!-- Champs cachés pour la soumission du formulaire -->
+            <div style="display:none">
+                {{ form.participants_exploitation }}
+                {{ form.participants_cssct }}
+                {{ form.participants_rh }}
+                {{ form.participants_qse }}
+                {{ form.participants_direction }}
+                {{ form.participants_finance }}
+                {{ form.participants_achat }}
+                {{ form.participants_commercial }}
+                {{ form.participants_autre }}
+                {{ form.participants_client }}
+            </div>
+            <!-- Tableau dynamique des participants -->
+            <table class="table table-sm table-bordered mb-2" id="participants-48h-table">
+                <thead class="thead-light">
+                    <tr>
+                        <th style="width:38%">Rôle</th>
+                        <th>Nom du participant</th>
+                        <th style="width:44px"></th>
+                    </tr>
+                </thead>
+                <tbody id="participants-48h-rows"></tbody>
+            </table>
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-participant-48h">
+                <i class="fas fa-plus mr-1"></i>Ajouter un participant
+            </button>
+            <script>
+            (function(){
+                var ROLES = [
+                    {key:'exploitation',label:'Exploitation'},
+                    {key:'cssct',label:'CSSCT'},
+                    {key:'rh',label:'RH'},
+                    {key:'qse',label:'QSE'},
+                    {key:'direction',label:'Direction'},
+                    {key:'finance',label:'Finance'},
+                    {key:'achat',label:'Achat'},
+                    {key:'commercial',label:'Commercial'},
+                    {key:'autre',label:'Autre'},
+                    {key:'client',label:'Client'},
+                ];
+                var tbody = document.getElementById('participants-48h-rows');
+                var theForm = document.getElementById('form-48h');
+
+                function buildSelect(sel) {
+                    var html = '<select class="form-control form-control-sm"><option value="">\u2014 R\u00f4le \u2014</option>';
+                    ROLES.forEach(function(r){
+                        html += '<option value="'+r.key+'"'+(r.key===sel?' selected':'')+'>'+r.label+'</option>';
+                    });
+                    return html+'</select>';
+                }
+
+                function addRow(roleKey, nameVal) {
+                    var tr = document.createElement('tr');
+                    var esc = (nameVal||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+                    tr.innerHTML = '<td>'+buildSelect(roleKey)+'</td>'
+                        +'<td><input type="text" class="form-control form-control-sm" value="'+esc+'" placeholder="Pr\u00e9nom Nom"></td>'
+                        +'<td class="text-center"><button type="button" class="btn btn-danger btn-sm py-0 px-2" title="Supprimer"><i class="fas fa-times"></i></button></td>';
+                    tr.querySelector('button').addEventListener('click', function(){ tr.remove(); });
+                    tbody.appendChild(tr);
+                }
+
+                function loadFromFields() {
+                    ROLES.forEach(function(r){
+                        var f = document.getElementById('id_participants_'+r.key);
+                        if(!f) return;
+                        var val = f.value.trim();
+                        if(val) val.split(',').forEach(function(n){ n=n.trim(); if(n) addRow(r.key,n); });
+                    });
+                    if(!tbody.querySelector('tr')) addRow('','');
+                }
+
+                function syncToFields() {
+                    var collected = {};
+                    ROLES.forEach(function(r){ collected[r.key]=[]; });
+                    tbody.querySelectorAll('tr').forEach(function(tr){
+                        var role = tr.querySelector('select').value;
+                        var name = tr.querySelector('input[type="text"]').value.trim();
+                        if(role && name) collected[role].push(name);
+                    });
+                    ROLES.forEach(function(r){
+                        var f = document.getElementById('id_participants_'+r.key);
+                        if(f) f.value = collected[r.key].join(', ');
+                    });
+                }
+
+                document.getElementById('btn-add-participant-48h').addEventListener('click', function(){ addRow('',''); });
+                if(theForm) theForm.addEventListener('submit', syncToFields, true);
+                loadFromFields();
+            })();
+            </script>
+        </div>
+
+        <!-- Onglet 2 : Victime & Formations -->
+        <div class="tab-pane fade" id="tab-victime">
+            <!-- Récap victime (données saisies lors de la déclaration 24h) -->
+            <div class="alert alert-light border mb-3 p-2" style="background:#f8f9fa">
+                <small class="text-muted font-weight-bold d-block mb-1"><i class="fas fa-info-circle mr-1"></i>Informations victime (saisies lors de la déclaration 24h)</small>
+                <div class="row small">
+                    <div class="col-md-12"><strong>Nom / Prénom :</strong> {{ accident.victime_nom_prenom|default:"—" }}</div>
+                </div>
+            </div>
+            <h5>Victime — informations complémentaires (analyse)</h5>
+            <div class="row">
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>{{ form.victime_age.label }}</label>
+                        {{ form.victime_age }}
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="form-group">
+                        <label>{{ form.victime_sexe.label }}</label>
+                        {{ form.victime_sexe }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.victime_date_visite_medicale.label }}</label>
+                        {{ form.victime_date_visite_medicale }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.victime_restriction_aptitude.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.victime_restriction_aptitude %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label>{{ form.victime_restriction_precisions.label }}</label>
+                        {{ form.victime_restriction_precisions }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.victime_poste_occupe.label }}</label>
+                        {{ form.victime_poste_occupe }}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label>{{ form.victime_anciennete_poste_analyse.label }}</label>
+                        {{ form.victime_anciennete_poste_analyse }}
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <h5>Formations</h5>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead class="thead-light">
+                        <tr>
+                            <th style="width:35%">Formation</th>
+                            <th style="width:20%">Réalisée</th>
+                            <th style="width:18%">Date</th>
+                            <th>Commentaire</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in formations_data %}
+                        <tr>
+                            <td class="small align-middle">{{ f.nom }}</td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <label class="btn btn-outline-secondary{% if f.realise == 'NA' %} active{% endif %}">
+                                        <input type="radio" name="formation_{{ f.index }}_realise" value="NA"
+                                            {% if f.realise == 'NA' %}checked{% endif %}> NA
+                                    </label>
+                                    <label class="btn btn-outline-success{% if f.realise == 'O' %} active{% endif %}">
+                                        <input type="radio" name="formation_{{ f.index }}_realise" value="O"
+                                            {% if f.realise == 'O' %}checked{% endif %}> Oui
+                                    </label>
+                                    <label class="btn btn-outline-danger{% if f.realise == 'N' %} active{% endif %}">
+                                        <input type="radio" name="formation_{{ f.index }}_realise" value="N"
+                                            {% if f.realise == 'N' %}checked{% endif %}> Non
+                                    </label>
+                                </div>
+                            </td>
+                            <td><input type="date" name="formation_{{ f.index }}_date" class="form-control form-control-sm" value="{{ f.date }}"></td>
+                            <td><input type="text" name="formation_{{ f.index }}_commentaire" class="form-control form-control-sm" value="{{ f.commentaire }}" placeholder="Commentaire sur la formation…"></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Onglet 3 : Questionnaire NA/O/N -->
+        <div class="tab-pane fade" id="tab-questionnaire">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle mr-2"></i>
+                Pour chaque question, sélectionnez <strong>NA</strong> (Non Applicable), <strong>O</strong> (Oui) ou
+                <strong>N</strong> (Non).
+                Les précisions sont requises pour les réponses O ou N.
+            </div>
+            {% for section, items in questionnaire_sections.items %}
+            <div class="card card-outline card-secondary mb-3">
+                <div class="card-header" data-toggle="collapse" data-target="#sect-{{ forloop.counter }}"
+                    style="cursor:pointer">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chevron-down mr-2 text-muted small"></i>{{ section }}
+                    </h5>
+                </div>
+                <div class="collapse show" id="sect-{{ forloop.counter }}">
+                    <div class="card-body p-2">
+                        {% for item in items %}
+                        <div class="question-card {% if item.est_sous_question %}sous-question{% endif %}
+                  {% if item.est_sous_question %}d-none{% endif %}" {% if item.est_sous_question %}
+                            data-parent="{{ item.parent_code }}" data-condition="{{ item.condition_affichage }}" {% endif %}>
+                            <div class="card card-outline card-primary mb-2">
+                                <div class="card-header py-2 px-3">
+                                    <span class="badge badge-secondary mr-2">{{ item.code }}</span>
+                                    <span class="small">{{ item.question }}</span>
+                                </div>
+                                <div class="card-body p-2">
+                                    <div class="btn-group w-100" role="group">
+                                        <label
+                                            class="btn btn-outline-secondary btn-sm {% if item.reponse == 'NA' %}active{% endif %}"
+                                            style="flex:1">
+                                            <input type="radio" name="q_{{ item.code|cut:'.' }}_reponse" value="NA"
+                                                data-code="{{ item.code }}" class="question-reponse" {% if item.reponse == 'NA' %}checked{% endif %}> NA
+                                        </label>
+                                        <label
+                                            class="btn btn-outline-success btn-sm {% if item.reponse == 'O' %}active{% endif %}"
+                                            style="flex:1">
+                                            <input type="radio" name="q_{{ item.code|cut:'.' }}_reponse" value="O"
+                                                data-code="{{ item.code }}" class="question-reponse" {% if item.reponse == 'O' %}checked{% endif %}> Oui
+                                        </label>
+                                        <label
+                                            class="btn btn-outline-danger btn-sm {% if item.reponse == 'N' %}active{% endif %}"
+                                            style="flex:1">
+                                            <input type="radio" name="q_{{ item.code|cut:'.' }}_reponse" value="N"
+                                                data-code="{{ item.code }}" class="question-reponse" {% if item.reponse == 'N' %}checked{% endif %}> Non
+                                        </label>
+                                    </div>
+                                    <div class="precisions-block mt-2 {% if not item.reponse or item.reponse == 'NA' %}d-none{% endif %}"
+                                        data-code="{{ item.code }}">
+                                        <textarea class="form-control form-control-sm"
+                                            name="q_{{ item.code|cut:'.' }}_precisions" placeholder="Précisions…"
+                                            rows="2">{{ item.precisions }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Onglet 4 : Description activité &amp; Milieu -->
+        <div class="tab-pane fade" id="tab-activite">
+            <h5>Description de l'activité</h5>
+            <div class="form-group">
+                <label>{{ form.description_activite.label }}</label>
+                {{ form.description_activite }}
+            </div>
+            <hr>
+            <h5>Le milieu</h5>
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.emplacement_interieur_exterieur.label }}</label>
+                        {{ form.emplacement_interieur_exterieur }}
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.poste_travail_habituel.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.poste_travail_habituel %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label>{{ form.emplacement_connu_victime.label }}</label>
+                        <div class="d-flex" style="gap:1rem">
+                            {% for r in form.emplacement_connu_victime %}<div class="custom-control custom-radio">{{ r.tag }}<label class="custom-control-label" for="{{ r.id_for_label }}">{{ r.choice_label }}</label></div>{% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group"><label>{{ form.lieu_depart.label }}</label>{{ form.lieu_depart }}</div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group"><label>{{ form.lieu_arrivee.label }}</label>{{ form.lieu_arrivee }}</div>
+                </div>
+                <div class="col-md-12">
+                    <div class="form-group"><label>{{ form.motif_deplacement.label }}</label>{{ form.motif_deplacement }}</div>
+                </div>
+            </div>
+            <hr>
+            <h6>Nuisances</h6>
+            <div class="row mb-2">
+                {% for n in nuisances_data %}
+                <div class="col-md-3 col-6 mb-1">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="nuisance_{{ n.key }}"
+                            name="nuisance_{{ n.key }}" {% if n.checked %}checked{% endif %}>
+                        <label class="custom-control-label" for="nuisance_{{ n.key }}">{{ n.label }}</label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="form-group">
+                <label>{{ form.nuisances_precisions.label }}</label>{{ form.nuisances_precisions }}
+            </div>
+        </div>
+
+        <!-- Onglet 5 : Arbre des causes (méthode 5 Pourquoi) -->
+        <div class="tab-pane fade" id="tab-arbre">
+
+            <div class="alert alert-info alert-dismissible mb-3">
+                <button type="button" class="close" data-dismiss="alert">&times;</button>
+                <i class="fas fa-lightbulb mr-2"></i>
+                <strong>Arbre des causes - Méthode des 5 Pourquoi</strong> : 
+                Identifiez les causes principales de l'accident, puis pour chaque cause,
+                créez des branches d'analyse. Demandez « Pourquoi ? » jusqu'à 5 fois pour chaque branche.
+                La <strong class="text-danger">5ème réponse (en orange) est la cause racine</strong> de l'accident.
+            </div>
+
+            <!-- Widget arbre des causes -->
+            {% include "accident_travail/includes/arbre_causes_widget.html" with accident=accident can_edit=True widget_id="arbre-48h" %}
+
+        </div>
+
+    </div><!-- /.tab-content -->
+
+    <div class="d-flex justify-content-end mt-3" style="gap:.5rem">
+        <a href="{% url 'at:at_detail' accident.pk %}" class="btn btn-secondary">
+            <i class="fas fa-times mr-1"></i>Annuler
+        </a>
+        <button type="submit" name="sauvegarder" class="btn btn-success">
+            <i class="fas fa-save mr-1"></i>Sauvegarder
+        </button>
+        {% if accident.statut == '48h' or accident.statut == '24h' %}
+        <button type="submit" name="soumettre_8j" class="btn btn-primary">
+            <i class="fas fa-arrow-right mr-1"></i>Soumettre → LAP 8 jours
+        </button>
+        {% endif %}
+    </div>
+</form>
+
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Rotate chevron when section card is open */
+.card-header[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+.card-header .fa-chevron-down { transition: transform .2s ease; }
+
+/* Garder les couleurs des boutons sélectionnés dans le questionnaire */
+.btn-outline-secondary.active,
+.btn-outline-secondary:active {
+    background-color: #6c757d !important;
+    color: white !important;
+    border-color: #6c757d !important;
+}
+
+.btn-outline-success.active,
+.btn-outline-success:active {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
+.btn-outline-danger.active,
+.btn-outline-danger:active {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border-color: #dc3545 !important;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    // Gestion des réponses NA/O/N : précisions et sous-questions
+    document.querySelectorAll('input.question-reponse').forEach(radio => {
+        radio.addEventListener('change', function () {
+            const code = this.dataset.code;
+            const val = this.value;
+
+            // Afficher/masquer le bloc précisions
+            const precBlock = document.querySelector(`.precisions-block[data-code="${code}"]`);
+            if (precBlock) precBlock.classList.toggle('d-none', val === 'NA');
+
+            // Sous-questions conditionnelles
+            document.querySelectorAll(`.sous-question[data-parent="${code}"]`).forEach(sq => {
+                const condition = sq.dataset.condition;
+                sq.classList.toggle('d-none', val !== condition);
+            });
+        });
+    });
+
+    // ── Auto-sauvegarde lors du changement d'onglet (tous les onglets) ────────
+    (function () {
+        var SAVE_URL  = "{% url 'at:at_autosave_48h' accident.pk %}";
+        var saveTimer = null;
+        var indicator = document.getElementById('q-autosave-indicator');
+
+        function showSaved() {
+            if (!indicator) return;
+            indicator.style.opacity = '1';
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(function () { indicator.style.opacity = '0'; }, 2500);
+        }
+
+        function doAutoSave() {
+            // Sync pourquoi_data_json avant envoi si disponible
+            var jsonField = document.getElementById('pourquoi-data-json-field');
+            if (jsonField && typeof window._at48hCollect === 'function') {
+                jsonField.value = JSON.stringify(window._at48hCollect());
+            }
+            var form = document.getElementById('form-48h');
+            if (!form) return;
+            var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (!csrf) return;
+            fetch(SAVE_URL, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-CSRFToken': csrf.value },
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { if (d.saved) showSaved(); })
+            .catch(function () {});
+        }
+
+        // Déclencher quand on quitte n'importe quel onglet
+        document.querySelectorAll('a[data-toggle="tab"]').forEach(function (link) {
+            link.addEventListener('hide.bs.tab', function () { doAutoSave(); });
+        });
+    })();
+
+    // ── 5 Pourquoi + Diagramme Ishikawa ──────────────────────────────────────
+    (function () {
+        var ALL_QUESTIONS = {{ questions_json|safe }};
+        var SAVED_POURQUOI = {{ pourquoi_data_json|safe }};
+
+        var container     = document.getElementById('pourquoi-sections-container');
+        var emptyState    = document.getElementById('pourquoi-empty-state');
+        var genRow        = document.getElementById('pourquoi-generate-row');
+        var fishSection   = document.getElementById('fishbone-section');
+        var fishDraw      = document.getElementById('fishbone-draw');
+        var jsonField     = document.getElementById('pourquoi-data-json-field');
+        var theForm       = document.getElementById('form-48h');
+        var printBtn      = document.getElementById('btn-print-fishbone');
+
+        // Map sections in order
+        var sectionOrder = [];
+        var sectionMap   = {};
+        ALL_QUESTIONS.forEach(function (q) {
+            if (!sectionMap[q.section]) { sectionMap[q.section] = []; sectionOrder.push(q.section); }
+            sectionMap[q.section].push(q);
+        });
+
+        // Escape helpers
+        function esc(s)     { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function escAttr(s) { return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;'); }
+
+        // Get answers from questionnaire tab
+        function getAnswers() {
+            var a = {};
+            ALL_QUESTIONS.forEach(function (q) {
+                // Names match the template: |cut:'.' removes dots (e.g. "1.4" → "q_14_reponse")
+                var name    = 'q_' + q.code.replace(/\./g, '') + '_reponse';
+                var checked = document.querySelector('input[name="' + name + '"]:checked');
+                a[q.code]   = checked ? checked.value : (q.reponse || 'NA');
+            });
+            return a;
+        }
+
+        // Render pourquoi input blocks per section (horizontal row, collapsible, closed by default)
+        function render() {
+            var answers = getAnswers();
+            var hasOui  = false;
+            var rowHtml = '<div class="row">';
+            var secIdx  = 0;
+
+            sectionOrder.forEach(function (sName) {
+                var ouiQ = (sectionMap[sName] || []).filter(function (q) { return answers[q.code] === 'O'; });
+                if (!ouiQ.length) return;
+                hasOui = true;
+
+                var cid = 'pq-collapse-' + secIdx++;
+
+                rowHtml += '<div class="col-12 mb-2">'
+                    + '<div class="card card-outline card-success">'
+                    + '<div class="card-header py-2" role="button" data-toggle="collapse"'
+                    + ' data-target="#' + cid + '" aria-expanded="false" style="cursor:pointer">'
+                    + '<h5 class="card-title mb-0 d-flex justify-content-between align-items-center">'
+                    + '<span><i class="fas fa-check-circle mr-2 text-success"></i>' + esc(sName) + '</span>'
+                    + '<span class="d-flex align-items-center" style="gap:.5rem">'
+                    + '<span class="badge badge-success">' + ouiQ.length + ' OUI</span>'
+                    + '<span class="btn btn-sm btn-outline-secondary py-0 px-2" style="pointer-events:none">'
+                    + '<i class="fas fa-chevron-down" style="font-size:.75rem"></i></span>'
+                    + '</span></h5></div>'
+                    + '<div class="collapse" id="' + cid + '">'
+                    + '<div class="card-body">';
+
+                ouiQ.forEach(function (q) {
+                    var saved = ((SAVED_POURQUOI[q.code] || {}).pourquoi || []);
+                    while (saved.length < 5) saved.push('');
+
+                    rowHtml += '<div class="rounded border p-3 mb-3" style="background:#f0fff4">'
+                        + '<div class="d-flex align-items-start mb-2">'
+                        + '<span class="badge badge-success mr-2 mt-1">OUI</span>'
+                        + '<div><strong class="small text-muted mr-2">' + esc(q.code) + '</strong>'
+                        + '<span class="small">' + esc(q.question) + '</span></div></div>';
+
+                    // En-têtes des colonnes (disposition horizontale)
+                    rowHtml += '<div class="table-responsive">'
+                        + '<table class="table table-sm table-borderless mb-2" style="table-layout:fixed;min-width:800px">'
+                        + '<thead><tr>';
+                    
+                    for (var i = 0; i < 5; i++) {
+                        var isLast = (i === 4);
+                        var labelHtml = isLast
+                            ? '<i class="fas fa-bullseye mr-1"></i>Cause racine'
+                            : 'Pourquoi ' + (i + 1);
+                        var colorClass = isLast ? 'text-danger' : 'text-success';
+                        
+                        rowHtml += '<th class="text-center ' + colorClass + ' font-weight-bold" style="width:19%">'
+                            + labelHtml + '</th>';
+                        
+                        if (i < 4) {
+                            rowHtml += '<th style="width:1%;vertical-align:middle" class="text-center">'
+                                + '<i class="fas fa-arrow-right text-muted"></i></th>';
+                        }
+                    }
+                    rowHtml += '</tr></thead><tbody><tr>';
+
+                    // Champs de saisie (disposition horizontale)
+                    for (var i = 0; i < 5; i++) {
+                        var isLast = (i === 4);
+                        var bdrColor = isLast ? '#dc3545' : '#28a745';
+                        var extraSty = isLast ? 'background:#fff5f5;' : 'background:#fff;';
+
+                        rowHtml += '<td style="padding:4px">'
+                            + '<input type="text" class="form-control form-control-sm pourquoi-field"'
+                            + ' data-qcode="' + escAttr(q.code) + '" data-idx="' + i + '"'
+                            + ' style="border-top:3px solid ' + bdrColor + ';' + extraSty + '"'
+                            + ' value="' + escAttr(saved[i]) + '"'
+                            + ' placeholder="' + (isLast ? 'Cause racine…' : 'Pourquoi ' + (i + 1) + '…') + '">'
+                            + '</td>';
+                        
+                        if (i < 4) {
+                            rowHtml += '<td style="width:1%"></td>';
+                        }
+                    }
+                    
+                    rowHtml += '</tr></tbody></table></div>';
+                    rowHtml += '</div>'; // question block
+                });
+
+                rowHtml += '</div>'   // .card-body
+                    + '</div>'        // .collapse
+                    + '</div>'        // .card
+                    + '</div>';       // .col
+            });
+
+            rowHtml += '</div>'; // .row
+            container.innerHTML = rowHtml;
+
+            emptyState.style.display = hasOui ? 'none' : '';
+            genRow.style.display     = hasOui ? 'flex' : 'none';
+
+            if (hasOui && Object.keys(SAVED_POURQUOI).length > 0) generateFishbone(false);
+            else if (!hasOui) fishSection.style.display = 'none';
+        }
+
+        // Collect current pourquoi data from inputs
+        function collect() {
+            var data = {};
+            document.querySelectorAll('.pourquoi-field').forEach(function (inp) {
+                var code = inp.dataset.qcode;
+                var idx  = parseInt(inp.dataset.idx, 10);
+                if (!data[code]) {
+                    var q      = ALL_QUESTIONS.find(function (x) { return x.code === code; }) || {};
+                    data[code] = { section: q.section || '', question: q.question || '', pourquoi: ['','','','',''] };
+                }
+                data[code].pourquoi[idx] = inp.value.trim();
+            });
+            return data;
+        }
+        // Expose pour l'auto-sauvegarde (onglet Causes)
+        window._at48hCollect = collect;
+
+        // ── Fishbone SVG ────────────────────────────────────────────────────
+        function generateFishbone(scroll) {
+            var data = collect();
+            console.log('[Fishbone] collect() returned', Object.keys(data).length, 'items:', Object.keys(data));
+            if (Object.keys(data).length === 0) {
+                // No pourquoi fields found — render() may not have populated them yet
+                render();
+                data = collect();
+                console.log('[Fishbone] after re-render, collect():', Object.keys(data).length, 'items');
+            }
+            SAVED_POURQUOI = data;
+            fishDraw.innerHTML = buildFishbone(data, '{{ accident.reference }}', '{{ accident.victime_nom_prenom|escapejs }}');
+            fishSection.style.display = '';
+            if (scroll !== false) fishSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Section config — built dynamically from sectionOrder to guarantee name matching
+        var _boneLabels = ["Organisation\ndu travail", "La victime", "T\u00e2che /\nActivit\u00e9", "Le milieu", "Produits &\n\u00c9quipements"];
+        var _boneSides  = ['T', 'B', 'T', 'B', 'T'];
+        var _boneTopIdx = 0, _boneBotIdx = 0;
+        var BONE_CFG = sectionOrder.slice(0, 5).map(function (sName, si) {
+            var side = _boneSides[si] || 'T';
+            var pos  = side === 'T' ? _boneTopIdx++ : _boneBotIdx++;
+            var cfg  = { name: sName, label: _boneLabels[si] || sName, side: side, pos: pos };
+            if (si === 4) cfg.blen = 160;  // Produits & Équipements — shorter bone
+            return cfg;
+        });
+        function buildFishbone(data, ref, victime) {
+            // Nouvelle version: hiérarchie avec design de boîtes connectées par des flèches
+            if (Object.keys(data).length === 0) {
+                return '<div class="alert alert-info"><i class="fas fa-info-circle mr-2"></i>Aucune cause identifiée.</div>';
+            }
+
+            var html = '<style>'
+                + '.cause-box { position: relative; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin: 10px; min-height: 80px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 13px; transition: all 0.3s ease; }'
+                + '.cause-box:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }'
+                + '.cause-box-blue { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); color: white; }'
+                + '.cause-box-red { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: white; font-weight: bold; }'
+                + '.cause-box-green { background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); color: white; }'
+                + '.cause-label { position: absolute; top: -10px; left: 10px; background: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }'
+                + '.arrow-connector { color: #7f8c8d; font-size: 24px; display: flex; align-items: center; justify-content: center; }'
+                + '.question-header { background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%); color: white; padding: 12px; border-radius: 8px 8px 0 0; font-weight: bold; }'
+                + '.cause-flow { display: flex; align-items: stretch; flex-wrap: nowrap; overflow-x: auto; padding: 20px 10px; background: #f8f9fa; border-radius: 8px; }'
+                + '.cause-item { flex: 0 0 auto; width: 200px; }'
+                + '.arrow-item { flex: 0 0 auto; width: 50px; display: flex; align-items: center; justify-content: center; }'
+                + '</style>';
+
+            html += '<div class="mb-4 p-3" style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">'
+                + '<h5 class="text-center mb-0" style="color: #2c3e50;">'
+                + '<i class="fas fa-exclamation-triangle mr-2"></i>'
+                + '<strong>Accident : ' + esc(ref) + '</strong> — Victime : <strong>' + esc(victime) + '</strong>'
+                + '</h5></div>';
+
+            // Grouper par section
+            sectionOrder.forEach(function(sName) {
+                var qItems = Object.keys(data)
+                    .filter(function (c) { return (data[c].section || '') === sName; })
+                    .map(function (c) {
+                        return {
+                            code: c,
+                            question: data[c].question || '',
+                            pourquoi: data[c].pourquoi || ['','','','','']
+                        };
+                    });
+
+                if (qItems.length === 0) return;
+
+                html += '<div class="card mb-4" style="border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 12px; overflow: hidden;">'
+                    + '<div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;">'
+                    + '<h6 class="mb-0"><i class="fas fa-folder-open mr-2"></i>' + esc(sName) + '</h6>'
+                    + '</div><div class="card-body p-3">';
+
+                qItems.forEach(function(qi) {
+                    var activePourquoi = qi.pourquoi.filter(function(p) { return (p || '').trim(); });
+                    if (activePourquoi.length === 0) return;
+
+                    html += '<div class="mb-3">'
+                        + '<div class="question-header">'
+                        + '<span class="badge badge-light mr-2">' + esc(qi.code) + '</span>'
+                        + esc(qi.question)
+                        + '</div>';
+
+                    // Flux horizontal des pourquoi avec des boîtes
+                    html += '<div class="cause-flow">';
+
+                    for (var i = 0; i < 5; i++) {
+                        var val = qi.pourquoi[i] || '';
+                        var isLast = (i === 4);
+                        
+                        // Boîte de cause
+                        html += '<div class="cause-item">'
+                            + '<div class="cause-box ' + (isLast ? 'cause-box-red' : (i === 0 ? 'cause-box-green' : 'cause-box-blue')) + '">'
+                            + '<span class="cause-label" style="color: ' + (isLast ? '#e74c3c' : (i === 0 ? '#27ae60' : '#3498db')) + ';">'
+                            + (isLast ? '🎯 Cause racine' : 'P' + (i + 1))
+                            + '</span>'
+                            + '<div>' + (val ? esc(val) : '<span style="opacity:0.6;">Non renseigné</span>') + '</div>'
+                            + '</div>'
+                            + '</div>';
+                        
+                        // Flèche de connexion (sauf après le dernier)
+                        if (i < 4) {
+                            html += '<div class="arrow-item">'
+                                + '<div class="arrow-connector"><i class="fas fa-arrow-right"></i></div>'
+                                + '</div>';
+                        }
+                    }
+
+                    html += '</div>'; // fin cause-flow
+                    html += '</div>'; // fin question block
+                });
+
+                html += '</div></div>'; // fin card
+            });
+
+            return html;
+        }
+
+        // ── Events ──────────────────────────────────────────────────────────
+        // When questionnaire radio changes, re-render causes tab (auto-refresh)
+        document.querySelectorAll('input.question-reponse').forEach(function (r) {
+            r.addEventListener('change', function () {
+                // Toujours re-render quand le questionnaire change
+                setTimeout(function() {
+                    render();
+                    // Si le diagramme était déjà affiché, le régénérer
+                    if (fishSection && fishSection.style.display !== 'none') {
+                        generateFishbone(false);
+                    }
+                }, 100);
+            });
+        });
+
+        // Render when tab is shown
+        var arbreLink = document.querySelector('a[href="#tab-arbre"]');
+        if (arbreLink) arbreLink.addEventListener('shown.bs.tab', function () { render(); });
+
+        // Generate fishbone on button click
+        var genBtn = document.getElementById('btn-gen-fishbone');
+        if (genBtn) genBtn.addEventListener('click', function () { generateFishbone(true); });
+
+        // Print fishbone only (opens a minimal popup with just the SVG)
+        if (printBtn) printBtn.addEventListener('click', function () {
+            var svg = fishDraw && fishDraw.querySelector('svg');
+            if (!svg) return;
+            // Clone and add viewBox so the SVG scales to page width
+            var clone = svg.cloneNode(true);
+            var W = parseFloat(svg.getAttribute('width'))  || 1800;
+            var H = parseFloat(svg.getAttribute('height')) || 720;
+            clone.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+            clone.setAttribute('width',  '100%');
+            clone.setAttribute('height', 'auto');
+            clone.style.cssText = 'display:block;width:100%;height:auto';
+            var svgHtml = new XMLSerializer().serializeToString(clone);
+            var pw = window.open('', '_blank', 'width=1200,height=700');
+            pw.document.write(
+                '<!DOCTYPE html><html><head><meta charset="utf-8">'
+                + '<title>Ishikawa \u2014 {{ accident.reference|escapejs }}</title>'
+                + '<style>'
+                + '@page{size:A4 landscape;margin:8mm}'
+                + 'body{margin:0;padding:8px;background:#fff;font-family:Arial,sans-serif}'
+                + 'h2{font-size:13px;margin:0 0 6px;color:#c0392b}'
+                + 'svg{width:100% !important;height:auto !important;display:block}'
+                + '@media print{body{padding:0}h2{margin-bottom:4px}}'
+                + '</style></head><body>'
+                + '<h2><strong>Diagramme Ishikawa</strong> &mdash; {{ accident.reference|escapejs }}</h2>'
+                + svgHtml
+                + '<script>window.onload=function(){window.print();window.close();}<\/script>'
+                + '</body></html>'
+            );
+            pw.document.close();
+        });
+
+        // Sync JSON field before form submit
+        if (theForm) theForm.addEventListener('submit', function () {
+            jsonField.value = JSON.stringify(collect());
+        }, true);
+
+        // Initial render (after short delay so questionnaire state is settled)
+        setTimeout(render, 250);
+    })();
+
+    // Activer l'onglet Causes si redirection après sauvegarde (?tab=arbre)
+    (function () {
+        if (new URLSearchParams(window.location.search).get('tab') === 'arbre') {
+            var link = document.getElementById('tab-arbre-link');
+            if (link) {
+                $(link).tab('show');
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+        }
+    })();
+</script>
+{% endblock %}

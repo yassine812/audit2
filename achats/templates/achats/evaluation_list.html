@@ -1,0 +1,220 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Évaluations fournisseurs{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell { background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%); border-radius: 14px; padding: 1.25rem; }
+  .panel-card { border: 1px solid #dfe6f5; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
+  .page-title { margin: 0; color: #1f2a44; font-weight: 700; font-size: 1.35rem; }
+  .page-subtitle { margin-top: .25rem; color: #6b7280; font-size: .9rem; }
+  .filters-sidebar {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 300px;
+    height: 100vh;
+    z-index: 1060;
+    background: #fff;
+    box-shadow: -12px 0 35px rgba(0, 0, 0, 0.14);
+    transition: right 0.3s ease-in-out;
+    overflow-y: auto;
+    padding: 1.1rem;
+  }
+  .filters-sidebar.open { right: 0; }
+  .filters-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.25);
+    z-index: 1050;
+    display: none;
+  }
+  .filters-backdrop.show { display: block; }
+  .filters-toggle {
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    z-index: 1055;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    box-shadow: 0 10px 18px rgba(59, 130, 246, 0.35);
+  }
+  .filters-sidebar .form-control,
+  .filters-sidebar .form-select {
+    border: 1px solid #d1d5db;
+    border-radius: 0.6rem;
+    padding: 0.7rem 0.85rem;
+    min-height: 40px;
+    line-height: 1.35;
+    background: #fff;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .filters-sidebar .form-control:focus,
+  .filters-sidebar .form-select:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.15);
+  }
+  .filters-sidebar label {
+    font-weight: 600;
+    color: #374151;
+    font-size: .88rem;
+    margin-bottom: .4rem;
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .summary-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: #f8fafc;
+    color: #334155;
+    border: 1px solid #dbe6f5;
+    padding: .45rem .7rem;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 600;
+  }
+  @media (max-width: 768px) {
+    .page-shell { padding: .8rem; }
+    .filters-sidebar { width: 88vw; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+    <div>
+      <h3 class="page-title">Évaluations annuelles fournisseurs</h3>
+      <p class="page-subtitle">Calculez puis consultez les évaluations consolidées selon les réceptions et dysfonctionnements de l'année.</p>
+    </div>
+  </div>
+
+  <div class="panel-card p-3 p-md-4 mb-3">
+    <button class="btn btn-primary position-fixed p-3 filters-toggle" type="button" id="toggleEvaluationFilters" aria-controls="evaluationFilters" aria-expanded="false">
+      <i class="fas fa-filter"></i>
+    </button>
+
+    <div class="filters-backdrop" id="evaluationFiltersBackdrop"></div>
+    <aside class="filters-sidebar" id="evaluationFilters" aria-label="Filtres des évaluations fournisseurs">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Filtres des évaluations</h5>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="closeEvaluationFilters" aria-label="Fermer">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form method="get">
+        <div class="form-group">
+          <label for="{{ filter_form.annee.id_for_label }}">{{ filter_form.annee.label }}</label>
+          {{ filter_form.annee }}
+        </div>
+        <div class="form-group">
+          <label for="{{ filter_form.fournisseur.id_for_label }}">{{ filter_form.fournisseur.label }}</label>
+          {{ filter_form.fournisseur }}
+        </div>
+        <button type="submit" class="btn btn-primary btn-block mb-2">Appliquer</button>
+        <a href="{% url 'achats:evaluation_list' %}" class="btn btn-outline-secondary btn-block">Réinitialiser</a>
+      </form>
+    </aside>
+
+    <div class="summary-row mb-3">
+      <div>
+        <div class="font-weight-bold text-dark">Vue actuelle</div>
+        <div class="text-muted small">Résumé rapide des filtres actifs pour l'analyse annuelle.</div>
+      </div>
+      <div class="d-flex flex-wrap" style="gap:.5rem;">
+        <span class="summary-chip"><i class="fas fa-calendar-alt"></i>Année : {{ annee_courante }}</span>
+        <span class="summary-chip"><i class="fas fa-truck"></i>Fournisseur : {% if fournisseur_filtre %}{{ fournisseur_filtre.nom }}{% else %}Tous{% endif %}</span>
+        <span class="summary-chip"><i class="fas fa-chart-bar"></i>{{ evaluations|length }} évaluation{{ evaluations|length|pluralize }}</span>
+      </div>
+    </div>
+
+    <form method="post" class="d-flex flex-wrap mt-2">
+      {% csrf_token %}
+      <input type="hidden" name="annee" value="{{ annee_courante }}">
+      {% if fournisseur_filtre %}<input type="hidden" name="fournisseur" value="{{ fournisseur_filtre.pk }}">{% endif %}
+      <button type="submit" name="action" value="calculer_toutes" class="btn btn-primary mr-2 mb-2">Recalculer toutes les évaluations</button>
+      {% if fournisseur_filtre %}
+      <button type="submit" name="action" value="calculer_fournisseur" class="btn btn-outline-primary mb-2">Recalculer ce fournisseur</button>
+      {% endif %}
+    </form>
+  </div>
+
+  <div class="panel-card p-3 p-md-4">
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th>Fournisseur</th>
+            <th>Année</th>
+            <th>Pris en compte</th>
+            <th>Réceptions</th>
+            <th>Score moyen</th>
+            <th>Note</th>
+            <th>Dysfonctionnements</th>
+            <th>Dernier calcul</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for evaluation in evaluations %}
+          <tr>
+            <td>{{ evaluation.fournisseur.nom }}</td>
+            <td>{{ evaluation.annee }}</td>
+            <td>{% if evaluation.pris_en_compte %}Oui{% else %}Non{% endif %}</td>
+            <td>{{ evaluation.nb_receptions_evaluees }}</td>
+            <td>{{ evaluation.score_moyen|default:'-' }}</td>
+            <td>{{ evaluation.note|default:'-' }}</td>
+            <td>{{ evaluation.nb_dysfonctionnements }}</td>
+            <td>{{ evaluation.date_calcul|date:'d/m/Y H:i' }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">Aucune évaluation disponible pour ce filtre.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const toggleButton = document.getElementById('toggleEvaluationFilters');
+    const sidebar = document.getElementById('evaluationFilters');
+    const backdrop = document.getElementById('evaluationFiltersBackdrop');
+    const closeButton = document.getElementById('closeEvaluationFilters');
+
+    function openSidebar() {
+      sidebar.classList.add('open');
+      backdrop.classList.add('show');
+      toggleButton.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeSidebar() {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('show');
+      toggleButton.setAttribute('aria-expanded', 'false');
+    }
+
+    toggleButton.addEventListener('click', function () {
+      if (sidebar.classList.contains('open')) {
+        closeSidebar();
+      } else {
+        openSidebar();
+      }
+    });
+
+    closeButton.addEventListener('click', closeSidebar);
+    backdrop.addEventListener('click', closeSidebar);
+  });
+</script>
+{% endblock %}

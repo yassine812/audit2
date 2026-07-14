@@ -1,0 +1,2049 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+
+{% block body %}
+<button class="btn btn-primary" id="openFilterBtn" style="position: fixed; right: 20px; top: 40%; z-index: 999;">
+  <i class="fas fa-filter"></i> Filtres
+</button>
+
+<!-- ===== SIDEBAR FILTRES ===== -->
+<div class="custom-sidebar" id="filterSidebar">
+  <div class="sidebar-header"><button class="close-btn" id="closeFilterBtn"><i class="fas fa-times"></i></button></div>
+  <div class="sidebar-content">
+    <form method="GET" id="filterForm">
+      <div class="form-group">
+        <label>Statut</label>
+        <select name="status" class="form-control">
+          <option value="">Tous les statuts</option>
+          {% for value, label in status_choices.items %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if is_superuser or is_RO %}
+      <div class="form-group">
+        <label>Filiale</label>
+        <select name="societe" class="form-control">
+          <option value="">Toutes les filiales</option>
+          {% for s in societes %}
+            <option value="{{ s.id }}" {% if societe_filter == s.id|stringformat:"s" %}selected{% endif %}>{{ s.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label>Type d'entreprise</label>
+        <select name="type_entreprise" class="form-control">
+          <option value="">Tous les types</option>
+          <option value="client" {% if type_entreprise_filter == 'client' %}selected{% endif %}>Clients uniquement</option>
+          <option value="prospect" {% if type_entreprise_filter == 'prospect' %}selected{% endif %}>Prospects uniquement</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Prospect/Client</label>
+        <select name="entreprise" class="form-control">
+          <option value="">Tous les prospects/clients</option>
+          {% for e in entreprises %}
+            <option value="{{ e.id }}" {% if entreprise_filter == e.id|stringformat:"s" %}selected{% endif %}>
+              {{ e.nom }} ({% if e.is_CLT %}Client{% else %}Prospect{% endif %})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Date de création</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="created_from" class="form-control" value="{{ created_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="created_to" class="form-control" value="{{ created_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Date planifiée</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="planned_from" class="form-control" value="{{ planned_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="planned_to" class="form-control" value="{{ planned_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Date réalisée</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="realized_from" class="form-control" value="{{ realized_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="realized_to" class="form-control" value="{{ realized_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Recherche</label>
+        <input type="text" name="search" class="form-control" placeholder="Rechercher..." value="{{ search_query|default_if_none:'' }}">
+      </div>
+
+      <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap:4px;">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Appliquer</button>
+        <a href="{% url 'prospection:email_list' %}" class="btn btn-default"><i class="fas fa-sync-alt"></i> Réinitialiser</a>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="sidebar-backdrop"></div>
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6"><h1 class="m-0">Liste des emails</h1></div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+          <li class="breadcrumb-item active">Emails</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="row mb-2">
+      <div class="col-12 text-right">
+        <button type="button" class="btn btn-info mr-2" data-toggle="modal" data-target="#calendarModal">
+          <i class="far fa-calendar-alt"></i> Voir le calendrier
+        </button>
+        <button type="button" class="btn btn-primary mr-2" data-toggle="modal" data-target="#sendEmailModal">
+          <i class="fas fa-paper-plane"></i> Envoyer un email
+        </button>
+        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addEmailModal">
+          <i class="fas fa-plus"></i> Ajouter un email
+        </button>
+
+        <!-- Graphiques -->
+        <div class="row" style="margin-top:1%">
+          <div class="col-md-6 mb-3 pe-md-2">
+            <div class="card card-success collapsed-card">
+              <div class="card-header">
+                <h3 class="card-title">Répartition des emails par entreprise</h3>
+                <div class="card-tools"><button class="btn btn-tool" data-card-widget="collapse" data-target="#emailDistCard"><i class="fas fa-plus"></i></button></div>
+              </div>
+              <div class="card-body collapse" id="emailDistCard">
+                <!-- Filtre par entreprise -->
+                <div class="form-group mb-3">
+                  <label for="filterEntrepriseEmails">Rechercher une entreprise :</label>
+                  <input type="text" id="filterEntrepriseEmails" class="form-control" placeholder="Tapez le nom de l'entreprise...">
+                </div>
+                <div style="position:relative;height:400px;"><canvas id="emailsChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6 ps-md-2">
+            <div class="card card-info collapsed-card">
+              <div class="card-header">
+                <h3 class="card-title">Évolution mensuelle des emails</h3>
+                <div class="card-tools"><button class="btn btn-tool" data-card-widget="collapse" data-target="#emailMonthlyCard"><i class="fas fa-plus"></i></button></div>
+              </div>
+              <div class="card-body collapse" id="emailMonthlyCard">
+                <!-- Filtres année/mois (checkbox multiples + Tout/Aucun) -->
+                <div class="row mb-3">
+                  <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <label class="mb-0">Années :</label>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="yearAllEmails">
+                        <label class="form-check-label" for="yearAllEmails">Tout/Aucun</label>
+                      </div>
+                    </div>
+                    <div id="yearCheckboxesEmails" class="border rounded p-2 mt-2" style="max-height: 180px; overflow-y:auto; overflow-x:hidden; text-align:left;"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <label class="mb-0">Mois :</label>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="monthAllEmails">
+                        <label class="form-check-label" for="monthAllEmails">Tout/Aucun</label>
+                      </div>
+                    </div>
+                    <div id="monthCheckboxesEmails" class="border rounded p-2 mt-2" style="max-height: 180px; overflow-y:auto; overflow-x:hidden; text-align:left;"></div>
+                  </div>
+                </div>
+                <div style="position:relative;height:400px;"><canvas id="monthlyEmailsChart"></canvas></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TABLE ===== -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row"><div class="col-md-12">
+        <div class="card">
+          <div class="card-header justify-content-between align-items-center">
+            <div class="card-tools mx-auto" style="text-align:center;">
+              <small style="font-size:90%;">{{ emails.start_index }} - {{ emails.end_index }} sur {{ emails.paginator.count }}</small>
+              <ul class="pagination pagination-sm justify-content-center" style="margin-top:0">
+                <li class="page-item">
+                  <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&laquo;</a>
+                </li>
+                {% for i in emails.paginator.page_range %}
+                  <li class="page-item {% if emails.number == i %}active{% endif %}">
+                    <a class="page-link" href="?page={{ i }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">{{ i }}</a>
+                  </li>
+                {% endfor %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ emails.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&raquo;</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <table id="emails" class="table table-bordered table-hover">
+              <thead>
+                <tr>
+                  <th>Sujet</th>
+                  <th>Prospect/Client</th>
+                  <th>Statut</th>
+                  {% if is_superuser or is_RO %}<th>Filiale</th>{% endif %}
+                  {% if is_superuser or is_RC or is_RO %}<th>Créé par</th>{% endif %}
+                  <th>Date planifiée</th>
+                  <th>Date réalisée</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if emails %}
+                {% for email in emails %}
+                <tr>
+                  <td>{{ email.sujet|truncatechars:30 }}</td>
+                  <td>
+                    {% if email.entreprise %}
+                      {{ email.entreprise.nom|truncatechars:18 }}
+                      <span class="badge badge-{% if email.entreprise.is_CLT %}success{% else %}info{% endif %}">
+                        {% if email.entreprise.is_CLT %}Client{% else %}Prospect{% endif %}
+                      </span>
+                    {% else %}
+                      <span class="text-danger">Non spécifié</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if email.etat == 'lu' %}<span class="badge badge-success">Lu</span>
+                    {% elif email.etat == 'non_lu' %}<span class="badge badge-danger">Non lu</span>
+                    {% else %}-{% endif %}
+                  </td>
+                  {% if is_superuser or is_RO %}<td>{{ email.societe.nom|default:"-"|truncatechars:15 }}</td>{% endif %}
+                  {% if is_superuser or is_RC or is_RO %}<td>{{ email.created_by.username }}</td>{% endif %}
+                  <td>{{ email.date_heure_planifie|date:"d/m/Y H:i"|default:"-" }}</td>
+                  <td>{{ email.date_heure_realiser|date:"d/m/Y H:i"|default:"-" }}</td>
+                  <td>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="viewEmailDetails({{ email.id }})" title="Voir détails"><i class="fas fa-eye"></i></button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editEmailModal{{ email.id }}" title="Modifier"><i class="fas fa-edit"></i></button>
+                    {% if not email.date_heure_realiser %}
+                      <button type="button" class="btn btn-outline-warning btn-sm" data-toggle="modal" data-target="#sendReminderModal{{ email.id }}" title="Envoyer un rappel"><i class="fas fa-bell"></i></button>
+                    {% endif %}
+                    {% if is_superuser or is_RC or is_RO %}
+                      <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDeleteEmail({{ email.id }})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                  <td colspan="{% if is_superuser or is_RO %}8{% else %}{% if is_RC %}7{% else %}6{% endif %}{% endif %}" class="text-center py-4">
+                    <div class="d-flex flex-column align-items-center">
+                      <i class="fas fa-envelope-open-text fa-3x text-muted mb-2"></i>
+                      <h5 class="text-muted">Aucun email trouvé</h5>
+                      <p class="text-muted mb-0">Utilisez les filtres pour affiner votre recherche ou créez un nouvel email.</p>
+                    </div>
+                  </td>
+                </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div></div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== MODALE AJOUT ===== -->
+<div class="modal fade" id="addEmailModal" tabindex="-1" role="dialog" aria-labelledby="addEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header bg-success">
+      <h5 class="modal-title">Ajouter un nouvel email</h5>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="addEmailForm" method="post" action="{% url 'prospection:add_email' %}">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label for="addSujet">Sujet*</label>
+            <input type="text" name="sujet" class="form-control" placeholder="Tapez un sujet" id="addSujet" required>
+            <small id="sujet-error" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label for="addEtat">Statut</label>
+            <select name="etat" class="form-control" id="addEtat">
+              <option value="">Sélectionner un statut</option>
+              {% for value, label in status_choices.items %}
+                <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+            <small id="etat-error" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <div class="form-group">
+          <label>Type d'entreprise*</label>
+          <div class="d-flex gap-3">
+            <div class="form-check mr-3">
+              <input class="form-check-input" type="radio" name="type_entreprise" id="addTypeClient" value="client" checked>
+              <label class="form-check-label" for="addTypeClient">Client</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="type_entreprise" id="addTypeProspect" value="prospect">
+              <label class="form-check-label" for="addTypeProspect">Prospect</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client -->
+        <div id="addClientBlock" class="mb-3">
+          <label for="addClientSearch">Rechercher un client*</label>
+          <div class="client-search-container">
+            <input type="text" class="form-control" id="addClientSearch" placeholder="Nom ou N° de compte..." autocomplete="off">
+            <div id="addClientResults" class="list-group client-results" style="display:none;"></div>
+          </div>
+          <input type="hidden" id="addClientDbId" name="entreprise">
+          <input type="hidden" id="addClientNumero" name="client_numero">
+          <input type="hidden" id="addClientSocieteName" name="client_societe_name">
+          <div id="addClientDetails" class="client-details" style="display:none;"></div>
+          <small class="form-text text-muted">Choisissez un client depuis la liste.</small>
+          <small id="client-error" class="text-danger"></small>
+        </div>
+
+        <!-- Prospect -->
+        <div id="addProspectBlock" class="mb-3 d-none">
+          <label for="addProspectSelect">Sélectionner un prospect*</label>
+          <div class="input-group">
+            <select name="prospect_id" class="form-control" id="addProspectSelect">
+              <option value="">Sélectionner un prospect</option>
+              {% for e in entreprises %}{% if not e.is_CLT %}<option value="{{ e.id }}" data-societe="{{ e.societe.id }}">{{ e.nom }}</option>{% endif %}{% endfor %}
+            </select>
+            <div class="input-group-append">
+              <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#addProspectFromEmailModal">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+          <small id="prospect-error" class="text-danger"></small>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label for="addDatePlanifie">Date planifiée*</label>
+            <input type="datetime-local" name="date_heure_planifie" class="form-control" id="addDatePlanifie" required>
+            <small id="date_heure_planifie-error" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label for="addDateRealiser">Date réalisée</label>
+            <input type="datetime-local" name="date_heure_realiser" class="form-control" id="addDateRealiser">
+            <small id="date_heure_realiser-error" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <!-- Compte-rendu -->
+        <div class="form-group">
+          <label>Compte-rendu (généré)</label>
+          <div class="d-flex align-items-center mb-2">
+            <button type="button" class="btn btn-primary" id="addGenerateReportBtn" disabled>
+              <i class="fas fa-magic"></i> Générer un rapport
+            </button>
+            <small class="text-muted ml-2" id="addReportHelp">Remplissez les champs obligatoires pour activer.</small>
+          </div>
+
+          <div id="addReportEditor" class="card d-none">
+            <div class="card-body">
+              <label class="mb-1">Contenu de l'email</label>
+              <textarea id="addEmailContent" rows="7" class="form-control mb-2" placeholder="Collez / rédigez l'email ici..."></textarea>
+              <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-success" id="addProcessContentBtn"><i class="fas fa-bolt"></i> Traiter & générer</button>
+                <button type="button" class="btn btn-secondary" id="addCancelReportBtn">Annuler</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="addProcessedContainer" class="card d-none mt-2">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Compte-rendu généré</span>
+              <div><button type="button" class="btn btn-sm btn-outline-primary" id="addRegenerateBtn"><i class="fas fa-sync"></i> Régénérer</button></div>
+            </div>
+            <div class="card-body"><div id="addProcessedPreview" class="processed-content"></div></div>
+          </div>
+
+          <textarea name="compte_rendu" class="form-control d-none" id="addCompteRendu" rows="5"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="addNotes">Notes</label>
+          <textarea name="notes" class="form-control" id="addNotes" rows="3" placeholder="Notes internes"></textarea>
+          <small id="notes-error" class="text-danger"></small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-success">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODAL ENVOI D'EMAIL ===== -->
+<div class="modal fade" id="sendEmailModal" tabindex="-1" role="dialog" aria-labelledby="sendEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document"><div class="modal-content">
+    <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+      <h5 class="modal-title"><i class="fas fa-paper-plane mr-2"></i>Envoyer un email</h5>
+      <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="sendEmailForm" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        
+        <!-- Emails destinataires -->
+        <div class="form-group">
+          <label for="sendEmailRecipients">Emails destinataires*</label>
+          <div id="sendEmailRecipientsContainer" class="border rounded p-2" style="min-height: 60px; display: flex; flex-wrap: wrap; gap: 5px; cursor: text;">
+            <input type="text" id="sendEmailRecipientsInput" placeholder="Tapez un email et appuyez sur Entrée..." 
+                   style="border: none; outline: none; flex: 1; min-width: 200px; padding: 5px;">
+          </div>
+          <small class="form-text text-muted">Séparez les emails par Entrée ou Virgule</small>
+          <small id="sendEmailRecipients-error" class="text-danger"></small>
+        </div>
+
+        <!-- Type d'entreprise -->
+        <div class="form-group">
+          <label>Type d'entreprise*</label>
+          <div class="d-flex gap-3">
+            <div class="form-check mr-3">
+              <input class="form-check-input" type="radio" name="send_type_entreprise" id="sendTypeClient" value="client" checked>
+              <label class="form-check-label" for="sendTypeClient">Client</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="send_type_entreprise" id="sendTypeProspect" value="prospect">
+              <label class="form-check-label" for="sendTypeProspect">Prospect</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Client -->
+        <div id="sendClientBlock" class="mb-3">
+          <label for="sendClientSearch">Rechercher un client*</label>
+          <div class="client-search-container">
+            <input type="text" class="form-control" id="sendClientSearch" placeholder="Nom ou N° de compte..." autocomplete="off">
+            <div id="sendClientResults" class="list-group client-results" style="display:none;"></div>
+          </div>
+          <input type="hidden" id="sendClientDbId" name="send_entreprise">
+          <input type="hidden" id="sendClientNumero" name="send_client_numero">
+          <input type="hidden" id="sendClientSocieteName" name="send_client_societe_name">
+          <div id="sendClientDetails" class="client-details" style="display:none;"></div>
+          <small class="form-text text-muted">Choisissez un client depuis la liste.</small>
+          <small id="sendClient-error" class="text-danger"></small>
+        </div>
+
+        <!-- Prospect -->
+        <div id="sendProspectBlock" class="mb-3 d-none">
+          <label for="sendProspectSelect">Sélectionner un prospect*</label>
+          <div class="input-group">
+            <select name="send_prospect_id" class="form-control" id="sendProspectSelect">
+              <option value="">Sélectionner un prospect</option>
+              {% for e in entreprises %}{% if not e.is_CLT %}<option value="{{ e.id }}" data-societe="{{ e.societe.id }}" data-societe-nom="{{ e.societe.nom }}" data-nom="{{ e.nom }}">{{ e.nom }}</option>{% endif %}{% endfor %}
+            </select>
+            <div class="input-group-append">
+              <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#addProspectFromEmailModal">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+          <small id="sendProspect-error" class="text-danger"></small>
+        </div>
+
+        <!-- Objet -->
+        <div class="form-group">
+          <label for="sendSubject">Objet*</label>
+          <input type="text" name="send_subject" class="form-control" id="sendSubject" placeholder="Objet de l'email" required>
+          <small id="sendSubject-error" class="text-danger"></small>
+        </div>
+
+        <!-- Date planifiée -->
+        <div class="form-group">
+          <label for="sendDatePlanifie">Date planifiée*</label>
+          <input type="datetime-local" name="send_date_heure_planifie" class="form-control" id="sendDatePlanifie" required>
+          <small id="sendDatePlanifie-error" class="text-danger"></small>
+        </div>
+
+        <!-- Message -->
+        <div class="form-group">
+          <label for="sendMessage">Message*</label>
+          <textarea name="send_message" class="form-control" id="sendMessage" rows="12" required></textarea>
+          <small id="sendMessage-error" class="text-danger"></small>
+        </div>
+
+        <!-- Pièce jointe -->
+        <div class="form-group">
+          <label for="sendAttachment">Pièce jointe</label>
+          <div class="custom-file">
+            <input type="file" class="custom-file-input" id="sendAttachment" name="send_attachment">
+            <label class="custom-file-label" for="sendAttachment">Choisir un fichier...</label>
+          </div>
+          <small class="form-text text-muted">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10 MB)</small>
+          <small id="sendAttachment-error" class="text-danger"></small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane mr-1"></i>Envoyer</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODALES EDIT ===== -->
+{% for email in emails %}
+<div class="modal fade" id="editEmailModal{{ email.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header bg-info">
+      <h5 class="modal-title">Modifier l'email</h5>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form class="ajax-edit-email" id="editEmailForm{{ email.id }}" method="post" action="{% url 'prospection:edit_email' email.id %}">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label>Sujet*</label>
+            <input type="text" name="sujet" value="{{ email.sujet }}" class="form-control" required>
+            <small class="text-danger" id="edit-sujet-error-{{ email.id }}"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label>Statut</label>
+            <select name="etat" class="form-control">
+              <option value="">Sélectionner un statut</option>
+              {% for value, label in status_choices.items %}
+                <option value="{{ value }}" {% if email.etat == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-danger" id="edit-etat-error-{{ email.id }}"></small>
+          </div></div>
+        </div>
+
+        <input type="hidden" name="client_type" value="{% if email.entreprise.is_CLT %}client{% else %}prospect{% endif %}">
+        <input type="hidden" name="numero_tiers" id="editNumeroTiers{{ email.id }}" value="{{ email.entreprise.num_compte|default:'' }}">
+        <input type="hidden" name="client_societe_name" id="editClientSocieteName{{ email.id }}" value="{% if email.entreprise.is_CLT %}{{ email.entreprise.societe.nom }}{% endif %}">
+
+        <div class="form-group">
+          <label>Prospect/Client*</label>
+          {% if email.entreprise.is_CLT %}
+            <div class="client-search-container">
+              <input type="text" class="form-control" id="editClientSearch{{ email.id }}"
+                value="{{ email.entreprise.num_compte|default:'' }}{% if email.entreprise.num_compte %} - {% endif %}{{ email.entreprise.nom }}{% if is_superuser or is_RO %}{% if email.societe %} - {{ email.societe.nom }}{% endif %}{% endif %}"
+                placeholder="Rechercher un client..." autocomplete="off">
+              <div id="editClientResults{{ email.id }}" class="list-group client-results" style="display:none;"></div>
+              <input type="hidden" id="editClientDbId{{ email.id }}" name="entreprise" value="{{ email.entreprise.id }}">
+            </div>
+            <div id="editClientDetails{{ email.id }}" class="client-details mt-2">
+              <div class="card card-body p-2">
+                <p class="mb-1"><strong>Nom:</strong> {{ email.entreprise.nom }}</p>
+                <p class="mb-1"><strong>Numéro de compte:</strong> {{ email.entreprise.num_compte|default:"-" }}</p>
+                <p class="mb-1"><strong>Téléphone:</strong> {{ email.entreprise.telephone|default:"-" }}</p>
+                <p class="mb-1"><strong>Email:</strong> {{ email.entreprise.email|default:"-" }}</p>
+              </div>
+            </div>
+          {% else %}
+            <div class="input-group">
+              <select name="entreprise" id="editProspectSelect{{ email.id }}" class="form-control">
+                <option value="">Sélectionner un prospect</option>
+                {% for e in entreprises %}
+                  {% if not e.is_CLT %}
+                    <option value="{{ e.id }}" data-societe="{{ e.societe.id }}" {% if email.entreprise.id == e.id %}selected{% endif %}>{{ e.nom }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+              <div class="input-group-append">
+                <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#addProspectFromEmailModal">
+                  <i class="fas fa-plus"></i>
+                </button>
+              </div>
+            </div>
+          {% endif %}
+          <small class="form-text text-muted">Choisissez le prospect/client lié à cet email</small>
+          <small class="text-danger" id="edit-entreprise-error-{{ email.id }}"></small>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label>Date planifiée*</label>
+            <input type="datetime-local" value="{{ email.date_heure_planifie|date:'Y-m-d\\TH:i' }}" name="date_heure_planifie" class="form-control" required>
+            <small class="text-danger" id="edit-date_heure_planifie-error-{{ email.id }}"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group mb-2">
+            <label>Date réalisée</label>
+            <input type="datetime-local" value="{{ email.date_heure_realiser|date:'Y-m-d\\TH:i' }}" name="date_heure_realiser" class="form-control">
+            <small class="text-danger" id="edit-date_heure_realiser-error-{{ email.id }}"></small>
+          </div></div>
+        </div>
+
+        <div class="form-group">
+          <label>Compte-rendu (généré)</label>
+          <div class="d-flex align-items-center mb-2">
+            <button type="button" class="btn btn-primary edit-generate-btn" data-email-id="{{ email.id }}">
+              <i class="fas fa-magic"></i> Générer un rapport
+            </button>
+            <small class="text-muted ml-2">Utilise sujet, date planifiée et l’entreprise.</small>
+          </div>
+
+          <div id="editReportEditor{{ email.id }}" class="card d-none">
+            <div class="card-body">
+              <label class="mb-1">Contenu de l'email</label>
+              <textarea id="editEmailContent{{ email.id }}" rows="7" class="form-control mb-2" placeholder="Collez le contenu de l'email ici..."></textarea>
+              <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-success edit-process-btn" data-email-id="{{ email.id }}"><i class="fas fa-bolt"></i> Traiter & générer</button>
+                <button type="button" class="btn btn-secondary edit-cancel-btn" data-email-id="{{ email.id }}">Annuler</button>
+              </div>
+            </div>
+          </div>
+
+          <div id="editProcessedContainer{{ email.id }}" class="card {% if email.compte_rendu %}{% else %}d-none{% endif %} mt-2">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <span>Compte-rendu généré</span>
+              <div><button type="button" class="btn btn-sm btn-outline-primary edit-regenerate-btn" data-email-id="{{ email.id }}"><i class="fas fa-sync"></i> Régénérer</button></div>
+            </div>
+            <div class="card-body"><div id="editProcessedPreview{{ email.id }}" class="processed-content">{{ email.compte_rendu|default:''|linebreaksbr }}</div></div>
+          </div>
+
+          <textarea name="compte_rendu" id="editCompteRendu{{ email.id }}" class="form-control d-none" rows="5">{{ email.compte_rendu|default:'' }}</textarea>
+          <small class="text-danger" id="edit-compte_rendu-error-{{ email.id }}"></small>
+        </div>
+
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="notes" class="form-control" rows="3">{{ email.notes }}</textarea>
+          <small class="text-danger" id="edit-notes-error-{{ email.id }}"></small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+{% endfor %}
+
+<!-- ===== MODALES RAPPELS ===== -->
+{% for email in emails %}
+<div class="modal fade" id="sendReminderModal{{ email.id }}" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document"><div class="modal-content">
+    <div class="modal-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+      <h5 class="modal-title"><i class="fas fa-bell mr-2"></i>Envoyer un rappel</h5>
+      <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form class="ajax-send-reminder" method="post" enctype="multipart/form-data" data-email-id="{{ email.id }}">
+        {% csrf_token %}
+        
+        <!-- Emails destinataires -->
+        <div class="form-group">
+          <label>Emails destinataires*</label>
+          <div id="reminderEmailRecipientsContainer{{ email.id }}" class="border rounded p-2" style="min-height: 60px; display: flex; flex-wrap: wrap; gap: 5px; cursor: text;">
+            <input type="text" id="reminderEmailRecipientsInput{{ email.id }}" placeholder="Tapez un email et appuyez sur Entrée..." 
+                   style="border: none; outline: none; flex: 1; min-width: 200px; padding: 5px;">
+          </div>
+          <small class="form-text text-muted">Séparez les emails par Entrée ou Virgule</small>
+          <small id="reminderEmailRecipients-error-{{ email.id }}" class="text-danger"></small>
+        </div>
+
+        <!-- Objet (pré-rempli) -->
+        <div class="form-group">
+          <label>Objet*</label>
+          <input type="text" name="reminder_subject" class="form-control" value="TR: {{ email.sujet }}" required>
+          <small id="reminderSubject-error-{{ email.id }}" class="text-danger"></small>
+        </div>
+
+        <!-- Message (pré-rempli avec le template de rappel) -->
+        <div class="form-group">
+          <label>Message*</label>
+          <textarea name="reminder_message" class="form-control" rows="8" required>Bonjour [nom responsable],
+ 
+Nous restons dans l'attente de votre retour concernant la fixation d'un rendez-vous afin de vous présenter notre société.
+Je vous souhaite une bonne journée.
+ 
+Cordialement/ Best regards,</textarea>
+          <small id="reminderMessage-error-{{ email.id }}" class="text-danger"></small>
+        </div>
+
+        <!-- Pièce jointe (optionnelle) -->
+        <div class="form-group">
+          <label>Pièce jointe (optionnelle)</label>
+          <div class="custom-file">
+            <input type="file" class="custom-file-input" id="reminderAttachment{{ email.id }}" name="reminder_attachment">
+            <label class="custom-file-label" for="reminderAttachment{{ email.id }}">Choisir un fichier...</label>
+          </div>
+          <small class="form-text text-muted">PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (max 10 MB)</small>
+          <small id="reminderAttachment-error-{{ email.id }}" class="text-danger"></small>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-warning"><i class="fas fa-bell mr-1"></i>Envoyer le rappel</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+{% endfor %}
+
+<!-- Modal Ajout Prospect depuis Email -->
+<div class="modal fade" id="addProspectFromEmailModal" tabindex="-1" role="dialog" aria-labelledby="addProspectFromEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h5 class="modal-title" id="addProspectFromEmailModalLabel">Ajouter un prospect</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addProspectFromEmailForm">
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                <input type="text" name="nom" class="form-control" id="id_nom" required placeholder="Entrez le nom du prospect">
+                <div class="invalid-feedback">Veuillez entrer le nom du prospect</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                <input type="text" name="adresse" class="form-control" id="id_adresse" required placeholder="Entrez l'adresse">
+                <div class="invalid-feedback">Veuillez entrer l'adresse</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" required placeholder="Ex: Informatique, BTP...">
+                <div class="invalid-feedback">Veuillez entrer le secteur d'activité</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_telephone">Téléphone <span class="text-danger">*</span></label>
+                <input type="text" name="telephone" class="form-control" id="id_telephone" required placeholder="Entrez le numéro de téléphone">
+                <div class="invalid-feedback">Veuillez entrer un numéro de téléphone valide</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_email">Email <span class="text-danger">*</span></label>
+                <input type="email" name="email" class="form-control" id="id_email" required placeholder="Entrez l'adresse e-mail">
+                <div class="invalid-feedback">Veuillez entrer une adresse email valide</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_date">Date <span class="text-danger">*</span></label>
+                <input type="date" name="date" class="form-control" id="id_date" required>
+                <div class="invalid-feedback">Veuillez sélectionner une date</div>
+              </div>
+            </div>
+          </div>
+          {% if is_superuser or is_RO %}
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-group">
+                <label for="id_societe">Filiale <span class="text-danger">*</span></label>
+                <select name="societe" class="form-control" id="id_societe" required>
+                  <option value="">Sélectionner une filiale</option>
+                  {% for s in societes %}
+                  <option value="{{ s.id }}">{{ s.nom }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Veuillez sélectionner une filiale</div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+            <button type="submit" class="btn btn-info">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODALE DÉTAILS ===== -->
+<div class="modal fade" id="emailDetailsModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content shadow-sm">
+    <div class="modal-header bg-info text-white">
+      <h5 class="modal-title"><i class="fas fa-envelope"></i> Détails de l'email</h5>
+      <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="card p-3">
+        <div class="table-responsive">
+          <table class="table table-bordered">
+            <tbody>
+              <tr><th><i class="fas fa-comment"></i> Sujet</th><td id="detailSujet"></td><th><i class="fas fa-building"></i> Prospect/Client</th><td id="detailEntreprise"></td></tr>
+              <tr><th><i class="fas fa-building"></i> Filiale</th><td id="detailSociete"></td><th><i class="fas fa-user"></i> Créé par</th><td id="detailCreatedBy"></td></tr>
+              <tr><th><i class="fas fa-user-tie"></i> Pilote</th><td id="detailPilote"></td><th><i class="fas fa-calendar-alt"></i> Date de création</th><td id="detailDateHeure"></td></tr>
+              <tr><th><i class="fas fa-clock"></i> Date planifiée</th><td id="detailDatePlanifie"></td><th><i class="fas fa-check-circle"></i> Date réalisée</th><td id="detailDateRealiser"></td></tr>
+              <tr><th><i class="fas fa-toggle-on"></i> Statut</th><td id="detailEtat"></td></tr>
+              <tr><th colspan="4"><i class="fas fa-file-alt"></i> Compte-rendu</th></tr>
+              <tr><td colspan="4" id="detailCompteRendu" class="text-justify"></td></tr>
+              <tr><th colspan="4"><i class="fas fa-sticky-note"></i> Notes</th></tr>
+              <tr><td colspan="4" id="detailNotes" class="text-justify"></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer d-flex justify-content-between">
+      <button type="button" class="btn btn-primary" id="sendEmailBtn"><i class="fas fa-envelope"></i> Envoyer par email</button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fas fa-times"></i> Fermer</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODALE ENVOI ===== -->
+<div class="modal fade" id="emailOverlayModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document"><div class="modal-content">
+    <div class="modal-header bg-primary text-white">
+      <h5 class="modal-title">Envoyer les détails par email</h5>
+      <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="emailForm">
+        <div class="form-group"><label>Email du destinataire</label><input type="email" class="form-control" id="recipientEmail" required></div>
+        <div class="form-group"><label>Sujet</label><input type="text" class="form-control" id="emailSubject" required></div>
+        <div class="form-group"><label>Message supplémentaire</label><textarea class="form-control" id="emailMessage" rows="3"></textarea></div>
+      </form>
+      <div id="emailError" class="alert alert-danger d-none"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+      <button type="button" class="btn btn-primary" id="confirmSendEmail">Envoyer</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODALE CALENDRIER ===== -->
+<div class="modal fade" id="calendarModal" tabindex="-1" role="dialog" aria-labelledby="calendarModalLabel">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="calendarModalLabel">Calendrier des emails</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+    <div class="modal-body">
+      <div class="row">
+        <div class="col-md-3">
+          <div class="card card-primary">
+            <div class="card-header"><h3 class="card-title">Filtres</h3></div>
+            <div class="card-body">
+              <div class="form-group">
+                <label>Type de vue :</label>
+                <select id="view-type" class="form-control">
+                  <option value="dayGridMonth">Mois</option><option value="timeGridWeek">Semaine</option><option value="timeGridDay">Jour</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Type de date :</label>
+                <select id="date-type" class="form-control">
+                  <option value="planned">Dates planifiées</option>
+                  <option value="realized">Dates réalisées</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-footer">
+              <p><strong>Légende des couleurs :</strong></p>
+              <div><span class="badge bg-success">Lu</span> - Email lu</div>
+              <div><span class="badge bg-danger">Non lu</span> - Email non lu</div>
+              <div class="mb-1"><span class="badge bg-secondary">Autre statut</span> - Statut par défaut</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-9">
+          <div class="card card-primary"><div class="card-body p-0"><div id="calendar" style="min-height:500px;"></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade" id="dateEmailsModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content"></div></div>
+</div>
+
+<!-- ===== LIBS ===== -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  ['created_from','created_to','planned_from','planned_to','realized_from','realized_to']
+    .forEach(name => {
+      const v = params.get(name);
+      if (v) {
+        document.querySelectorAll(`input[name="${name}"]`).forEach(el => { try { el.value = v; } catch(e){} });
+      }
+    });
+});
+</script>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@4.4.0/main.min.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@4.4.0/main.min.js"></script>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.1.0/dist/js/adminlte.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap4.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap4.min.js"></script>
+
+<style>
+  .client-search-container { position:relative; width:100%; }
+  .client-results { position:absolute; top:100%; left:0; right:0; z-index:1050; max-height:300px; overflow-y:auto; background:#fff; border:1px solid #ced4da; border-radius:.25rem; box-shadow:0 .5rem 1rem rgba(0,0,0,.15); }
+  .client-results .list-group-item { padding:.5rem 1rem; cursor:pointer; }
+  .client-results .list-group-item:hover { background:#f8f9fa; }
+  .client-details { margin-top:1rem; padding:1rem; background:#f8f9fa; border:1px solid #dee2e6; border-radius:.25rem; }
+  .custom-sidebar { position:fixed; top:0; right:-270px; width:270px; height:100vh; background:#343a40; color:#fff; z-index:9999; transition:right .3s ease; overflow-y:auto; padding:10px; }
+  .custom-sidebar.open { right:0; }
+  .sidebar-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:999; display:none; }
+  .processed-content { white-space:pre-wrap; }
+</style>
+
+<script>
+/* ===== Utils & sidebar ===== */
+if(!window.debounce){ window.debounce=function(fn,d){ let t; return function(){ const a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, d||300); }; }; }
+if(!window.isEmpty){ window.isEmpty=function(v){ return v===undefined||v===null||String(v).trim()===''; }; }
+const sidebar=document.getElementById('filterSidebar'), openBtn=document.getElementById('openFilterBtn'), closeBtn=document.getElementById('closeFilterBtn'), backdrop=document.querySelector('.sidebar-backdrop');
+function openSidebar(){ sidebar.classList.add('open'); backdrop.style.display='block'; }
+function closeSidebar(){ sidebar.classList.remove('open'); backdrop.style.display='none'; }
+openBtn.addEventListener('click',openSidebar); closeBtn.addEventListener('click',closeSidebar); backdrop.addEventListener('click',closeSidebar);
+
+/* ===== Graphiques (exemple — gardés) ===== */
+document.addEventListener('DOMContentLoaded', function(){
+  try{
+    const ctx=document.getElementById('emailsChart')?.getContext('2d');
+    if(ctx){
+      const allLabels=[], allData=[], allBg=[], allBd=[];
+      {% for c in clients_data %}allLabels.push("{{ c.name|escapejs }} (Client)");allData.push({{ c.count }});allBg.push('rgba(54,162,235,.7)');allBd.push('rgba(54,162,235,1)');{% endfor %}
+      {% for p in prospects_data %}allLabels.push("{{ p.name|escapejs }} (Prospect)");allData.push({{ p.count }});allBg.push('rgba(255,99,132,.7)');allBd.push('rgba(255,99,132,1)');{% endfor %}
+      
+      let emailsChart = null;
+      function createEmailChart(labels, data, bg, bd) {
+        if (emailsChart) emailsChart.destroy();
+        emailsChart = new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:"Nombre d'e-mails",data,backgroundColor:bg,borderColor:bd,borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+      }
+      
+      function filterEmailChart() {
+        const searchTerm = document.getElementById('filterEntrepriseEmails').value.toLowerCase();
+        const filteredData = allLabels.reduce((acc, label, idx) => {
+          if (searchTerm === '' || label.toLowerCase().includes(searchTerm)) {
+            acc.labels.push(allLabels[idx]);
+            acc.data.push(allData[idx]);
+            acc.bg.push(allBg[idx]);
+            acc.bd.push(allBd[idx]);
+          }
+          return acc;
+        }, { labels: [], data: [], bg: [], bd: [] });
+        createEmailChart(filteredData.labels, filteredData.data, filteredData.bg, filteredData.bd);
+      }
+      
+      createEmailChart(allLabels, allData, allBg, allBd);
+      const filterInput = document.getElementById('filterEntrepriseEmails');
+      if (filterInput) filterInput.addEventListener('input', filterEmailChart);
+    }
+    const mctx=document.getElementById('monthlyEmailsChart');
+    if(mctx){
+      const allMonths = {{ months|safe }};
+      const allClients = {{ client_counts|safe }};
+      const allProspects = {{ prospect_counts|safe }};
+      const allTotal = {{ total_counts|safe }};
+      let monthlyChart = null;
+
+      const years = Array.from(new Set((allMonths||[]).map(m => (m.match(/(\d{4})/)||[null,null])[1]).filter(Boolean))).sort();
+
+      const yearBox = document.getElementById('yearCheckboxesEmails');
+      const yearAll = document.getElementById('yearAllEmails');
+      const monthBox = document.getElementById('monthCheckboxesEmails');
+      const monthAll = document.getElementById('monthAllEmails');
+
+      if (yearBox){
+        yearBox.innerHTML='';
+        years.forEach(y=>{
+          const id=`yemail-${y}`;
+          const w=document.createElement('div');
+          w.className='form-check';
+          w.innerHTML=`<input class="form-check-input year-item" type="checkbox" id="${id}" value="${y}" checked>
+                        <label class=\"form-check-label\" for=${id}>${y}</label>`;
+          yearBox.appendChild(w);
+        });
+        if (yearAll){ yearAll.checked = true; yearAll.indeterminate = false; }
+      }
+
+      const MONTHS = [['01','Janvier'],['02','Février'],['03','Mars'],['04','Avril'],['05','Mai'],['06','Juin'],['07','Juillet'],['08','Août'],['09','Septembre'],['10','Octobre'],['11','Novembre'],['12','Décembre']];
+      if (monthBox){
+        monthBox.innerHTML='';
+        MONTHS.forEach(([val,label])=>{
+          const id=`memail-${val}`;
+          const w=document.createElement('div');
+          w.className='form-check';
+          w.innerHTML=`<input class=\"form-check-input month-item\" type=\"checkbox\" id=\"${id}\" value=\"${val}\" checked>
+                        <label class=\"form-check-label\" for=\"${id}\">${label}</label>`;
+          monthBox.appendChild(w);
+        });
+        if (monthAll){ monthAll.checked = true; monthAll.indeterminate = false; }
+      }
+
+      function createChart(filteredMonths, filteredClients, filteredProspects, filteredTotal) {
+        if (monthlyChart) monthlyChart.destroy();
+        monthlyChart = new Chart(mctx,{type:'line',data:{labels:filteredMonths,datasets:[{label:'Clients',data:filteredClients,borderColor:'rgba(54,162,235,1)',backgroundColor:'rgba(54,162,235,.1)',borderWidth:2,tension:.1,fill:true},{label:'Prospects',data:filteredProspects,borderColor:'rgba(255,99,132,1)',backgroundColor:'rgba(255,99,132,.1)',borderWidth:2,tension:.1,fill:true},{label:'Total',data:filteredTotal,borderColor:'rgba(75,192,192,1)',backgroundColor:'rgba(75,192,192,.1)',borderWidth:2,tension:.1,fill:true,borderDash:[5,5]}]},options:{responsive:true,maintainAspectRatio:false}});
+      }
+
+      function getSelected(selector){
+        return Array.from(document.querySelectorAll(selector)).filter(x=>x.checked).map(x=>x.value);
+      }
+      function updateMaster(master, itemsSelector){
+        const items = Array.from(document.querySelectorAll(itemsSelector));
+        if (!master || items.length===0){ if(master){ master.indeterminate=false; master.checked=false; } return; }
+        const checked = items.filter(i=>i.checked).length;
+        master.indeterminate = checked>0 && checked<items.length;
+        master.checked = checked===items.length;
+      }
+      function filterData(){
+        const selectedYears=getSelected('#yearCheckboxesEmails .year-item');
+        const selectedMonths=getSelected('#monthCheckboxesEmails .month-item');
+
+        if (selectedYears.length===0 || selectedMonths.length===0){
+          createChart([], [], [], []);
+          return;
+        }
+
+        const filteredData=(allMonths||[]).reduce((acc,month,idx)=>{
+          const match=month && month.match(/^(\d{4})-(\d{2})$/);
+          if(match){
+            const year=match[1];
+            const m=match[2];
+            const okY=selectedYears.includes(year);
+            const okM=selectedMonths.includes(m);
+            if(okY && okM){
+              acc.months.push(month);
+              acc.clients.push(allClients[idx]);
+              acc.prospects.push(allProspects[idx]);
+              acc.total.push(allTotal[idx]);
+            }
+          }
+          return acc;
+        },{months:[],clients:[],prospects:[],total:[]});
+        createChart(filteredData.months, filteredData.clients, filteredData.prospects, filteredData.total);
+      }
+
+      createChart(allMonths, allClients, allProspects, allTotal);
+
+      function toggleAll(master, itemsSelector){
+        const items=document.querySelectorAll(itemsSelector);
+        items.forEach(i=>{i.checked=master.checked});
+        filterData();
+        updateMaster(master, itemsSelector);
+      }
+      if (yearAll) yearAll.addEventListener('change', ()=>toggleAll(yearAll, '#yearCheckboxesEmails .year-item'));
+      if (monthAll) monthAll.addEventListener('change', ()=>toggleAll(monthAll, '#monthCheckboxesEmails .month-item'));
+      document.addEventListener('change', function(e){
+        if (e.target && (e.target.classList.contains('year-item') || e.target.classList.contains('month-item'))){
+          filterData();
+          updateMaster(yearAll, '#yearCheckboxesEmails .year-item');
+          updateMaster(monthAll, '#monthCheckboxesEmails .month-item');
+        }
+      });
+
+      updateMaster(yearAll, '#yearCheckboxesEmails .year-item');
+      updateMaster(monthAll, '#monthCheckboxesEmails .month-item');
+    }
+
+    /* ===== DataTables initialisation ===== */
+    if ($.fn.DataTable) {
+      // Vérifier si le tableau contient des données (éviter l'erreur sur tableau vide)
+      const hasData = $('#emails tbody tr').length > 0 && !$('#emails tbody tr td[colspan]').length;
+      
+      if (hasData) {
+        $('#emails').DataTable({
+          responsive: true,
+          paging: false,        // Désactiver la pagination DataTables
+          searching: false,     // Désactiver la recherche
+          info: false,          // Désactiver "Showing X to Y of Z entries"
+          lengthChange: false,  // Désactiver "Show X entries"
+          ordering: false,      // Désactiver le tri (optionnel)
+          autoWidth: false
+        });
+      }
+    }
+  }catch(_){}
+});
+
+/* ===== Recherche client réutilisable ===== */
+function bindClientSearch({inputEl,resultsEl,detailsEl,dbIdEl,numeroEl,societeHiddenEl}){
+  const search=debounce(async(term)=>{
+    if(!term||term.length<2){resultsEl.style.display='none';resultsEl.innerHTML='';return;}
+    try{
+      // Loading indicator
+      resultsEl.innerHTML='<div class="list-group-item"><i class="fas fa-spinner fa-spin mr-2"></i> Recherche...</div>';
+      resultsEl.style.display='block';
+      const res=await fetch(`/prospection/ajax/customers/?q=${encodeURIComponent(term)}`,{headers:{'X-Requested-With':'XMLHttpRequest'}});
+      const json=await res.json(); const items=json.results||[];
+      if(!items.length){resultsEl.innerHTML='<div class="list-group-item text-muted">Aucun résultat</div>';resultsEl.style.display='block';return;}
+      resultsEl.innerHTML=items.map(it=>{
+        const dbId=it.db_id||it.id||''; 
+        const numero=it.NumeroTiers||it.numero||''; 
+        const nom=it.nom||it.Intitule||'';
+        const text=it.text||`${numero?`${numero} - `:''}${nom||'Sans nom'}`;
+        const telephone=it.telephone||'';
+        const email=it.email||'';
+        const societe=it.societe||'';
+        return `
+          <a class="list-group-item list-group-item-action client-hit" 
+             data-db-id="${dbId}" 
+             data-numero="${numero}" 
+             data-nom="${text.replace(/"/g,'&quot;')}"
+             data-telephone="${(telephone+'').replace(/"/g,'&quot;')}"
+             data-email="${(email+'').replace(/"/g,'&quot;')}"
+             data-societe="${societe.replace(/"/g,'&quot;')}">
+            ${text}
+          </a>`;
+      }).join('');
+      resultsEl.style.display='block';
+    }catch{resultsEl.innerHTML='<div class="list-group-item text-danger">Erreur de recherche</div>';resultsEl.style.display='block';}
+  },300);
+
+  inputEl.addEventListener('input',e=>search(e.target.value.trim()));
+  inputEl.addEventListener('blur',()=>setTimeout(()=>resultsEl.style.display='none',150));
+
+  resultsEl.addEventListener('pointerdown', async e => {
+    const hit = e.target.closest('.client-hit'); 
+    if (!hit) return; 
+    e.preventDefault();
+    
+    // Récupération de l'ID du client
+    const clientId = hit.dataset.dbId;
+    const societe = hit.dataset.societe || '';
+    if (!clientId) return;
+    
+    // Mise à jour de l'interface utilisateur
+    inputEl.value = hit.dataset.nom || '';
+    resultsEl.style.display = 'none';
+    
+    // Chargement des détails complets du client
+    try {
+        let url = `/prospection/ajax/customers/${clientId}/details/`;
+        if (societe) { url += `?societe=${encodeURIComponent(societe)}`; }
+        const response = await fetch(url, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        const clientDetails = await response.json();
+        
+        // Mise à jour des champs avec les détails complets
+        if (dbIdEl) dbIdEl.value = clientId;
+        if (numeroEl) numeroEl.value = clientDetails.NumeroTiers || '';
+        
+        // Stocker le nom de société (la vue backend gérera la conversion)
+        if (societeHiddenEl) {
+          societeHiddenEl.value = societe;
+          console.log('🔍 Société stockée dans champ caché:', societe);
+          // Déclencher l'événement change pour que d'autres listeners puissent réagir
+          $(societeHiddenEl).trigger('change');
+        }
+        
+        if (detailsEl) {
+          const html = `
+              <div class="card card-body p-2">
+                  <p class="mb-1"><strong>Nom:</strong> ${clientDetails.Intitule || '-'}</p>
+                  <p class="mb-1"><strong>Numéro de compte:</strong> ${clientDetails.NumeroTiers || '-'}</p>
+                  <p class="mb-1"><strong>Téléphone:</strong> ${clientDetails.fact_tel || '-'}</p>
+                  <p class="mb-1"><strong>Email:</strong> ${clientDetails.fact_email || '-'}</p>
+              </div>`;
+          
+          detailsEl.innerHTML = html;
+          detailsEl.style.display = 'block';
+        }
+        
+        // Déclencher la mise à jour de l'objet et du message après un court délai
+        // pour s'assurer que toutes les valeurs sont bien dans le DOM
+        console.log('🔍 Vérification de updateSubjectAndMessage:', typeof updateSubjectAndMessage);
+        if (typeof updateSubjectAndMessage === 'function') {
+          console.log('✅ updateSubjectAndMessage existe, appel dans 50ms...');
+          setTimeout(() => {
+            console.log('⏰ Appel de updateSubjectAndMessage maintenant');
+            updateSubjectAndMessage();
+          }, 50);
+        } else {
+          console.error('❌ updateSubjectAndMessage n\'est pas une fonction!');
+          // Essayer de déclencher manuellement l'événement change sur les champs
+          $('#sendClientSearch').trigger('input');
+        }
+    } catch (error) {
+        console.error('Erreur lors du chargement des détails du client:', error);
+        // Afficher un message d'erreur à l'utilisateur si nécessaire
+    }
+});
+}
+
+/* ===== Détails & suppression ===== */
+function viewEmailDetails(id){
+  $.get(`/emails/${id}/details/`).done(r=>{
+    $('#detailSujet').text(r.sujet||'-');
+    const map={'lu':'Lu','non_lu':'Non lu'}; const cls=r.etat==='lu'?'badge-success':(r.etat==='non_lu'?'badge-danger':'badge-secondary');
+    $('#detailEtat').html(`<span class="badge ${cls}">${map[r.etat]||r.etat||'-'}</span>`);
+    $('#detailSociete').text(r.societe||'-'); $('#detailCreatedBy').text(r.created_by||'-'); $('#detailPilote').text(r.pilote||'-');
+    $('#detailDateHeure').text(r.date_heure||'-'); $('#detailDatePlanifie').text(r.date_heure_planifie||'-'); $('#detailDateRealiser').text(r.date_heure_realiser||'-');
+    $('#detailCompteRendu').text(r.compte_rendu||'-'); $('#detailNotes').text(r.notes||'-'); $('#detailEntreprise').text(r.entreprise||'-');
+    $('#emailDetailsModal').modal('show');
+  }).fail(()=> Swal.fire({icon:'error',title:'Erreur',text:"Échec du chargement des détails"}));
+}
+function confirmDeleteEmail(id){
+  Swal.fire({title:'Supprimer ?',text:"Action irréversible.",icon:'warning',showCancelButton:true,confirmButtonColor:'#dc3545',cancelButtonColor:'#6c757d',confirmButtonText:'Oui, supprimer'}).then(r=>{
+    if(r.isConfirmed){
+      $.post(`/emails/${id}/delete/`,{csrfmiddlewaretoken:'{{ csrf_token }}'}).done(resp=>{
+        Swal.fire({icon:'success',title:'Supprimé',text:resp.success||'Supprimé'}).then(()=>location.reload());
+      }).fail(xhr=>{
+        Swal.fire({icon:'error',title:'Erreur',text:xhr.responseJSON?.error||"Impossible de supprimer"});
+      });
+    }
+  });
+}
+
+/* ===== Calendrier (FullCalendar v4) ===== */
+$(function(){
+  let calendar, initialized=false;
+  $('#calendarModal').on('shown.bs.modal', function(){
+    if(!initialized){ initCalendar(); initialized=true; } else { calendar.render(); calendar.updateSize(); calendar.refetchEvents(); }
+  });
+
+  function initCalendar(){
+    const el=document.getElementById('calendar'); if(!el) return;
+    calendar=new FullCalendar.Calendar(el,{
+      header:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},
+      defaultView:localStorage.getItem('fcDefaultView')||'dayGridMonth',
+      plugins:['dayGrid','timeGrid','interaction','bootstrap'],
+      themeSystem:'bootstrap', nowIndicator:true, editable:true,
+
+      eventDrop:function(info){
+        if(info?.event?.start){ updateActionDate(info.event, info.event.start, info); }
+        else { toastr.error('Erreur de glisser'); info.revert(); }
+      },
+      dateClick:function(info){ fetchEmailsForDate(info.date); },
+      eventClick:function(info){ info.jsEvent.preventDefault(); fetchEmailsForDate(info.event.start); },
+
+      events:function(fetchInfo, success, failure){
+        const urlParams=new URLSearchParams(window.location.search);
+        $.ajax({
+          url:'{% url "prospection:get_all_filtered_emails" %}',
+          data:{
+            search:urlParams.get('search'), status:urlParams.get('status'), societe:urlParams.get('societe'),
+            created_from:urlParams.get('created_from'), created_to:urlParams.get('created_to'),
+            planned_from:urlParams.get('planned_from'), planned_to:urlParams.get('planned_to'),
+            realized_from:urlParams.get('realized_from'), realized_to:urlParams.get('realized_to'),
+            start:fetchInfo.start.toISOString(), end:fetchInfo.end.toISOString(), date_type:$('#date-type').val()
+          },
+          beforeSend:()=>$('#calendar').addClass('loading'),
+          complete: ()=>$('#calendar').removeClass('loading'),
+          success:function(resp){
+            const dateType=$('#date-type').val();
+            const evts=(resp.emails||[]).map(e=>{
+              const color=e.etat==='lu'?'#28a745':(e.etat==='non_lu'?'#dc3545':'#6c757d');
+              const start=dateType==='planned'?e.date_heure_planifie:e.date_heure_realiser;
+              return { id:e.id, title:e.sujet, start, backgroundColor:color, borderColor:color, textColor:'#fff' };
+            });
+            success(evts);
+          },
+          error:failure
+        });
+      },
+      datesRender:function(info){ 
+        const view = info.view;
+        const type = view.type; 
+        localStorage.setItem('fcDefaultView', type); 
+        $('#view-type').val(type); 
+      }
+    });
+    calendar.render();
+    $('#view-type').on('change', function(){ calendar.changeView(this.value); });
+    $('#date-type').on('change', function(){ calendar.refetchEvents(); });
+  }
+
+  function updateActionDate(event,newDate,info){
+    const dateType=$('#date-type').val(); const local=new Date(newDate.getTime()-newDate.getTimezoneOffset()*60000);
+    const iso=local.toISOString().replace('Z','');
+    $.ajax({
+      url:'{% url "prospection:update_email_date" %}', method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'},
+      data:{action_id:event.id, new_date:iso, date_type:dateType}
+    }).done(()=>{ toastr.success('Date mise à jour'); event.setStart(local); })
+      .fail(xhr=>{ toastr.error('Erreur: '+(xhr.responseJSON?.message||xhr.statusText)); info.revert(); });
+  }
+
+  function fetchEmailsForDate(date){
+    const dateType=$('#date-type').val();
+    const local=new Date(date.getTime()-date.getTimezoneOffset()*60000);
+    const str=local.toISOString().split('T')[0];
+    $.get('{% url "prospection:get_emails_by_date" %}',{date:str,date_type:dateType,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})
+      .done(resp=>{ const display=date.toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'}); showEmailsList(resp,display); });
+  }
+  window.showEmailsList=function(items,dateLabel){
+    let html=`<div class="modal-header"><h5 class="modal-title">E-mails du ${dateLabel}</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div><div class="modal-body"><div class="list-group">`;
+    if(!items?.length){ html+=`<p class="text-muted">Aucun e-mail</p>`; }
+    else{
+      const label=e=>e==='lu'?'Lu':(e==='non_lu'?'Non lu':'-');
+      items.forEach(a=>{
+        const cls=a.etat==='lu'?'bg-success':(a.etat==='non_lu'?'bg-danger':'bg-secondary');
+        const dt=new Date(a.date_heure_planifie||a.date_heure_realiser).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        html+=`<div class="list-group-item list-group-item-action p-3 mb-2 rounded-3"><div class="d-flex justify-content-between align-items-start"><div class="me-3"><h5 class="mb-2 fw-bold">${a.sujet}</h5><p class="mb-2 text-muted">${a.notes||'<em>Aucune note</em>'}</p><small class="d-block text-muted"><i class="far fa-calendar-alt me-1"></i>${dt}</small></div><span class="badge ${cls} rounded-pill fs-6 py-2">${label(a.etat)}</span></div></div>`;
+      });
+    }
+    html+=`</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button></div>`;
+    $('#dateEmailsModal .modal-content').html(html);
+    $('#dateEmailsModal').off('hidden.bs.modal').on('hidden.bs.modal',function(){ $('body').addClass('modal-open'); $('#calendarModal').css('overflow','auto'); });
+    $('#dateEmailsModal').modal('show');
+  };
+});
+
+/* ===== Envoi des détails par email ===== */
+$(function(){
+  let details={};
+  $('#sendEmailBtn').on('click', function(){
+    details={
+      sujet:$('#detailSujet').text(), entreprise:$('#detailEntreprise').text(), societe:$('#detailSociete').text(),
+      createdBy:$('#detailCreatedBy').text(), pilote:$('#detailPilote').text(), dateHeure:$('#detailDateHeure').text(),
+      datePlanifie:$('#detailDatePlanifie').text(), dateRealiser:$('#detailDateRealiser').text(), etat:$('#detailEtat').text(),
+      compteRendu:$('#detailCompteRendu').text(), notes:$('#detailNotes').text()
+    };
+    const info=(details.dateRealiser||'').trim()?`réalisé le ${details.dateRealiser}`:(details.datePlanifie?.trim()?`planifié le ${details.datePlanifie}`:'(date non précisée)');
+    $('#emailSubject').val(`Détails de l'email: "${details.sujet}" ${info}`);
+    $('#emailOverlayModal').modal('show');
+  });
+  $('#confirmSendEmail').on('click', function(){
+    const to=$('#recipientEmail').val(), subj=$('#emailSubject').val(), msg=$('#emailMessage').val();
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ $('#emailError').text("Adresse e-mail invalide").removeClass('d-none'); return; }
+    $('#emailError').addClass('d-none');
+    const btn=$(this).prop('disabled',true).html('<span class="spinner-border spinner-border-sm"></span> Envoi...');
+    $.post('{% url "prospection:send_email_details_pdf" %}', { recipient_email:to, subject:subj, message:msg, email_details:JSON.stringify(details), csrfmiddlewaretoken:'{{ csrf_token }}' })
+      .done(r=>{ if(r.success){ $('#emailOverlayModal').modal('hide'); Swal.fire({toast:true,position:'top-end',icon:'success',title:'E-mail envoyé',showConfirmButton:false,timer:3000}); } else { $('#emailError').text(r.error||"Échec de l'envoi").removeClass('d-none'); }})
+      .fail(xhr=>$('#emailError').text("Erreur: "+(xhr.responseJSON?.error||'Serveur')).removeClass('d-none'))
+      .always(()=>btn.prop('disabled',false).html('Envoyer'));
+  });
+});
+
+/* ===== AJOUT — toggle + recherche + génération + submit ===== */
+(function(){
+  const isSuperuser={% if request.user.is_superuser or request.user.is_RO %}true{% else %}false{% endif %};
+  const getCompanyId=()=> {
+    const client = document.getElementById('addTypeClient').checked;
+    if (client) {
+      // Pour les clients, récupérer la société depuis le champ caché
+      const societeHidden = document.getElementById('addClientSocieteName');
+      return societeHidden?.value || '';
+    } else {
+      // Pour les prospects, récupérer la société depuis l'option sélectionnée
+      const prospectSelect = document.getElementById('addProspectSelect');
+      if (prospectSelect && prospectSelect.value) {
+        const selectedOption = prospectSelect.options[prospectSelect.selectedIndex];
+        return selectedOption?.dataset?.societe || '';
+      }
+    }
+    return '';
+  };
+
+  function toggleType(){
+    const client = document.getElementById('addTypeClient').checked;
+    document.getElementById('addClientBlock').classList.toggle('d-none', !client);
+    document.getElementById('addProspectBlock').classList.toggle('d-none', client);
+    document.getElementById('addClientSearch').required = client;
+    document.getElementById('addProspectSelect').required = !client;
+    refreshGenerateState();
+  }
+  window.refreshGenerateState = function(){
+    const sujet=document.getElementById('addSujet').value.trim();
+    const dP=document.getElementById('addDatePlanifie').value;
+    const client=document.getElementById('addTypeClient').checked;
+    const contactOk = client ? !!document.getElementById('addClientSearch').value.trim() : !!document.getElementById('addProspectSelect').value;
+    const ok = !!(sujet && dP && contactOk);
+    const help=document.getElementById('addReportHelp');
+    document.getElementById('addGenerateReportBtn').disabled=!ok;
+    help.textContent = !sujet ? 'Le champ Sujet est obligatoire.' : !dP ? 'La Date planifiée est obligatoire.' : !contactOk ? (client?'Veuillez sélectionner un client.':'Veuillez sélectionner un prospect.') : 'Prêt à générer le compte-rendu.';
+    return ok;
+  };
+
+  document.getElementById('addTypeClient').addEventListener('change',toggleType);
+  document.getElementById('addTypeProspect').addEventListener('change',toggleType);
+  ['addSujet','addDatePlanifie','addProspectSelect','addClientSearch'].forEach(id=>{
+    const el=document.getElementById(id); el && el.addEventListener('input',refreshGenerateState);
+  });
+  toggleType();
+
+  // bind recherche client
+  bindClientSearch({
+    inputEl:document.getElementById('addClientSearch'),
+    resultsEl:document.getElementById('addClientResults'),
+    detailsEl:document.getElementById('addClientDetails'),
+    dbIdEl:document.getElementById('addClientDbId'),
+    numeroEl:document.getElementById('addClientNumero'),
+    societeHiddenEl:document.getElementById('addClientSocieteName')
+  });
+
+  // génération
+  document.getElementById('addGenerateReportBtn').addEventListener('click', ()=>{ document.getElementById('addReportEditor').classList.remove('d-none'); document.getElementById('addEmailContent').focus(); });
+  document.getElementById('addRegenerateBtn').addEventListener('click', ()=>{ document.getElementById('addProcessedContainer').classList.add('d-none'); document.getElementById('addReportEditor').classList.remove('d-none'); });
+  document.getElementById('addCancelReportBtn').addEventListener('click', ()=>{ document.getElementById('addReportEditor').classList.add('d-none'); });
+
+  document.getElementById('addProcessContentBtn').addEventListener('click', async ()=>{
+    if(!refreshGenerateState()){ toastr.error("Champs requis manquants."); return; }
+    const content=document.getElementById('addEmailContent').value.trim(); if(!content){ toastr.warning("Renseignez le contenu de l'e-mail."); return; }
+    const subject=document.getElementById('addSujet').value.trim();
+    const planned=document.getElementById('addDatePlanifie').value;
+    const company=getCompanyId();
+    const client=document.getElementById('addTypeClient').checked;
+    const contact = client ? (document.getElementById('addClientDbId').value || document.getElementById('addClientNumero').value) : document.getElementById('addProspectSelect').value;
+
+    const btn=this; const b=document.getElementById('addProcessContentBtn'); const prev=b.innerHTML; b.disabled=true; b.innerHTML='<i class="fas fa-spinner fa-spin"></i> Génération...';
+    try{
+      const payload={ action_type:'email', company, contact, subject, planned_date:planned, answers:{ q0: content, q1:'', q2:'' } };
+      const res=await fetch("{% url 'prospection:generate_action_report' %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(payload)});
+      const data=await res.json();
+      if(!res.ok||!data.report) throw new Error(data.error||'Échec de génération');
+      document.getElementById('addProcessedPreview').innerHTML=data.report.replace(/\n/g,'<br>');
+      document.getElementById('addCompteRendu').value=data.report;
+      document.getElementById('addReportEditor').classList.add('d-none');
+      document.getElementById('addProcessedContainer').classList.remove('d-none');
+      toastr.success('Compte-rendu généré.');
+    }catch(e){ toastr.error(e.message||'Erreur'); }
+    finally{ b.disabled=false; b.innerHTML=prev; }
+  });
+
+  // submit (AJAX)
+  document.getElementById('addEmailForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const form=this; const fd=new FormData(form);
+    $('#addEmailModal .text-danger').text('');
+    fetch(form.action,{method:'POST',body:fd,headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.json()).then(data=>{
+      if(data.errors){ for(const [f,msg] of Object.entries(data.errors)){ const el=document.getElementById(`${f}-error`); el && (el.textContent=msg); } }
+      else if(data.success){ $('#addEmailModal').modal('hide'); Swal.fire({icon:'success',title:'Succès',text:data.message||data.success}).then(()=>{ form.reset(); window.location.href=data.redirect_url||window.location.href; }); }
+    }).catch(()=> Swal.fire({icon:'error',title:'Erreur',text:"Une erreur s'est produite"}));
+  });
+})();
+
+/* ===== EDIT — génération + recherche + submit AJAX ===== */
+(function(){
+  {% for email in emails %}
+  (function(id){
+    const input=document.getElementById('editClientSearch{{ email.id }}');
+    const results=document.getElementById('editClientResults{{ email.id }}');
+    const details=document.getElementById('editClientDetails{{ email.id }}');
+    const dbId=document.getElementById('editClientDbId{{ email.id }}');
+    const num=document.getElementById('editNumeroTiers{{ email.id }}');
+    if(input && results && details && dbId){ bindClientSearch({inputEl:input,resultsEl:results,detailsEl:details,dbIdEl:dbId,numeroEl:num,societeHiddenEl:document.getElementById('editClientSocieteName'+id)}); }
+
+    const genBtn=document.querySelector(`.edit-generate-btn[data-email-id="${id}"]`);
+    const editor=document.getElementById(`editReportEditor${id}`);
+    const procBtn=document.querySelector(`.edit-process-btn[data-email-id="${id}"]`);
+    const cancel=document.querySelector(`.edit-cancel-btn[data-email-id="${id}"]`);
+    const regen=document.querySelector(`.edit-regenerate-btn[data-email-id="${id}"]`);
+    const procCt=document.getElementById(`editProcessedContainer${id}`);
+
+    if(genBtn){ genBtn.addEventListener('click', ()=> editor.classList.remove('d-none')); }
+    if(cancel){ cancel.addEventListener('click', ()=> editor.classList.add('d-none')); }
+    if(regen){ regen.addEventListener('click', ()=>{ procCt.classList.add('d-none'); editor.classList.remove('d-none'); }); }
+
+    if(procBtn){
+      procBtn.addEventListener('click', async ()=>{
+        const content=document.getElementById(`editEmailContent${id}`).value.trim(); if(isEmpty(content)){ toastr.warning("Saisir le contenu."); return; }
+        const form=document.getElementById(`editEmailForm${id}`);
+        const subject=form.querySelector('input[name="sujet"]').value.trim();
+        const planned=form.querySelector('input[name="date_heure_planifie"]').value;
+        
+        // Récupérer la société du contact sélectionné
+        let company = '';
+        const isClient = !!document.getElementById(`editClientDbId${id}`)?.value;
+        if (isClient) {
+          const societeHidden = document.getElementById(`editClientSocieteName${id}`);
+          company = societeHidden?.value || '';
+        } else {
+          const prospectSelect = document.getElementById(`editProspectSelect{{ email.id }}`);
+          if (prospectSelect && prospectSelect.value) {
+            const selectedOption = prospectSelect.options[prospectSelect.selectedIndex];
+            company = selectedOption?.dataset?.societe || '';
+          }
+        }
+        
+        const contact = document.getElementById(`editClientDbId${id}`)?.value || document.getElementById(`editProspectSelect{{ email.id }}`)?.value || '';
+
+        if(!subject||!planned||!contact||!company){ toastr.error('Champs requis manquants.'); return; }
+        const b=procBtn; const prev=b.innerHTML; b.disabled=true; b.innerHTML='<i class="fas fa-spinner fa-spin"></i> Génération...';
+        try{
+          const payload={ action_type:'email', company, contact, subject, planned_date:planned, answers:{ q0: content, q1:'', q2:'' } };
+          const res=await fetch("{% url 'prospection:generate_action_report' %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':'{{ csrf_token }}'},body:JSON.stringify(payload)});
+          const data=await res.json(); if(!res.ok||!data.report) throw new Error(data.error||'Échec');
+          document.getElementById(`editProcessedPreview${id}`).innerHTML=data.report.replace(/\n/g,'<br>');
+          document.getElementById(`editCompteRendu${id}`).value=data.report;
+          editor.classList.add('d-none'); procCt.classList.remove('d-none'); toastr.success('Compte-rendu généré.');
+        }catch(e){ toastr.error(e.message||'Erreur'); } finally{ b.disabled=false; b.innerHTML=prev; }
+      });
+    }
+
+    // Submit AJAX (edit)
+    const form=document.getElementById(`editEmailForm${id}`);
+    if(form){
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        $(`#editEmailModal${id} .text-danger`).text('');
+        const fd=new FormData(form);
+        fetch(form.action,{method:'POST',body:fd,headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>r.json()).then(data=>{
+          if(data.errors){
+            for(const [field,msg] of Object.entries(data.errors)){
+              const el=document.getElementById(`edit-${field}-error-${id}`) || document.getElementById(`edit-entreprise-error-${id}`);
+              el && (el.textContent=msg);
+            }
+          }else if(data.success){
+            $(`#editEmailModal${id}`).modal('hide');
+            Swal.fire({icon:'success',title:'Succès',text:data.message||data.success}).then(()=> location.reload());
+          }
+        }).catch(()=> Swal.fire({icon:'error',title:'Erreur',text:"Impossible d'enregistrer"}));
+      });
+    }
+  })({{ email.id }});
+  {% endfor %}
+})();
+
+/* ===== Gestion de l'ajout d'un nouveau prospect depuis le modal email ===== */
+$(function(){
+  // Fonction de validation du formulaire
+  function validateForm(form) {
+    let isValid = true;
+    // Réinitialiser les états de validation
+    $(form).find('.is-invalid').removeClass('is-invalid');
+    
+    // Valider chaque champ requis
+    $(form).find('[required]').each(function() {
+      if (!$(this).val()) {
+        $(this).addClass('is-invalid');
+        isValid = false;
+      }
+    });
+    
+    // Validation spécifique pour l'email
+    const emailInput = $(form).find('#id_email');
+    if (emailInput.val() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput.val())) {
+      emailInput.addClass('is-invalid');
+      emailInput.siblings('.invalid-feedback').text('Veuillez entrer une adresse email valide');
+      isValid = false;
+    }
+    
+    // Validation du téléphone (pas de contrainte de longueur)
+    
+    return isValid;
+  }
+
+  // Gestion de la soumission du formulaire
+  $('#addProspectFromEmailForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    // Valider le formulaire
+    if (!validateForm(this)) {
+      return false;
+    }
+    
+    // Désactiver le bouton pour éviter les doubles soumissions
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalBtnText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enregistrement...');
+    
+    // Préparer les données du formulaire
+    const formData = new FormData(this);
+    
+    // Ajouter la date actuelle si non définie
+    if (!formData.get('date')) {
+      const today = new Date().toISOString().split('T')[0];
+      formData.set('date', today);
+    }
+    
+    // Envoyer les données via AJAX
+    $.ajax({
+      url: '{% url "prospection:add_entreprise" "prospect" %}',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      headers: {
+        'X-CSRFTTOKEN': $('[name=csrfmiddlewaretoken]').val(),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      success: function(response) {
+        if (response.success) {
+          // Ajouter le nouveau prospect à tous les selects de prospect
+          const newOption = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+          
+          // Mettre à jour le select dans le modal d'ajout d'email
+          const addSelect = document.getElementById('addProspectSelect');
+          if (addSelect) {
+            const option = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+            addSelect.add(option);
+            $(addSelect).trigger('change');
+          }
+          
+          // Mettre à jour le select dans le modal d'envoi d'email
+          const sendSelect = document.getElementById('sendProspectSelect');
+          if (sendSelect) {
+            // Vérifier si l'option n'existe pas déjà
+            if (!sendSelect.querySelector(`option[value="${response.entreprise.id}"]`)) {
+              // Créer l'option avec les attributs data nécessaires
+              const option = document.createElement('option');
+              option.value = response.entreprise.id;
+              option.text = response.entreprise.nom;
+              option.setAttribute('data-societe', response.entreprise.societe_id || '');
+              option.setAttribute('data-societe-nom', response.entreprise.societe_nom || '');
+              option.setAttribute('data-nom', response.entreprise.nom);
+              option.selected = true;
+              sendSelect.add(option);
+            } else {
+              // Sélectionner l'option existante
+              $(sendSelect).val(response.entreprise.id);
+            }
+            $(sendSelect).trigger('change');
+            
+            // Déclencher la mise à jour de l'objet et du message
+            if (typeof updateSubjectAndMessage === 'function') {
+              setTimeout(() => {
+                updateSubjectAndMessage();
+              }, 100);
+            }
+          }
+          
+          // Mettre à jour les selects dans les modaux de modification d'email
+          document.querySelectorAll('select[id^="editProspectSelect"]').forEach(select => {
+            // Vérifier si l'option n'existe pas déjà
+            if (!select.querySelector(`option[value="${response.entreprise.id}"]`)) {
+              const option = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+              select.add(option);
+            }
+            // Sélectionner le nouveau prospect
+            $(select).val(response.entreprise.id).trigger('change');
+          });
+          
+          // Fermer le modal et réinitialiser le formulaire
+          $('#addProspectFromEmailModal').modal('hide');
+          
+          // Afficher un message de succès
+          Swal.fire({
+            icon: 'success',
+            title: 'Succès',
+            text: 'Le prospect a été ajouté avec succès',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          
+          // Mettre à jour l'état du bouton de génération
+          refreshGenerateState();
+        } else {
+          // Afficher les erreurs de validation côté serveur
+          if (response.errors) {
+            $.each(response.errors, function(field, messages) {
+              const input = $('#addProspectFromEmailForm').find('[name="' + field + '"]');
+              input.addClass('is-invalid');
+              input.siblings('.invalid-feedback').text(messages.join(' '));
+            });
+            
+            Swal.fire({
+              icon: 'error',
+              title: 'Erreur de validation',
+              text: 'Veuillez corriger les erreurs dans le formulaire.'
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Erreur',
+              text: 'Une erreur est survenue lors de l\'ajout du prospect.'
+            });
+          }
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error('Erreur AJAX:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: 'Une erreur est survenue lors de la communication avec le serveur.'
+        });
+      },
+      complete: function() {
+        // Réactiver le bouton
+        submitBtn.prop('disabled', false).html(originalBtnText);
+      }
+    });
+  });
+  
+  // Réinitialiser le formulaire quand le modal est fermé
+  $('#addProspectFromEmailModal').on('hidden.bs.modal', function () {
+    const form = $('#addProspectFromEmailForm')[0];
+    form.reset();
+    $(form).find('.is-invalid').removeClass('is-invalid');
+    
+    // Définir la date du jour par défaut
+    const today = new Date().toISOString().split('T')[0];
+    $('#id_date').val(today);
+    
+    // Si le modal d'envoi d'email est toujours ouvert, on réactive le défilement
+    if ($('#sendEmailModal').hasClass('show')) {
+      $('body').addClass('modal-open');
+      // Réinitialisation du padding-right qui pourrait causer des problèmes de mise en page
+      $('body').css('padding-right', '');
+    }
+  });
+  
+  // Initialiser la date du jour lors du chargement de la page
+  $(document).ready(function() {
+    const today = new Date().toISOString().split('T')[0];
+    $('#id_date').val(today);
+  });
+  
+  // Gestion de la validation en temps réel
+  $('#addProspectFromEmailForm').on('input', 'input, select, textarea', function() {
+    if ($(this).hasClass('is-invalid')) {
+      $(this).removeClass('is-invalid');
+    }
+  });
+
+  /* ===== GESTIONNAIRE D'EMAILS MULTIPLES ===== */
+  function createEmailTagManager(containerId, inputId) {
+    const container = document.getElementById(containerId);
+    const input = document.getElementById(inputId);
+    const emailsSet = new Set();
+
+    if (!container || !input) return null;
+
+    // Validation email
+    function isValidEmail(email) {
+      const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return regex.test(email);
+    }
+
+    // Ajouter un email
+    function addEmail(email) {
+      email = email.trim().toLowerCase();
+      if (!email) return;
+      
+      if (!isValidEmail(email)) {
+        Swal.fire({icon: 'error', title: 'Email invalide', text: `"${email}" n'est pas un email valide`, timer: 2000});
+        return;
+      }
+      
+      if (emailsSet.has(email)) {
+        Swal.fire({icon: 'warning', title: 'Doublon', text: 'Cet email est déjà ajouté', timer: 2000});
+        return;
+      }
+      
+      emailsSet.add(email);
+      const tag = document.createElement('span');
+      tag.className = 'badge badge-primary mr-1 mb-1 d-inline-flex align-items-center';
+      tag.style.fontSize = '14px';
+      tag.style.padding = '5px 10px';
+      tag.innerHTML = `${email} <i class="fas fa-times ml-2" style="cursor: pointer;"></i>`;
+      
+      tag.querySelector('.fa-times').addEventListener('click', function() {
+        emailsSet.delete(email);
+        tag.remove();
+      });
+      
+      container.insertBefore(tag, input);
+    }
+
+    // Événements
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const emails = input.value.split(/[,;]/).map(e => e.trim()).filter(e => e);
+        emails.forEach(addEmail);
+        input.value = '';
+      } else if (e.key === 'Backspace' && !input.value) {
+        const tags = container.querySelectorAll('.badge');
+        if (tags.length > 0) {
+          const lastTag = tags[tags.length - 1];
+          const email = lastTag.textContent.trim().replace(/×$/, '').trim();
+          emailsSet.delete(email);
+          lastTag.remove();
+        }
+      }
+    });
+
+    input.addEventListener('blur', function() {
+      if (input.value.trim()) {
+        const emails = input.value.split(/[,;]/).map(e => e.trim()).filter(e => e);
+        emails.forEach(addEmail);
+        input.value = '';
+      }
+    });
+
+    container.addEventListener('click', function(e) {
+      if (e.target === container || e.target === input) {
+        input.focus();
+      }
+    });
+
+    return { getEmails: () => Array.from(emailsSet), setEmails: (emails) => { emails.forEach(addEmail); } };
+  }
+
+  // Initialiser le gestionnaire pour le modal d'envoi
+  const sendEmailManager = createEmailTagManager('sendEmailRecipientsContainer', 'sendEmailRecipientsInput');
+
+  // Initialiser les gestionnaires pour les modaux de rappel
+  const reminderManagers = {};
+  {% for email in emails %}
+    reminderManagers[{{ email.id }}] = createEmailTagManager('reminderEmailRecipientsContainer{{ email.id }}', 'reminderEmailRecipientsInput{{ email.id }}');
+  {% endfor %}
+
+  /* ===== MODAL ENVOI D'EMAIL - BASCULEMENT CLIENT/PROSPECT ===== */
+  $('input[name="send_type_entreprise"]').on('change', function() {
+    if ($(this).val() === 'client') {
+      $('#sendClientBlock').removeClass('d-none');
+      $('#sendProspectBlock').addClass('d-none');
+    } else {
+      $('#sendClientBlock').addClass('d-none');
+      $('#sendProspectBlock').removeClass('d-none');
+    }
+  });
+
+  /* ===== MISE À JOUR AUTOMATIQUE DE L'OBJET ET MESSAGE ===== */
+  // Définir la fonction GLOBALEMENT pour qu'elle soit accessible depuis bindClientSearch
+  window.updateSubjectAndMessage = function() {
+    const typeClient = $('input[name="send_type_entreprise"]:checked').val() === 'client';
+    let nomEntreprise = '';
+    let nomSociete = '';
+
+    if (typeClient) {
+      const clientSearch = $('#sendClientSearch').val();
+      if (clientSearch) {
+        const parts = clientSearch.split(' - ');
+        nomEntreprise = parts[1] || parts[0] || '';
+      }
+      nomSociete = $('#sendClientSocieteName').val() || '';
+      console.log('📝 Client sélectionné - Société:', nomSociete, '| Entreprise:', nomEntreprise);
+    } else {
+      const selectedProspect = $('#sendProspectSelect option:selected');
+      nomEntreprise = selectedProspect.data('nom') || selectedProspect.text() || '';
+      nomSociete = selectedProspect.data('societe-nom') || '';
+      console.log('📝 Prospect sélectionné - Société:', nomSociete, '| Entreprise:', nomEntreprise);
+    }
+
+    // Mise à jour de l'objet : "Demande de rendez-vous de présentation - {nomSociete}"
+    if (nomEntreprise || nomSociete) {
+      const subject = `Demande de rendez-vous de présentation - ${nomSociete || ''}`;
+      $('#sendSubject').val(subject.trim());
+      console.log('✅ Objet mis à jour:', subject.trim());
+    }
+
+    // Mise à jour du message : remplacer [nom société] par le nom réel de la société
+    if (nomSociete) {
+      const currentMessage = $('#sendMessage').val();
+      const updatedMessage = currentMessage.replace(/\[nom société\]/g, nomSociete);
+      $('#sendMessage').val(updatedMessage);
+      console.log('✅ Message mis à jour avec société:', nomSociete);
+    }
+  };
+
+  $('input[name="send_type_entreprise"]').on('change', updateSubjectAndMessage);
+  $('#sendProspectSelect').on('change', updateSubjectAndMessage);
+
+  // Utiliser bindClientSearch pour le modal d'envoi (même logique que le modal add)
+  // IMPORTANT: Appeler APRÈS la définition de updateSubjectAndMessage()
+  bindClientSearch({
+    inputEl: document.getElementById('sendClientSearch'),
+    resultsEl: document.getElementById('sendClientResults'),
+    detailsEl: document.getElementById('sendClientDetails'),
+    dbIdEl: document.getElementById('sendClientDbId'),
+    numeroEl: document.getElementById('sendClientNumero'),
+    societeHiddenEl: document.getElementById('sendClientSocieteName')
+  });
+
+  /* ===== MESSAGE PAR DÉFAUT ===== */
+  $('#sendEmailModal').on('shown.bs.modal', function() {
+    if (!$('#sendMessage').val().trim()) {
+      const defaultMessage = `Bonjour [nom responsable],
+ 
+Je suis [nom émetteur], assistante commercial de la société [nom société], filiale de AB Serve Group, nous somme spécialisé dans les prestations de service du contrôle Qualité : tri et Retouche.
+Nous somme en Tunisie depuis 2011 et nous travaillons pour les équipementiers automobiles, Textile, paramédicale, plasturgie, électronique, etc. Aussi, la gestion du contrôle qualité assistée par ERP (reporting just in time, analyse de Pareto et statistiques des produits non conformes, typologie et traçabilité des défauts).
+ 
+Pour mieux nous connaitre, veuillez trouver ci-joint une présentation de notre Group et nos domaines d'activités.
+ 
+Permettez-moi de vous demander un rendez-vous pour présenter notre société à la date que vous fixez.
+ 
+Dans l'attente de votre retour, Veuillez agréer mes salutations les plus sincères.`;
+      $('#sendMessage').val(defaultMessage);
+    }
+    
+    // Date actuelle
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    $('#sendDatePlanifie').val(now.toISOString().slice(0, 16));
+  });
+
+  /* ===== LABEL FICHIER PERSONNALISÉ ===== */
+  $('#sendAttachment').on('change', function() {
+    const fileName = $(this).val().split('\\').pop();
+    $(this).next('.custom-file-label').html(fileName || 'Choisir un fichier...');
+  });
+
+  {% for email in emails %}
+  $('#reminderAttachment{{ email.id }}').on('change', function() {
+    const fileName = $(this).val().split('\\').pop();
+    $(this).next('.custom-file-label').html(fileName || 'Choisir un fichier...');
+  });
+  {% endfor %}
+
+  /* ===== SOUMISSION FORMULAIRE ENVOI D'EMAIL ===== */
+  $('#sendEmailForm').on('submit', function(e) {
+    e.preventDefault();
+    
+    const emails = sendEmailManager ? sendEmailManager.getEmails() : [];
+    if (emails.length === 0) {
+      Swal.fire({icon: 'error', title: 'Erreur', text: 'Veuillez ajouter au moins un email destinataire'});
+      return;
+    }
+
+    const formData = new FormData(this);
+    formData.append('recipients', JSON.stringify(emails));
+
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Envoi...');
+
+    $.ajax({
+      url: '{% url "prospection:send_email_action" %}',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+      success: function(response) {
+        if (response.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Email envoyé',
+            text: response.message || 'L\'email a été envoyé avec succès',
+            timer: 2000
+          }).then(() => {
+            window.location.reload();
+          });
+        } else {
+          Swal.fire({icon: 'error', title: 'Erreur', text: response.message || 'Une erreur est survenue'});
+        }
+      },
+      error: function(xhr) {
+        console.error('Erreur:', xhr);
+        Swal.fire({icon: 'error', title: 'Erreur', text: 'Erreur lors de l\'envoi de l\'email'});
+      },
+      complete: function() {
+        submitBtn.prop('disabled', false).html(originalText);
+      }
+    });
+  });
+
+  /* ===== SOUMISSION FORMULAIRES RAPPELS ===== */
+  $('.ajax-send-reminder').on('submit', function(e) {
+    e.preventDefault();
+    
+    const emailId = $(this).data('email-id');
+    const manager = reminderManagers[emailId];
+    const emails = manager ? manager.getEmails() : [];
+    
+    if (emails.length === 0) {
+      Swal.fire({icon: 'error', title: 'Erreur', text: 'Veuillez ajouter au moins un email destinataire'});
+      return;
+    }
+
+    const formData = new FormData(this);
+    formData.append('recipients', JSON.stringify(emails));
+    formData.append('original_email_id', emailId);
+
+    const submitBtn = $(this).find('button[type="submit"]');
+    const originalText = submitBtn.html();
+    submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Envoi...');
+
+    $.ajax({
+      url: '{% url "prospection:send_reminder_action" %}',
+      type: 'POST',
+      data: formData,
+      processData: false,
+      contentType: false,
+      headers: {'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()},
+      success: function(response) {
+        if (response.success) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Rappel envoyé',
+            text: response.message || 'Le rappel a été envoyé avec succès',
+            timer: 2000
+          }).then(() => {
+            $(`#sendReminderModal${emailId}`).modal('hide');
+            window.location.reload();
+          });
+        } else {
+          Swal.fire({icon: 'error', title: 'Erreur', text: response.message || 'Une erreur est survenue'});
+        }
+      },
+      error: function(xhr) {
+        console.error('Erreur:', xhr);
+        Swal.fire({icon: 'error', title: 'Erreur', text: 'Erreur lors de l\'envoi du rappel'});
+      },
+      complete: function() {
+        submitBtn.prop('disabled', false).html(originalText);
+      }
+    });
+  });
+
+  // Mise à jour select prospect dans modal envoi
+  const sendProspectSelect = document.getElementById('sendProspectSelect');
+  if (sendProspectSelect) {
+    document.querySelectorAll('select[id^="editProspectSelect"]').forEach(select => {
+      // Si un nouveau prospect est ajouté, l'ajouter aussi au select d'envoi
+    });
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% load at_tags %}
+<div class="step-wizard">
+    <div class="step {% if accident.statut == '24h' %}active{% elif accident.statut != '24h' %}done{% endif %}">
+        <i class="fas fa-file-alt mr-1"></i><span class="d-none d-md-inline">Déclaration 24h</span>
+    </div>
+    <div class="step {% if accident.statut == '48h' %}active{% elif accident.statut in '8j,cloture' %}done{% endif %}">
+        <i class="fas fa-search mr-1"></i><span class="d-none d-md-inline">Analyse 48h</span>
+    </div>
+    <div class="step {% if accident.statut == '8j' %}active{% elif accident.statut == 'cloture' %}done{% endif %}">
+        <i class="fas fa-tasks mr-1"></i><span class="d-none d-md-inline">LAP 8 jours</span>
+    </div>
+    <div class="step {% if accident.statut == 'cloture' %}done{% endif %}">
+        <i class="fas fa-check-circle mr-1"></i><span class="d-none d-md-inline">Clôturé</span>
+    </div>
+</div>
+<div class="progress" style="height:6px">
+    <div class="progress-bar bg-{% statut_color accident.statut %}"
+        style="width:{% progression_pct accident.statut %}%"></div>
+</div>

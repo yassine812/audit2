@@ -1,0 +1,33 @@
+{% extends 'audit/base.html' %}
+{% block title %}Saisie des réponses{% endblock %}
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header"><h3 class="card-title">Saisie en masse - {{ audit.numero }}</h3></div>
+  <div class="card-body">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      {{ formset.management_form }}
+            <div class="table-responsive">
+<table class="table table-bordered table-sm">
+        <thead><tr><th>Critère</th><th>Commentaire</th><th>Document</th></tr></thead>
+        <tbody>
+          {% for form in formset %}
+          <tr>
+            <td>{{ form.ligne }}</td>
+            <td>{{ form.commentaire }}</td>
+            <td>{{ form.document }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted">Aucun élément n'existe pour cette table.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <div class="form-actions-right">
+        <button class="btn btn-primary">Enregistrer</button>
+        <a href="{% url 'audit:detail' audit.pk %}" class="btn btn-secondary">Retour</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

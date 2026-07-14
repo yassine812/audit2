@@ -1,0 +1,712 @@
+{% extends 'audit/base.html' %}
+
+{% block extra_css %}
+<style>
+  /* ── Header ── */
+  .rapport-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+    color: #fff;
+    border-radius: .75rem;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+  }
+  .rapport-header .audit-num { font-size: 1.5rem; font-weight: 800; color: #64b5f6; }
+  .rapport-header .meta-item { font-size: .82rem; color: rgba(255,255,255,.7); display: flex; align-items: center; gap: .4rem; }
+  .rapport-header .meta-item i { color: #64b5f6; width: 14px; }
+
+  /* ── KPI cards ── */
+  .kpi-card {
+    border-radius: .6rem;
+    padding: 1rem 1.2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card .kpi-icon {
+    font-size: 2.5rem;
+    opacity: .12;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .kpi-card .kpi-num { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .kpi-card .kpi-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .85; margin-top: .3rem; }
+  .kpi-c  { background: #e6f4ea; color: #1e7e34; }
+  .kpi-pc { background: #fff8e1; color: #b8860b; }
+  .kpi-nc { background: #fdecea; color: #c62828; }
+  .kpi-na { background: #f3e5f5; color: #6a1b9a; }
+  .kpi-pct { background: linear-gradient(135deg, #e8f0fe, #c5cae9); color: #1a237e; }
+
+  /* ── Progress arc ── */
+  .pct-ring { display: none; }
+
+  /* ── KPI pct big display ── */
+  .kpi-pct-big {
+    font-size: 2.6rem; font-weight: 900; line-height: 1;
+    color: #1a237e;
+  }
+  .kpi-pct-sub { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; opacity: .8; margin-top: .35rem; }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: #6c757d; margin-bottom: .75rem; display: flex; align-items: center; gap: .5rem;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: #e9ecef; }
+
+  /* ── SWOT matrix ── */
+  .swot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #e9ecef; border-radius: .5rem; overflow: hidden; }
+  .swot-cell {
+    background: #fff;
+    padding: 1rem 1.1rem;
+    position: relative;
+  }
+  .swot-cell-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: .6rem;
+  }
+  .swot-label {
+    font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    display: flex; align-items: center; gap: .4rem;
+  }
+  .swot-cell.forts  { border-top: 3px solid #28a745; }
+  .swot-cell.forts  .swot-label { color: #28a745; }
+  .swot-cell.risques { border-top: 3px solid #dc3545; }
+  .swot-cell.risques .swot-label { color: #dc3545; }
+  .swot-cell.opport { border-top: 3px solid #007bff; }
+  .swot-cell.opport .swot-label { color: #007bff; }
+  .swot-cell.sensib { border-top: 3px solid #fd7e14; }
+  .swot-cell.sensib .swot-label { color: #fd7e14; }
+  .swot-textarea {
+    width: 100%; border: 1px solid #e9ecef; border-radius: .4rem;
+    padding: .6rem .75rem; font-size: .88rem; resize: vertical; min-height: 100px;
+    background: #fafbfc; transition: border-color .15s, box-shadow .15s;
+    outline: none;
+  }
+  .swot-textarea:focus { border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1); background: #fff; }
+  .swot-save-status { font-size: .75rem; min-height: 1.2rem; margin-top: .25rem; }
+  .swot-autosave-hint { font-size: .7rem; color: #adb5bd; }
+
+  /* ── Help panel ── */
+  .help-toggle {
+    font-size: .7rem; padding: .15rem .5rem; border-radius: .3rem; cursor: pointer;
+    background: #f8f9fa; border: 1px solid #dee2e6; color: #6c757d;
+    white-space: nowrap;
+  }
+  .help-toggle:hover { background: #e9ecef; }
+  .help-panel {
+    display: none;
+    background: #fffde7;
+    border: 1px solid #fff176;
+    border-radius: .4rem;
+    padding: .6rem .75rem;
+    margin-top: .5rem;
+    font-size: .8rem;
+  }
+  .help-panel.open { display: block; }
+  .help-panel-title { font-weight: 700; color: #f57f17; margin-bottom: .4rem; font-size: .75rem; }
+  .help-panel-item { padding: .25rem 0; border-bottom: 1px dashed #fff176; color: #555; line-height: 1.4; }
+  .help-panel-item:last-child { border-bottom: none; }
+  .help-panel-item .help-badge {
+    display: inline-block; padding: .1rem .4rem; border-radius: .2rem;
+    font-size: .65rem; font-weight: 700; margin-right: .4rem;
+  }
+  .help-panel-item { display: flex; align-items: flex-start; gap: .4rem; }
+  .help-item-text { flex: 1; }
+  .btn-insert-item {
+    flex-shrink: 0; padding: .1rem .35rem; font-size: .65rem; border-radius: .2rem;
+    background: #fff9c4; border: 1px solid #f9a825; color: #e65100; cursor: pointer;
+    line-height: 1.5; white-space: nowrap;
+  }
+  .btn-insert-item:hover { background: #f9a825; color: #fff; }
+  .btn-insert-all {
+    font-size: .65rem; padding: .1rem .5rem; border-radius: .2rem;
+    background: #f9a825; border: none; color: #fff; cursor: pointer; font-weight: 700;
+    white-space: nowrap;
+  }
+  .btn-insert-all:hover { background: #e65100; }
+
+  /* ── Lines table ── */
+  .lines-table { font-size: .83rem; }
+  .lines-table thead th { background: #1a1a2e; color: #fff; border: none; padding: .6rem .75rem; white-space: nowrap; }
+  .lines-table tbody tr:hover { background: #f8f9ff; }
+  .lines-table td { vertical-align: middle; padding: .55rem .75rem; border-color: #f0f0f0; }
+  .cotation-pill {
+    display: inline-block; padding: .2rem .65rem; border-radius: 2rem;
+    font-size: .75rem; font-weight: 700; letter-spacing: .03em;
+  }
+  .cot-C  { background: #e6f4ea; color: #1e7e34; }
+  .cot-PC { background: #fff8e1; color: #b8860b; }
+  .cot-NC { background: #fdecea; color: #c62828; }
+  .cot-NA { background: #f3e5f5; color: #6a1b9a; }
+  .cot-none { background: #f8f9fa; color: #adb5bd; }
+
+  /* ── Preuves in table ── */
+  .preuve-chip {
+    display: inline-block; background: #e8f0fe; color: #1a73e8;
+    border-radius: .3rem; padding: .1rem .4rem; font-size: .7rem;
+    margin: .1rem; white-space: nowrap;
+  }
+
+  /* ── Level bar ── */
+  .level-bar { height: 14px; border-radius: 7px; background: #e9ecef; overflow: hidden; }
+  .level-bar-fill { height: 100%; border-radius: 7px; transition: width .6s ease; background: linear-gradient(90deg, #28a745, #8bc34a); }
+  .level-bar-fill.medium { background: linear-gradient(90deg, #ffc107, #ff9800); }
+  .level-bar-fill.low    { background: linear-gradient(90deg, #dc3545, #e57373); }
+
+  /* ── Participants table ── */
+  .participants-table td, .participants-table th { padding: .4rem .7rem; font-size: .82rem; }
+
+  @media (max-width: 767px) {
+    .swot-grid { grid-template-columns: 1fr; }
+    .rapport-header { padding: 1rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+{% load i18n %}
+
+<script>
+  var SWOT_SAVE_URL = "{% url 'audit:ajax-save-swot' pk=audit.pk %}";
+  var CSRF = "{{ csrf_token }}";
+</script>
+
+{# ══ HEADER ══ #}
+<div class="rapport-header no-print-bg">
+  <div class="d-flex flex-wrap justify-content-between align-items-start" style="gap:1rem">
+    <div>
+      <div class="audit-num">
+        <i class="fas fa-clipboard-check mr-2" style="color:#64b5f6;font-size:1.2rem"></i>
+        Rapport d'audit — {{ audit.numero }}
+      </div>
+      <div class="d-flex flex-wrap mt-2" style="gap:.75rem">
+        <span class="meta-item"><i class="fas fa-file-alt"></i>{{ audit.formulaire.titre }}</span>
+        {% if audit.formulaire.section %}<span class="meta-item"><i class="fas fa-sitemap"></i>{{ audit.formulaire.section.Nom }}</span>{% endif %}
+        <span class="meta-item"><i class="far fa-calendar-alt"></i>{{ audit.date_audit|date:"d/m/Y" }}</span>
+        <span class="meta-item"><i class="fas fa-tag"></i>{{ audit.get_statut_display }}</span>
+        {% if audit.responsable_audit %}<span class="meta-item"><i class="fas fa-user-tie"></i>{{ audit.responsable_audit.get_full_name|default:audit.responsable_audit.username }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="d-flex no-print" style="gap:.5rem;flex-wrap:wrap">
+      <a href="{% url 'audit:audit-pdf' audit.pk %}" class="btn btn-sm btn-success" target="_blank">
+        <i class="fas fa-file-pdf mr-1"></i>Télécharger PDF
+      </a>
+      {% if can_create %}
+        {% if audit.statut == 'EN_COURS' or audit.statut == 'PLANIFIER' or audit.statut == 'BROUILLON' %}
+        <a href="{% url 'audit:audit-evaluation' audit.pk %}" class="btn btn-sm btn-warning">
+          <i class="fas fa-clipboard-check mr-1"></i>Évaluation
+        </a>
+        {% endif %}
+        <a href="{% url 'audit:audit-edit' audit.pk %}" class="btn btn-sm btn-outline-light">
+          <i class="fas fa-edit mr-1"></i>Modifier
+        </a>
+      {% endif %}
+      <a href="{% url 'audit:list' %}" class="btn btn-sm btn-outline-light">
+        <i class="fas fa-arrow-left mr-1"></i>Retour
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ══ KPI ROW ══ #}
+<div id="section-kpis" class="row mb-4">
+  <div class="col-6 col-md-2 mb-2">
+    <div class="kpi-card kpi-c">
+      <i class="fas fa-check-circle kpi-icon"></i>
+      <div class="kpi-num">{{ code_counts.C|default:0 }}</div>
+      <div class="kpi-label">Conformes</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2 mb-2">
+    <div class="kpi-card kpi-pc">
+      <i class="fas fa-adjust kpi-icon"></i>
+      <div class="kpi-num">{{ code_counts.PC|default:0 }}</div>
+      <div class="kpi-label">Partiels</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2 mb-2">
+    <div class="kpi-card kpi-nc">
+      <i class="fas fa-times-circle kpi-icon"></i>
+      <div class="kpi-num">{{ code_counts.NC|default:0 }}</div>
+      <div class="kpi-label">Non conformes</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2 mb-2">
+    <div class="kpi-card kpi-na">
+      <i class="fas fa-ban kpi-icon"></i>
+      <div class="kpi-num">{{ code_counts.NA|default:0 }}</div>
+      <div class="kpi-label">Non applicables</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4 mb-2">
+    {% with pct=resultat.niveau_prestation_pct %}
+    <div class="kpi-card text-center py-3"
+         style="background:linear-gradient(135deg,
+           {% if pct >= 75 %}#e6f4ea,#c8e6c9);color:#1b5e20
+           {% elif pct >= 50 %}#fff8e1,#ffe082);color:#7c4d00
+           {% else %}#fdecea,#ffcdd2);color:#b71c1c{% endif %}">
+      <div class="kpi-pct-big">{{ pct|floatformat:1 }}%</div>
+      <div class="kpi-pct-sub">Niveau prestation</div>
+      <div style="font-size:.78rem;font-weight:700;margin-top:.4rem;letter-spacing:.03em">
+        {% if pct >= 75 %}
+          ✔ Niveau acceptable
+        {% elif pct >= 50 %}
+          ⚠ Amélioration requise
+        {% else %}
+          ✘ Niveau insuffisant
+        {% endif %}
+      </div>
+      <div class="level-bar mt-2 mx-2">
+        <div class="level-bar-fill {% if pct < 75 %}low{% endif %}"
+             style="width:{{ pct|floatformat:0 }}%"></div>
+      </div>
+    </div>
+    {% endwith %}
+  </div>
+</div>
+
+{# ══ PRINT HEADER (hidden on screen, shown on print) ══ #}
+<div id="print-header" style="display:none;margin-bottom:8mm">
+    <div class="table-responsive">
+<table style="width:100%;border-bottom:2.5pt solid #1a1a2e;padding-bottom:4mm;margin-bottom:4mm">
+    <tr>
+      <td style="width:160pt;vertical-align:middle">
+        {# AB Serve logo — image #}
+        <img src="{% static 'dist/img/abserveLogo.png' %}"
+             alt="AB Serve" style="width:110pt;height:auto;display:block;">
+      </td>
+      <td style="text-align:center;vertical-align:middle">
+        <div style="font-family:Arial,sans-serif;font-size:13pt;font-weight:bold;color:#1a1a2e">
+          {{ audit.formulaire.titre|upper }}
+        </div>
+        <div style="font-family:Arial,sans-serif;font-size:10pt;color:#444;margin-top:2pt">
+          Audit N° <strong>{{ audit.numero }}</strong>
+          {% if audit.formulaire.section %} — {{ audit.formulaire.section.Nom }}{% endif %}
+        </div>
+      </td>
+      <td style="width:160pt;text-align:right;vertical-align:middle;font-family:Arial,sans-serif;font-size:8pt;color:#555">
+        <div>Date : <strong>{{ audit.date_audit|date:"d/m/Y" }}</strong></div>
+        <div>Statut : <strong>{{ audit.get_statut_display }}</strong></div>
+        {% if audit.responsable_audit %}
+        <div>Resp. : <strong>{{ audit.responsable_audit.get_full_name|default:audit.responsable_audit.username }}</strong></div>
+        {% endif %}
+        <div style="font-size:18pt;font-weight:900;color:
+          {% if resultat.niveau_prestation_pct >= 80 %}#28a745
+          {% elif resultat.niveau_prestation_pct >= 50 %}#e6a817
+          {% else %}#dc3545{% endif %};margin-top:3pt">
+          {{ resultat.niveau_prestation_pct|floatformat:1 }}%
+        </div>
+        <div style="font-size:7pt;color:#888;text-transform:uppercase;letter-spacing:.05em">Niveau prestation</div>
+      </td>
+    </tr>
+  </table>
+  </div>
+</div>
+
+{# ══ PARTICIPANTS ══ #}
+{% if audit.participants.all %}
+<div id="section-participants" class="card shadow-sm mb-4" style="border:none;border-radius:.6rem">
+  <div class="card-header py-2 px-4" style="background:#f8f9fa;border-bottom:1px solid #e9ecef">
+    <span class="font-weight-bold" style="font-size:.85rem"><i class="fas fa-users mr-2 text-primary"></i>Personnes rencontrées</span>
+  </div>
+  <div class="card-body p-0">
+        <div class="table-responsive">
+<table class="table table-sm mb-0 participants-table">
+      <thead><tr style="background:#f0f4ff">
+        <th>Nom / Prénom</th><th>Fonction</th><th>Type</th>
+      </tr></thead>
+      <tbody>
+        {% for p in audit.participants.all %}
+        <tr>
+          <td>{% if p.user %}{{ p.user.get_full_name|default:p.user.username }}{% else %}{{ p.nom_externe }}{% endif %}</td>
+          <td>{{ p.fonction }}</td>
+          <td><span class="badge {% if p.est_auditeur_externe %}badge-warning{% else %}badge-info{% endif %}">{% if p.est_auditeur_externe %}Externe{% else %}Interne{% endif %}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ══ SWOT MATRIX ══ #}
+<div id="section-swot" class="mb-4">
+  <div class="section-title"><i class="fas fa-th-large"></i>Analyse SWOT de l'audit</div>
+  <div class="swot-grid">
+
+    {# Points forts #}
+    <div class="swot-cell forts">
+      <div class="swot-cell-header">
+        <span class="swot-label"><i class="fas fa-thumbs-up"></i>Points forts</span>
+        <span class="swot-autosave-hint no-print">Sauvegarde auto</span>
+      </div>
+      <textarea class="swot-textarea" id="swot-forts" data-field="points_forts"
+        placeholder="Listez les points forts observés lors de l'audit…">{{ resultat.points_forts }}</textarea>
+      <div class="swot-save-status" id="status-forts"></div>
+    </div>
+
+    {# Risques #}
+    <div class="swot-cell risques">
+      <div class="swot-cell-header">
+        <span class="swot-label"><i class="fas fa-exclamation-triangle"></i>Risques</span>
+        <div class="d-flex align-items-center no-print" style="gap:.4rem">
+          {% if nc_na_lignes %}
+          <button type="button" class="help-toggle" onclick="toggleHelp('help-risques')">
+            <i class="fas fa-lightbulb mr-1"></i>{{ nc_na_lignes|length }} critère{{ nc_na_lignes|length|pluralize }}
+          </button>
+          {% endif %}
+          <span class="swot-autosave-hint">Sauvegarde auto</span>
+        </div>
+      </div>
+      {% if nc_na_lignes %}
+      <div class="help-panel" id="help-risques" data-target="swot-risques">
+        <div class="help-panel-title d-flex align-items-center justify-content-between"><span><i class="fas fa-lightbulb mr-1"></i>Critères NC / NA — sources de risques potentiels</span><button type="button" class="btn-insert-all" onclick="insertAllCriteria('help-risques', 'swot-risques')"><i class="fas fa-plus mr-1"></i>Tout insérer</button></div>
+        {% for ld in nc_na_lignes %}
+        <div class="help-panel-item">
+          <span class="help-badge {% if ld.cotation.code == 'NC' %}bg-danger text-white{% else %}bg-secondary text-white{% endif %}">{{ ld.cotation.code }}</span>
+          <span class="help-item-text"><strong>#{{ ld.num }}</strong> — {{ ld.ligne.critere.texte|truncatechars:120 }}</span>
+          <button type="button" class="btn-insert-item" onclick="insertCriterion('swot-risques', '#{{ ld.num }} — {{ ld.ligne.critere.texte|escapejs }}')" title="Insérer dans Risques"><i class="fas fa-plus"></i></button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <textarea class="swot-textarea" id="swot-risques" data-field="risques"
+        placeholder="Identifiez les risques détectés lors de l'audit (NC, NA)…">{{ resultat.risques }}</textarea>
+      <div class="swot-save-status" id="status-risques"></div>
+    </div>
+
+    {# Opportunités #}
+    <div class="swot-cell opport">
+      <div class="swot-cell-header">
+        <span class="swot-label"><i class="fas fa-rocket"></i>Opportunités d'amélioration</span>
+        <span class="swot-autosave-hint no-print">Sauvegarde auto</span>
+      </div>
+      <textarea class="swot-textarea" id="swot-opport" data-field="opportunites"
+        placeholder="Listez les opportunités d'amélioration identifiées…">{{ resultat.opportunites }}</textarea>
+      <div class="swot-save-status" id="status-opport"></div>
+    </div>
+
+    {# Points sensibles #}
+    <div class="swot-cell sensib">
+      <div class="swot-cell-header">
+        <span class="swot-label"><i class="fas fa-eye"></i>Points sensibles</span>
+        <div class="d-flex align-items-center no-print" style="gap:.4rem">
+          {% if pc_lignes %}
+          <button type="button" class="help-toggle" onclick="toggleHelp('help-sensib')">
+            <i class="fas fa-lightbulb mr-1"></i>{{ pc_lignes|length }} critère{{ pc_lignes|length|pluralize }}
+          </button>
+          {% endif %}
+          <span class="swot-autosave-hint">Sauvegarde auto</span>
+        </div>
+      </div>
+      {% if pc_lignes %}
+      <div class="help-panel" id="help-sensib" data-target="swot-sensib">
+        <div class="help-panel-title d-flex align-items-center justify-content-between"><span><i class="fas fa-lightbulb mr-1"></i>Critères PC — points de vigilance</span><button type="button" class="btn-insert-all" onclick="insertAllCriteria('help-sensib', 'swot-sensib')"><i class="fas fa-plus mr-1"></i>Tout insérer</button></div>
+        {% for ld in pc_lignes %}
+        <div class="help-panel-item">
+          <span class="help-badge bg-warning text-dark">PC</span>
+          <span class="help-item-text"><strong>#{{ ld.num }}</strong> — {{ ld.ligne.critere.texte|truncatechars:120 }}</span>
+          <button type="button" class="btn-insert-item" onclick="insertCriterion('swot-sensib', '#{{ ld.num }} — {{ ld.ligne.critere.texte|escapejs }}')" title="Insérer dans Points sensibles"><i class="fas fa-plus"></i></button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <textarea class="swot-textarea" id="swot-sensib" data-field="points_sensibles"
+        placeholder="Notez les points sensibles à surveiller (PC)…">{{ resultat.points_sensibles }}</textarea>
+      <div class="swot-save-status" id="status-sensib"></div>
+    </div>
+
+  </div>
+</div>
+
+{# ══ LIGNES & RÉPONSES ══ #}
+<div id="section-table" class="card shadow-sm mb-4" style="border:none;border-radius:.6rem;overflow:hidden">
+  <div class="card-header d-flex justify-content-between align-items-center py-2 px-4"
+    style="background:#1a1a2e;color:#fff;border:none">
+    <span class="font-weight-bold"><i class="fas fa-list-check mr-2" style="color:#64b5f6"></i>Détail des critères évalués</span>
+    <span class="badge badge-light">{{ lignes_data|length }} lignes</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 lines-table">
+      <thead>
+        <tr>
+          <th style="width:40px">N°</th>
+          <th class="col-theme" style="min-width:130px">Thème</th>
+          <th class="col-critere" style="min-width:220px">Critère</th>
+          <th class="col-preuves" style="min-width:180px">Preuves attendues</th>
+          <th class="col-cotation" style="width:70px;text-align:center">Cotation</th>
+          <th class="col-commentaire" style="min-width:200px">Commentaire</th>
+          <th class="col-photos" style="width:80px;text-align:center">Photos</th>
+          <th class="col-document" style="width:80px;text-align:center">Document</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ld in lignes_data %}
+        <tr>
+          <td class="text-center font-weight-bold" style="color:#1a73e8">{{ ld.num }}</td>
+          <td class="col-theme">
+            <span style="font-size:.78rem;color:#5c6bc0;font-weight:600">{{ ld.ligne.critere.theme }}</span>
+          </td>
+          <td class="col-critere" style="font-size:.82rem;line-height:1.45">{{ ld.ligne.critere.texte }}</td>
+          <td class="col-preuves">
+            {% for p in ld.ligne.critere.preuves_attendues.all %}
+            <span class="preuve-chip">{% if p.code %}{{ p.code }} — {% endif %}{{ p.libelle|truncatechars:40 }}</span>
+            {% empty %}<span class="text-muted" style="font-size:.75rem">—</span>
+            {% endfor %}
+          </td>
+          <td class="col-cotation text-center">
+            {% if ld.cotation %}
+            <span class="cotation-pill cot-{{ ld.cotation.code }}">{{ ld.cotation.code }}</span>
+            <div style="font-size:.65rem;color:#6c757d;margin-top:.15rem">{{ ld.cotation.note }}</div>
+            {% else %}
+            <span class="cotation-pill cot-none">—</span>
+            {% endif %}
+          </td>
+          <td class="col-commentaire" style="font-size:.82rem;color:#495057">
+            {% if ld.reponse and ld.reponse.commentaire %}
+              {{ ld.reponse.commentaire|linebreaksbr }}
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td class="col-photos text-center">
+            {% if ld.reponse %}{% with imgs=ld.reponse.images.all %}
+            {% if imgs %}
+            <div class="d-flex flex-wrap justify-content-center" style="gap:3px">
+              {% for img in imgs|slice:":3" %}
+              <a href="{{ img.image.url }}" target="_blank">
+                <img src="{{ img.image.url }}" alt="photo"
+                  style="width:32px;height:32px;object-fit:cover;border-radius:.25rem;border:1px solid #dee2e6">
+              </a>
+              {% endfor %}
+              {% if imgs|length > 3 %}<span class="badge badge-secondary" style="font-size:.65rem">+{{ imgs|length|add:"-3" }}</span>{% endif %}
+            </div>
+            {% else %}<span class="text-muted" style="font-size:.75rem">—</span>{% endif %}
+            {% endwith %}{% else %}<span class="text-muted" style="font-size:.75rem">—</span>{% endif %}
+          </td>
+          <td class="col-document text-center">
+            {% if ld.reponse and ld.reponse.document %}
+            <a href="{{ ld.reponse.document.url }}" target="_blank" class="btn btn-xs btn-outline-secondary" style="font-size:.7rem;padding:.15rem .4rem">
+              <i class="fas fa-download"></i>
+            </a>
+            {% else %}<span class="text-muted" style="font-size:.75rem">—</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Aucune ligne dans ce formulaire.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{# ══ COMMENTAIRE AUDIT ══ #}
+{% if audit.commentaire %}
+<div id="section-commentaire" class="card shadow-sm mb-4" style="border:none;border-radius:.6rem">
+  <div class="card-body px-4 py-3">
+    <div class="section-title"><i class="fas fa-comment-alt"></i>Contexte &amp; Commentaires</div>
+    <p class="mb-0" style="font-size:.9rem;line-height:1.65">{{ audit.commentaire|linebreaksbr }}</p>
+  </div>
+</div>
+{% endif %}
+
+{# ══ PDF OPTIONS MODAL ══ #}
+{# pdfOptionsModal removed #}
+<div style="display:none" id="pdfOptionsModal">
+      <div class="modal-body">
+        <div class="row">
+          {# Sections #}
+          <div class="col-md-5 mb-3">
+            <h6 class="font-weight-bold mb-3" style="color:#1a1a2e;border-bottom:2px solid #e9ecef;padding-bottom:.5rem">
+              <i class="fas fa-layer-group mr-1 text-primary"></i>Sections à afficher
+            </h6>
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input pdf-section-toggle" id="opt-kpis" data-target="section-kpis" checked>
+              <label class="custom-control-label" for="opt-kpis">KPIs (C / PC / NC / NA / %)</label>
+            </div>
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input pdf-section-toggle" id="opt-participants" data-target="section-participants" checked>
+              <label class="custom-control-label" for="opt-participants">Personnes rencontrées</label>
+            </div>
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input pdf-section-toggle" id="opt-swot" data-target="section-swot" checked>
+              <label class="custom-control-label" for="opt-swot">Analyse SWOT</label>
+            </div>
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input pdf-section-toggle" id="opt-table" data-target="section-table" checked>
+              <label class="custom-control-label" for="opt-table">Tableau des critères</label>
+            </div>
+            <div class="custom-control custom-switch mb-2">
+              <input type="checkbox" class="custom-control-input pdf-section-toggle" id="opt-commentaire" data-target="section-commentaire" checked>
+              <label class="custom-control-label" for="opt-commentaire">Contexte &amp; Commentaires</label>
+            </div>
+          </div>
+          {# Columns #}
+          <div class="col-md-7 mb-3">
+            <h6 class="font-weight-bold mb-3" style="color:#1a1a2e;border-bottom:2px solid #e9ecef;padding-bottom:.5rem">
+              <i class="fas fa-columns mr-1 text-info"></i>Colonnes du tableau à afficher
+            </h6>
+            <div class="row">
+              <div class="col-6">
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-theme" data-col="col-theme" checked>
+                  <label class="custom-control-label" for="col-theme">Thème</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-critere" data-col="col-critere" checked>
+                  <label class="custom-control-label" for="col-critere">Critère</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-preuves" data-col="col-preuves" checked>
+                  <label class="custom-control-label" for="col-preuves">Preuves attendues</label>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-cotation" data-col="col-cotation" checked>
+                  <label class="custom-control-label" for="col-cotation">Cotation</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-commentaire" data-col="col-commentaire" checked>
+                  <label class="custom-control-label" for="col-commentaire">Commentaire</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-photos" data-col="col-photos" checked>
+                  <label class="custom-control-label" for="col-photos">Photos</label>
+                </div>
+                <div class="custom-control custom-switch mb-2">
+                  <input type="checkbox" class="custom-control-input pdf-col-toggle" id="col-document" data-col="col-document" checked>
+                  <label class="custom-control-label" for="col-document">Document</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info py-2 mb-0" style="font-size:.82rem">
+          <i class="fas fa-info-circle mr-1"></i>
+          Les options sélectionnées s'appliquent immédiatement à l'impression et à la génération PDF.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+        <button type="button" class="btn btn-primary" id="btnPrintFromModal" data-dismiss="modal">
+          <i class="fas fa-print mr-1"></i>Imprimer maintenant
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Lightbox #}
+<div id="lightbox" onclick="this.classList.remove('open')"
+  style="position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:none;align-items:center;justify-content:center;cursor:zoom-out">
+  <img id="lightboxImg" src="" alt=""
+    style="max-width:92vw;max-height:92vh;border-radius:.5rem;box-shadow:0 8px 40px rgba(0,0,0,.6)">
+</div>
+<style>#lightbox.open{display:flex!important}</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── SWOT autosave ── */
+(function(){
+  var timers = {};
+
+  function saveSwot(field, value, statusId) {
+    var $status = document.getElementById(statusId);
+    $status.innerHTML = '<span style="color:#6c757d"><i class="fas fa-spinner fa-spin mr-1"></i>Enregistrement…</span>';
+    var fd = new FormData();
+    fd.append('csrfmiddlewaretoken', CSRF);
+    fd.append('field', field);
+    fd.append('value', value);
+    fetch(SWOT_SAVE_URL, { method: 'POST', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (data.ok) {
+          $status.innerHTML = '<span style="color:#28a745"><i class="fas fa-check-circle mr-1"></i>Enregistré</span>';
+          setTimeout(function(){ $status.innerHTML = ''; }, 2500);
+        } else {
+          $status.innerHTML = '<span style="color:#dc3545"><i class="fas fa-exclamation-circle mr-1"></i>Erreur</span>';
+        }
+      }).catch(function(){
+        $status.innerHTML = '<span style="color:#dc3545">Erreur réseau</span>';
+      });
+  }
+
+  document.querySelectorAll('.swot-textarea').forEach(function(ta){
+    var field = ta.dataset.field;
+    var statusId = 'status-' + ta.id.replace('swot-', '');
+    ta.addEventListener('input', function(){
+      clearTimeout(timers[field]);
+      timers[field] = setTimeout(function(){
+        saveSwot(field, ta.value, statusId);
+      }, 900);
+    });
+    ta.addEventListener('blur', function(){
+      clearTimeout(timers[field]);
+      saveSwot(field, ta.value, statusId);
+    });
+  });
+})();
+
+/* ── PDF Options: sections ── */
+document.querySelectorAll('.pdf-section-toggle').forEach(function(cb){
+  cb.addEventListener('change', function(){
+    var el = document.getElementById(this.dataset.target);
+    if (el) el.classList.toggle('print-section-hidden', !this.checked);
+  });
+});
+
+/* ── PDF Options: columns ── */
+document.querySelectorAll('.pdf-col-toggle').forEach(function(cb){
+  cb.addEventListener('change', function(){
+    var col = this.dataset.col;
+    var hidden = !this.checked;
+    // Toggle header
+    document.querySelectorAll('.' + col).forEach(function(el){
+      el.style.display = hidden ? 'none' : '';
+    });
+  });
+});
+
+document.getElementById('btnPrintFromModal').addEventListener('click', function(){
+  window.print();
+});
+
+/* ── Help panel toggle ── */
+function toggleHelp(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+/* ── SWOT: insert criterion into textarea ── */
+function insertCriterion(targetId, text) {
+  var ta = document.getElementById(targetId);
+  if (!ta) return;
+  var current = ta.value.trim();
+  ta.value = current ? current + '\n• ' + text : '• ' + text;
+  ta.dispatchEvent(new Event('input'));
+  ta.focus();
+  ta.scrollTop = ta.scrollHeight;
+}
+
+function insertAllCriteria(helpPanelId, targetId) {
+  var items = document.querySelectorAll('#' + helpPanelId + ' .help-item-text');
+  var texts = [];
+  items.forEach(function(el) { texts.push(el.textContent.trim()); });
+  if (!texts.length) return;
+  var ta = document.getElementById(targetId);
+  if (!ta) return;
+  var current = ta.value.trim();
+  var toAdd = texts.map(function(t) { return '• ' + t; }).join('\n');
+  ta.value = current ? current + '\n' + toAdd : toAdd;
+  ta.dispatchEvent(new Event('input'));
+  ta.focus();
+  ta.scrollTop = ta.scrollHeight;
+}
+</script>
+{% endblock %}

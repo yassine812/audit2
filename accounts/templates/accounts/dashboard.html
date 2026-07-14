@@ -1,0 +1,115 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Administration — Dashboard{% endblock %}
+
+{% block admin_content %}
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6">
+        <h1 class="m-0"><i class="fas fa-user-shield mr-2"></i>Administration</h1>
+      </div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="{% url 'home' %}">Accueil</a></li>
+          <li class="breadcrumb-item active">Administration</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="content">
+  <div class="container-fluid">
+
+    <!-- KPI cards -->
+    <div class="row">
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="small-box bg-primary">
+          <div class="inner"><h3>{{ total_users }}</h3><p>Utilisateurs</p></div>
+          <div class="icon"><i class="fas fa-users"></i></div>
+          <a href="{% url 'administration:utilisateurs' %}" class="small-box-footer">Voir <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="small-box bg-success">
+          <div class="inner"><h3>{{ total_societes }}</h3><p>Sociétés</p></div>
+          <div class="icon"><i class="fas fa-building"></i></div>
+          <a href="{% url 'administration:societes' %}" class="small-box-footer">Voir <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="small-box bg-warning">
+          <div class="inner"><h3>{{ total_sections }}</h3><p>Sections</p></div>
+          <div class="icon"><i class="fas fa-sitemap"></i></div>
+          <a href="{% url 'administration:sections' %}" class="small-box-footer">Voir <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="small-box bg-info">
+          <div class="inner"><h3>{{ total_sites }}</h3><p>Sites</p></div>
+          <div class="icon"><i class="fas fa-map-marker-alt"></i></div>
+          <a href="{% url 'administration:sites' %}" class="small-box-footer">Voir <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+      <div class="col-lg-2 col-md-4 col-sm-6">
+        <div class="small-box bg-secondary">
+          <div class="inner"><h3>{{ total_customers }}</h3><p>Customers</p></div>
+          <div class="icon"><i class="fas fa-handshake"></i></div>
+          <a href="{% url 'administration:customers' %}" class="small-box-footer">Voir <i class="fas fa-arrow-circle-right"></i></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Répartition par rôle -->
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card card-outline card-primary">
+          <div class="card-header"><h3 class="card-title">Répartition par rôle</h3></div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Rôle</th><th class="text-right">Nb</th></tr></thead>
+              <tbody>
+                <tr><td>Responsable de Section (RS)</td><td class="text-right">{{ users_rs }}</td></tr>
+                <tr><td>Responsable d'Opération (RO)</td><td class="text-right">{{ users_ro }}</td></tr>
+                <tr><td>Chef d'Équipe (CE)</td><td class="text-right">{{ users_ce }}</td></tr>
+                <tr><td>Opérateur (OP)</td><td class="text-right">{{ users_op }}</td></tr>
+                <tr><td>Auditeur</td><td class="text-right">{{ users_auditeur }}</td></tr>
+                <tr><td>Client (CLT)</td><td class="text-right">{{ users_clt }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Derniers utilisateurs -->
+      <div class="col-md-6">
+        <div class="card card-outline card-success">
+          <div class="card-header">
+            <h3 class="card-title">Derniers utilisateurs créés</h3>
+          </div>
+          <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Nom</th><th>Section</th><th>Date</th></tr></thead>
+              <tbody>
+                {% for u in recent_users %}
+                <tr>
+                  <td>
+                    <a href="{% url 'administration:modifier_utilisateur' u.pk %}">{{ u.get_full_name|default:u.username }}</a>
+                  </td>
+                  <td>{{ u.section|default:"—" }}</td>
+                  <td>{{ u.date_joined|date:"d/m/Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="text-center text-muted">Aucun utilisateur</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

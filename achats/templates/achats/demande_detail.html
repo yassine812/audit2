@@ -1,0 +1,253 @@
+{% extends 'base_global.html' %}
+
+{% block title %}{{ demande.numero }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .page-shell {
+    background: linear-gradient(180deg, #f5f7fb 0%, #eef2f8 100%);
+    border-radius: 14px;
+    padding: 1.25rem;
+  }
+  .info-card,
+  .placeholder-card,
+  .action-card {
+    border: 1px solid #dfe6f5;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+  .info-card {
+    padding: 1rem;
+  }
+  .meta-label {
+    font-size: .78rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: .2rem;
+  }
+  .meta-value {
+    color: #1f2937;
+    font-weight: 600;
+  }
+  .placeholder-card {
+    padding: 1rem;
+    border-style: dashed;
+    color: #64748b;
+  }
+  .action-card {
+    padding: 1rem;
+  }
+  .section-title {
+    color: #1e3a8a;
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  @media (max-width: 768px) {
+    .page-shell {
+      padding: .8rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-shell">
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center">
+      <div>
+        <h3 class="card-title mb-0">{{ demande.numero }}</h3>
+        <small>{{ demande.get_statut_display }}</small>
+      </div>
+      <div class="mt-2 mt-md-0 d-flex flex-wrap">
+        <a href="{% url 'achats:demande_list' %}" class="btn btn-outline-light btn-sm mr-2 mb-1">Retour</a>
+        <a href="{% url 'achats:demande_excel' demande.pk %}" class="btn btn-outline-light btn-sm mr-2 mb-1">Télécharger Excel</a>
+        {% if demande.statut == 'brouillon' or demande.statut == 'en_cours_devis' %}
+        <a href="{% url 'achats:demande_update' demande.pk %}" class="btn btn-warning btn-sm text-dark font-weight-bold mb-1">Modifier</a>
+        {% endif %}
+        {% if request.user.is_staff or request.user.is_superuser %}
+          {% if demande.statut == 'soumise' %}
+          <form method="post" action="{% url 'achats:demande_start_devis' demande.pk %}" class="mr-2 mb-1">{% csrf_token %}<button type="submit" class="btn btn-info btn-sm">Passer en devis</button></form>
+          {% endif %}
+          {% if demande.statut == 'en_cours_devis' %}
+          <a href="{% url 'achats:devis_manage' demande.pk %}" class="btn btn-light btn-sm mr-2 mb-1">Gérer devis</a>
+          {% endif %}
+          {% if demande.statut == 'validee' or demande.statut == 'commandee' or demande.statut == 'receptionnee' %}
+          <a href="{% url 'achats:reception_edit' demande.pk %}" class="btn btn-success btn-sm mr-2 mb-1">Réception</a>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body p-3 p-md-4">
+      <div class="row">
+        <div class="col-12 col-md-4 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Demandeur</div>
+            <div class="meta-value">{{ demande.demandeur.get_full_name|default:demande.demandeur.username }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Date d'émission</div>
+            <div class="meta-value">{{ demande.date_emission|date:'d/m/Y H:i' }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-4 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Délai souhaité</div>
+            <div class="meta-value">{{ demande.delai_souhaite|date:'d/m/Y'|default:'-' }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Adresse de livraison</div>
+            <div class="meta-value">{{ demande.adresse_livraison }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-3 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Section analytique</div>
+            <div class="meta-value">{{ demande.section_analytique }}</div>
+          </div>
+        </div>
+        <div class="col-12 col-md-3 mb-3">
+          <div class="info-card h-100">
+            <div class="meta-label">Catégorie</div>
+            <div class="meta-value">{{ demande.get_categorie_display }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card mt-2 mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Lignes de demande</h5>
+          <span class="badge badge-light">{{ demande.lignes.count }} ligne{{ demande.lignes.count|pluralize }}</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered table-hover mb-0">
+            <thead class="thead-light">
+              <tr>
+                <th>Article</th>
+                <th>Quantité</th>
+                <th>Stock</th>
+                <th>PU HT</th>
+                <th>Total HT</th>
+                <th>Fournisseur retenu</th>
+                <th>Référence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for ligne in demande.lignes.all %}
+              <tr>
+                <td>
+                  {% if ligne.article_catalogue %}
+                    <strong>{{ ligne.article_catalogue.designation }}</strong><br>
+                    <small class="text-muted">{{ ligne.article_catalogue.reference }}</small>
+                  {% else %}
+                    <strong>{{ ligne.nouvelle_designation }}</strong><br>
+                    <small class="text-muted">Hors catalogue</small>
+                  {% endif %}
+                  {% if ligne.nouvelle_description %}
+                    <div class="small mt-1 text-muted">{{ ligne.nouvelle_description }}</div>
+                  {% endif %}
+                  {% if ligne.engin_concerne %}
+                    <div class="small mt-1">Engin : {{ ligne.engin_concerne }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ ligne.quantite }}</td>
+                <td>{{ ligne.qte_stock }}</td>
+                <td>{% if ligne.prix_unitaire %}{{ ligne.prix_unitaire }} €{% else %}-{% endif %}</td>
+                <td>{% if ligne.prix_total %}{{ ligne.prix_total }} €{% else %}-{% endif %}</td>
+                <td>{{ ligne.fournisseur_retenu|default:'-' }}</td>
+                <td>{{ ligne.reference_fournisseur|default:'-' }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted py-4">Aucune ligne enregistrée.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-end mt-3">
+          <div class="text-right">
+            <div class="meta-label">Total commande HT</div>
+            <div class="meta-value h5 mb-0">{% if demande.total_commande_ht %}{{ demande.total_commande_ht }} €{% else %}0.00 €{% endif %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="action-card h-100">
+            <div class="section-title">Suivi devis et validation</div>
+            <p class="text-muted">{{ devis_retenus_count }} ligne(s) avec fournisseur retenu sur {{ demande.lignes.count }}.</p>
+            {% if request.user.is_staff or request.user.is_superuser %}
+              <div class="d-flex flex-wrap">
+                <a href="{% url 'achats:devis_manage' demande.pk %}" class="btn btn-outline-primary btn-sm mr-2 mb-2">Ouvrir les devis</a>
+                {% if demande.statut == 'en_cours_devis' %}
+                <form method="post" action="{% url 'achats:demande_launch_validation' demande.pk %}" class="mb-2">{% csrf_token %}<button type="submit" class="btn btn-primary btn-sm">Lancer la validation</button></form>
+                {% endif %}
+              </div>
+            {% endif %}
+            <div class="mt-3">
+              {% for etape in demande.etapes.all %}
+              <div class="border rounded p-2 mb-2">
+                <div><strong>Niveau {{ etape.niveau }}</strong> - {{ etape.get_statut_display }}</div>
+                <div class="small text-muted">{{ etape.validateur|default:'Non configuré' }}</div>
+                {% if etape.commentaire %}<div class="small mt-1">{{ etape.commentaire }}</div>{% endif %}
+              </div>
+              {% empty %}
+              <div class="text-muted">Aucune étape de validation créée pour le moment.</div>
+              {% endfor %}
+            </div>
+            {% if pending_etape %}
+            <form method="post" action="{% url 'achats:demande_validation_action' demande.pk pending_etape.pk %}" class="mt-3">
+              {% csrf_token %}
+              <div class="form-group">
+                <label for="{{ validation_form.decision.id_for_label }}">{{ validation_form.decision.label }}</label>
+                {{ validation_form.decision }}
+              </div>
+              <div class="form-group">
+                <label for="{{ validation_form.commentaire.id_for_label }}">{{ validation_form.commentaire.label }}</label>
+                {{ validation_form.commentaire }}
+              </div>
+              <button type="submit" class="btn btn-primary btn-sm">Traiter l'étape</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-12 col-lg-6 mb-3">
+          <div class="action-card h-100">
+            <div class="section-title">Réception et évaluation fournisseur</div>
+            {% if reception %}
+              <div class="mb-2"><strong>Conformité :</strong> {% if reception.conforme_quantite_etat %}Oui{% else %}Non{% endif %}</div>
+              <div class="mb-2"><strong>Score P03 :</strong> {{ reception.score_calcule }} / 100</div>
+              <div class="mb-3"><strong>Note :</strong> {{ reception.note_calculee }}</div>
+              {% if request.user.is_staff or request.user.is_superuser %}
+              <a href="{% url 'achats:reception_edit' demande.pk %}" class="btn btn-outline-success btn-sm">Voir la réception</a>
+              {% endif %}
+            {% else %}
+              <div class="text-muted mb-3">Aucune réception enregistrée pour cette demande.</div>
+            {% endif %}
+
+            <div class="mt-3">
+              <h6>Évaluations liées</h6>
+              {% for evaluation in evaluations_fournisseurs %}
+              <div class="border rounded p-2 mb-2">
+                <div><strong>{{ evaluation.fournisseur.nom }}</strong> - {{ evaluation.annee }}</div>
+                <div class="small text-muted">Score moyen : {{ evaluation.score_moyen|default:'-' }} | Note : {{ evaluation.note|default:'-' }} | Dysfonctionnements : {{ evaluation.nb_dysfonctionnements }}</div>
+              </div>
+              {% empty %}
+              <div class="text-muted">Aucune évaluation annuelle calculée pour les fournisseurs retenus.</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

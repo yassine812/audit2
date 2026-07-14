@@ -1,0 +1,288 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+
+{% block body %}
+<div class="container-fluid">
+
+  <!-- ====== HERO ====== -->
+  <section class="content-header pb-0">
+    <div class="container-fluid">
+      <div class="row align-items-center">
+        <div class="col-xl-8 col-lg-7">
+          <div class="d-flex align-items-center">
+            <img src="{% static 'dist/img/abserveLogo.png' %}" class="mr-3" style="height:42px;border-radius:10px;">
+            <div>
+              <h1 class="mb-1">Tableau de bord</h1>
+              <div class="text-muted small" id="todayLabel"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== KPIs ====== -->
+  <section class="content">
+    <div class="container-fluid">
+
+      <!-- Styles locaux -->
+      <style>
+        :root{
+          --card-r:14px;
+          --shadow:0 10px 22px rgba(15,23,42,.08);
+          --soft:#f5f7fb;
+          --border:#e9edf4;
+          --muted:#6b7280;
+        }
+        .card{border:0;border-radius:var(--card-r);box-shadow:var(--shadow);}
+        .card-header{background:transparent;border:0;font-weight:600;}
+        .small-box{border-radius:16px;overflow:hidden;position:relative;}
+        .small-box .inner h3{font-weight:800;letter-spacing:.5px;margin-bottom:.15rem;}
+        .small-box .inner p{margin-bottom:.25rem;opacity:.9;}
+        .small-box .icon{opacity:.25;right:16px;top:10px;transition:transform .25s ease;}
+        .small-box:hover .icon{transform:scale(1.06);}
+        .bg-grad-primary{background:linear-gradient(135deg,#5661ff 0%,#3a57e8 100%)!important;color:#fff;}
+        .bg-grad-success{background:linear-gradient(135deg,#24c78a 0%,#0fb981 100%)!important;color:#fff;}
+        .bg-grad-info{background:linear-gradient(135deg,#23c1ff 0%,#119bd2 100%)!important;color:#fff;}
+        .bg-grad-warning{background:linear-gradient(135deg,#ffce3a 0%,#ffb200 100%)!important;color:#fff;}
+        .kpi-trend{font-size:.85rem;display:inline-flex;align-items:center;gap:.35rem;}
+        .kpi-trend .up{color:#b0ffcf}.kpi-trend .down{color:#ffe1df}
+        .badge-soft{background:#f2f4f7;color:#334155;border:1px solid #e5e7eb;border-radius:999px;padding:.25rem .5rem;font-size:.72rem;}
+        .table thead th{background:#f7f8fa;border-bottom:1px solid var(--border);font-weight:600;position:sticky;top:0;z-index:1;}
+        .table-container{max-height:360px;overflow:auto;border-top:1px solid var(--border);}
+        .table-modern tbody tr{transition:background .15s ease, box-shadow .15s ease}
+        .table-modern tbody tr:hover{background:#fafbfd}
+        .meta{font-size:.8rem;color:var(--muted)}
+        .empty-state{color:var(--muted);padding:2rem 1rem}
+        .row-accent{position:relative}
+        .row-accent td{padding-left:10px}
+        .accent-appel::before{background:#28a745}
+        .accent-email::before{background:#17a2b8}
+        .accent-rdv::before{background:#ffc107}
+        .avatar{width:28px;height:28px;border-radius:999px;background:#e5e7eb;color:#374151;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;margin-right:.5rem}
+        /* Barre de raccourcis */
+        .quick-actions{background:var(--soft);border:1px solid var(--border);border-radius:var(--card-r);padding:.75rem 1rem;}
+        .quick-actions .btn{border-radius:10px;}
+        /* Micro-anim */
+        .card:hover{box-shadow:0 12px 28px rgba(15,23,42,.12)}
+      </style>
+
+      <!-- Ligne KPIs -->
+      <div class="row">
+        <div class="col-lg-3 col-sm-6 mb-3">
+          <div class="small-box bg-grad-primary">
+            <div class="inner">
+              <p>Actions (Total)</p>
+              <h3>{{ counts.actions_total|default:"0" }}</h3>
+              <div class="kpi-trend">
+                {% if trends.actions_total.up %}<i class="fas fa-arrow-up up"></i>{% else %}<i class="fas fa-arrow-down down"></i>{% endif %}
+                {{ trends.actions_total.pct }}% vs 30j
+              </div>
+            </div>
+            <div class="icon"><i class="fas fa-tasks"></i></div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-sm-6 mb-3">
+          <div class="small-box bg-grad-success">
+            <div class="inner">
+              <p>Appels</p>
+              <h3>{{ counts.calls|default:"0" }}</h3>
+              <div class="kpi-trend">
+                {% if trends.calls.up %}<i class="fas fa-arrow-up up"></i>{% else %}<i class="fas fa-arrow-down down"></i>{% endif %}
+                {{ trends.calls.pct }}%
+              </div>
+            </div>
+            <div class="icon"><i class="fas fa-phone"></i></div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-sm-6 mb-3">
+          <div class="small-box bg-grad-info">
+            <div class="inner">
+              <p>Emails</p>
+              <h3>{{ counts.emails|default:"0" }}</h3>
+              <div class="kpi-trend">
+                {% if trends.emails.up %}<i class="fas fa-arrow-up up"></i>{% else %}<i class="fas fa-arrow-down down"></i>{% endif %}
+                {{ trends.emails.pct }}%
+              </div>
+            </div>
+            <div class="icon"><i class="fas fa-envelope"></i></div>
+          </div>
+        </div>
+        <div class="col-lg-3 col-sm-6 mb-3">
+          <div class="small-box bg-grad-warning">
+            <div class="inner">
+              <p>Rendez-vous</p>
+              <h3>{{ counts.appointments|default:"0" }}</h3>
+              <div class="kpi-trend">
+                {% if trends.appointments.up %}<i class="fas fa-arrow-up up"></i>{% else %}<i class="fas fa-arrow-down down"></i>{% endif %}
+                {{ trends.appointments.pct }}%
+              </div>
+            </div>
+            <div class="icon"><i class="fas fa-handshake"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Raccourcis (barre) -->
+      <div class="row mb-3">
+        <div class="col-12">
+          <div class="quick-actions d-flex flex-wrap align-items-center">
+            <span class="text-muted mr-2 mb-2"><i class="far fa-compass mr-1"></i>Raccourcis :</span>
+            <a href="{% url 'prospection:call_list' %}" class="btn btn-light btn-sm border mr-2 mb-2"><i class="fas fa-list mr-1"></i> Appels</a>
+            <a href="{% url 'prospection:email_list' %}" class="btn btn-light btn-sm border mr-2 mb-2"><i class="fas fa-inbox mr-1"></i> Emails</a>
+            <a href="{% url 'prospection:rv_list' %}" class="btn btn-light btn-sm border mr-2 mb-2"><i class="far fa-calendar-alt mr-1"></i> RDV</a>
+            <a href="{% url 'prospection:enquetes' %}" class="btn btn-light btn-sm border mr-2 mb-2"><i class="fas fa-poll mr-1"></i> Enquêtes</a>
+            <a href="{% url 'prospection:gestion_entreprises' %}" class="btn btn-light btn-sm border mb-2"><i class="fas fa-building mr-1"></i> Clients</a>
+            <a href="{% url 'prospection:prospects_list' %}" class="btn btn-light btn-sm border mb-2"><i class="fas fa-user mr-1"></i> Prospects</a>
+            <a href="{% url 'prospection:gestion_concurrents' %}" class="btn btn-light btn-sm border mb-2"><i class="fas fa-bolt mr-1"></i> Concurrents</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== 2 colonnes : Événements & Actions ====== -->
+      <div class="row">
+        <!-- Événements -->
+        <div class="col-xl-6 mb-3">
+          <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div><i class="far fa-calendar-check mr-2 text-secondary"></i>Événements (7 prochains jours)</div>
+              <span class="badge-soft">Top 5</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive table-container">
+                <table class="table table-modern table-hover table-sm align-middle mb-0">
+                  <colgroup>
+                    <col style="width:50%">
+                    <col style="width:30%">
+                    <col style="width:20%">
+                  </colgroup>
+                  <thead><tr><th>Nom</th><th>Date</th><th>Type</th></tr></thead>
+                  <tbody>
+                    {% for ev in upcoming_events|slice:":5" %}
+                    <tr class="row-accent accent-rdv">
+                      <td class="font-weight-600">{{ ev.nom }}</td>
+                      <td>
+                        <div>{{ ev.date_heure_planifie|date:'d/m/Y H:i' }}</div>
+                        <div class="meta">dans {{ ev.date_heure_planifie|timeuntil }}</div>
+                      </td>
+                      <td><span class="badge-soft"><i class="fas fa-tag mr-1"></i>{{ ev.type }}</span></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center empty-state"><i class="far fa-calendar-alt mr-2"></i>Aucun événement à venir</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer text-right py-2">
+              <a href="{% url 'prospection:event_list' 'interne' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-list mr-1"></i>Tout voir</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="col-xl-6 mb-3">
+          <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div><i class="fas fa-clock mr-2 text-secondary"></i>Actions à venir (7 jours)</div>
+              <span class="badge-soft">Top 5</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive table-container">
+                <table class="table table-modern table-hover table-sm align-middle mb-0">
+                  <colgroup>
+                    <col style="width:50%">
+                    <col style="width:30%">
+                    <col style="width:20%">
+                  </colgroup>
+                  <thead><tr><th>Sujet</th><th>Date</th><th>Type</th></tr></thead>
+                  <tbody>
+                    {% for ac in upcoming_actions|slice:":5" %}
+                    <tr class="row-accent {% if ac.is_Appel %}accent-appel{% elif ac.is_Email %}accent-email{% elif ac.is_RV %}accent-rdv{% endif %}">
+                      <td class="font-weight-600">{{ ac.sujet }}</td>
+                      <td>
+                        <div>{{ ac.date_heure_planifie|date:'d/m/Y H:i' }}</div>
+                        <div class="meta">dans {{ ac.date_heure_planifie|timeuntil }}</div>
+                      </td>
+                      <td>
+                        {% if ac.is_Appel %}<span class="badge badge-success badge-pill"><i class="fas fa-phone-alt mr-1"></i>Appel</span>
+                        {% elif ac.is_Email %}<span class="badge badge-info badge-pill"><i class="fas fa-envelope mr-1"></i>Email</span>
+                        {% elif ac.is_RV %}<span class="badge badge-warning badge-pill"><i class="fas fa-handshake mr-1"></i>RDV</span>
+                        {% else %}<span class="badge badge-secondary badge-pill">Autre</span>{% endif %}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center empty-state"><i class="far fa-clock mr-2"></i>Aucune action à venir</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card-footer text-right py-2">
+              <a href="{% url 'prospection:call_list' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-list mr-1"></i>Tout voir</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== Dernières actions ====== -->
+      <div class="row">
+        <div class="col-xl-12 mb-4">
+          <div class="card" style="border:1px solid var(--border); background:#fbfcfe;">
+            <div class="card-header d-flex align-items-center justify-content-between">
+              <div><i class="fas fa-stream mr-2 text-secondary"></i>Dernières actions</div>
+              <span class="badge-soft">Top 6</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive table-container">
+                <table class="table table-modern table-hover table-sm align-middle mb-0">
+                  <colgroup>
+                    <col style="width:40%">
+                    <col style="width:35%">
+                    <col style="width:25%">
+                  </colgroup>
+                  <thead><tr><th>Sujet</th><th>Entreprise</th><th>Date</th></tr></thead>
+                  <tbody>
+                    {% for a in recent_actions|slice:":6" %}
+                    <tr>
+                      <td class="font-weight-600">{{ a.sujet }}</td>
+                      <td>
+                        <span class="avatar">{{ a.entreprise.nom|default:'-'|slice:":2"|upper }}</span>
+                        {{ a.entreprise.nom|default:'-' }}
+                      </td>
+                      <td>
+                        <div>{{ a.date_heure_planifie|date:'d/m/Y H:i' }}</div>
+                        <div class="meta">il y a {{ a.date_heure_planifie|timesince }}</div>
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="text-center empty-state"><i class="fas fa-stream mr-2"></i>Aucune action récente</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Données (si besoin plus tard) -->
+      <script type="application/json" id="upcoming-actions-json">[
+        {% for ac in upcoming_actions %}
+          "{{ ac.date_heure_planifie|date:'Y-m-d' }}"{% if not forloop.last %},{% endif %}
+        {% endfor %}
+      ]</script>
+
+    </div>
+  </section>
+</div>
+
+<!-- Micro-script date du jour -->
+<script>
+  (function(){
+    const d=new Date();
+    const el=document.getElementById('todayLabel');
+    if(el){ el.textContent = d.toLocaleDateString('fr-FR',{weekday:'long', day:'2-digit', month:'long', year:'numeric'}); }
+  })();
+</script>
+{% endblock %}

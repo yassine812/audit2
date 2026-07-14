@@ -1,0 +1,39 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ── Virtual environments ─────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# Conserver les migrations Django dans Git ; ignorer uniquement leurs caches.
+**/migrations/__pycache__/
+
+# ── Django ───────────────────────────────────────────────────────────────────
+db.sqlite3
+db.sqlite3-journal
+*.log
+local_settings.py
+.env
+.env.*
+
+# Collected static files (manage.py collectstatic)
+staticfiles/
+static_root/
+
+# Media files uploaded by users — do NOT commit user data or large binaries
+media/
+
+# ── IDE / Editor ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*~
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

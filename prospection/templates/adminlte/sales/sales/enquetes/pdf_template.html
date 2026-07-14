@@ -1,0 +1,240 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: DejaVu Sans, Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 18px;
+            margin: 0;
+            color: #1f5e3b;
+        }
+
+        h2 {
+            font-size: 14px;
+            margin: 14px 0 6px;
+        }
+
+        /* Header styles - Excel-like look with green accent */
+        .header {
+            margin-bottom: 10px;
+        }
+
+        .header-bar {
+            height: 8px;
+            background: #1f5e3b;
+            border-radius: 2px;
+        }
+
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 2px;
+        }
+
+        .header-title {
+            color: #000000;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .header-cell {
+            background: #ffffff;
+            border: none;
+        }
+
+        .header-cell strong {
+            color: #1f295e;
+        }
+
+        .header-table td {
+            padding: 6px 4px;
+        }
+
+        .logo {
+            width: 90px;
+            height: auto;
+        }
+
+        /* Header alignment */
+        .header-table {
+            width: 100%;
+            table-layout: fixed;
+        }
+        .header-table td {
+            padding: 6px 8px;
+            vertical-align: middle;
+        }
+        .header-left {
+            width: 20%;
+            text-align: center;
+            border: none;
+        }
+        .header-title {
+            width: 60%;
+            text-align: center;
+            border: none;
+        }
+        .header-right {
+            width: 28%;
+            text-align: left;
+            border: none;
+        }
+        .header-right small {
+            line-height: 1.2;
+            display: inline-block;
+        }
+
+        .title-block {
+            padding-left: 2px;
+        }
+
+        .doc-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f5e3b;
+        }
+
+        .doc-sub {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        /* Meta table */
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .meta-table th,
+        .meta-table td {
+            border: 1px solid #b7d7c0;
+            padding: 6px;
+        }
+
+        .meta-table th {
+            background: #d9ead3;
+            text-align: left;
+            width: 30%;
+        }
+
+        .meta-table td {
+            background: #fff;
+        }
+
+        /* Content table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            border: 1px solid #999;
+            padding: 2px;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+    <table class="header-table">
+        <tr>
+            <td class="header-left">
+                {% if logo_data_uri %}
+                  <img src="{{ logo_data_uri }}" alt="AB Serve Logo" class="logo">
+                {% elif logo_uri %}
+                  <img src="{{ logo_uri }}" alt="AB Serve Logo" class="logo">
+                {% else %}
+                  <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve Logo" class="logo">
+                {% endif %}
+            </td>
+            <td colspan="2" class="header-title">
+                Questionnaire Satisfaction Client
+            </td>
+            <td class="header-right">
+                <small>
+                    AB Serve
+                    <br>53 route de Rombas l 57140 Woippy l France
+                    <br>T +33(0)3 87 58 98 98|contact@ab-serve.com
+                    <br><a style="color: #000000;font-weight: bold;text-decoration: none;" href="http://www.ab-serve.com">www.ab-serve.com</a>
+                </small>
+            </td>
+        </tr>
+        <tr></tr>
+        <tr></tr>
+        <tr>
+            <td colspan="2" class="header-cell">
+                <strong>Date envoi :</strong> {{ enquete.date_envoi|default:"N/A" }}
+            </td>
+            <td colspan="2" class="header-cell">
+                <strong>Client :</strong> {{ enquete.client }}
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" class="header-cell">
+                <strong>Date réponse :</strong> {{ enquete.date_reponse|default:"N/A" }}
+            </td>
+            <td colspan="2" class="header-cell">
+                <strong>Service :</strong> Commercial
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" class="header-cell">
+                <strong>Interlocuteur :</strong> {{ enquete.client.email }}
+            </td>
+            <td colspan="2" class="header-cell">
+                <strong>Service :</strong>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" class="header-cell">
+                <strong>1ère prestation AB Serve :</strong>   OUI &nbsp;&nbsp;&nbsp;&nbsp; NON
+            </td>
+        </tr>
+    </table>
+
+
+    {% comment %} Sections suivant les types (utilise le contexte 'grouped' préparé dans la vue) {% endcomment %}
+    {% for label, items in grouped.items %}
+    {% if items %}
+    <h2>{{ label }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:5%">#</th>
+                <th style="width:55%">Question</th>
+                <th style="width:20%">Réponse</th>
+                <th style="width:20%">Commentaire</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for q in items %}
+            <tr>
+                <td style="text-align: center;vertical-align:-webkit-baseline-middle;">{{ forloop.counter }}</td>
+                <td style="text-align: left;vertical-align:-webkit-baseline-middle;">{{ q.question }}</td>
+                <td style="text-align: center;vertical-align:-webkit-baseline-middle;">{% if q.reponse %}{{ q.reponse }}{% else %}-{% endif %}</td>
+                <td style="text-align: center;vertical-align:-webkit-baseline-middle;">{% if q.commentaire %}{{ q.commentaire }}{% else %}-{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+    {% endfor %}
+</body>
+
+</html>

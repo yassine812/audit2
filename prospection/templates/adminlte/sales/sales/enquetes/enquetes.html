@@ -1,0 +1,3426 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+<style>
+  .swal2-container {
+    z-index: 100000 !important;
+  }
+
+  .required-marker {
+    color: #dc3545;
+    font-weight: 700;
+  }
+</style>
+<button class="btn btn-primary" id="openFilterBtn" style="
+        position: fixed;
+        right: 20px;
+        top: 40%;
+        z-index: 999;
+    ">
+    <i class="fas fa-filter"></i> Filtres
+</button>
+
+<div class="custom-sidebar" id="filterSidebar" aria-hidden="true" aria-label="Panneau de filtres">
+    <div class="sidebar-header">
+        <button class="close-btn" id="closeFilterBtn">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+    <div class="sidebar-content" role="region" aria-labelledby="openFilterBtn">
+        <form method="GET" id="enqueteFilterForm">
+            <div class="form-group">
+                <label for="titre">Titre</label>
+                <input type="text" placeholder="Titre" class="form-control form-control-sm" name="titre" id="titre"
+                       value="{{ request.GET.titre|default_if_none:'' }}">
+            </div>
+
+
+            <div class="form-group">
+                <label>Envoyée</label>
+                <select name="envoyee" class="form-control form-control-sm">
+                    <option value="">Toutes</option>
+                    <option value="1" {% if filter_envoyee_oui %}selected{% endif %}>Oui</option>
+                    <option value="0" {% if filter_envoyee_non %}selected{% endif %}>Non</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Rappelée</label>
+                <select name="rappellee" class="form-control form-control-sm">
+                    <option value="">Toutes</option>
+                    <option value="1" {% if filter_rappellee_oui %}selected{% endif %}>Oui</option>
+                    <option value="0" {% if filter_rappellee_non %}selected{% endif %}>Non</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Répondue</label>
+                <select name="repondue" class="form-control form-control-sm">
+                    <option value="">Toutes</option>
+                    <option value="1" {% if filter_repondue_oui %}selected{% endif %}>Oui</option>
+                    <option value="0" {% if filter_repondue_non %}selected{% endif %}>Non</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Date d'envoi</label>
+                <div class="d-flex gap-2">
+                    <input type="date" class="form-control form-control-sm" name="date_envoi_min"
+                           value="{{ request.GET.date_envoi_min|default_if_none:'' }}">
+                    <span style="margin:0 4px;">à</span>
+                    <input type="date" class="form-control form-control-sm" name="date_envoi_max"
+                           value="{{ request.GET.date_envoi_max|default_if_none:'' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Date de rappel</label>
+                <div class="d-flex gap-2">
+                    <input type="date" class="form-control form-control-sm" name="date_rappel_min"
+                           value="{{ request.GET.date_rappel_min|default_if_none:'' }}">
+                    <span style="margin:0 4px;">à</span>
+                    <input type="date" class="form-control form-control-sm" name="date_rappel_max"
+                           value="{{ request.GET.date_rappel_max|default_if_none:'' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Date de réponse</label>
+                <div class="d-flex gap-2">
+                    <input type="date" class="form-control form-control-sm" name="date_reponse_min"
+                           value="{{ request.GET.date_reponse_min|default_if_none:'' }}">
+                    <span style="margin:0 4px;">à</span>
+                    <input type="date" class="form-control form-control-sm" name="date_reponse_max"
+                           value="{{ request.GET.date_reponse_max|default_if_none:'' }}">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="client">Client</label>
+                <select name="client" id="client" class="form-control form-control-sm select2-client">
+                    <option value="">Tous</option>
+                    {% for cl, cl_sel in clients_opts %}
+                    <option value="{{ cl.id }}" {% if cl_sel %}selected{% endif %}>{{ cl.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {% if request.user.is_superuser or request.user.is_RO %}
+            <div class="form-group">
+                <label for="societe">Filiale (Société)</label>
+                <select name="societe" id="societe" class="form-control form-control-sm">
+                    <option value="">Toutes</option>
+                    {% for s, s_sel in societes_opts %}
+                    <option value="{{ s.id }}" {% if s_sel %}selected{% endif %}>{{ s.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="created_by">Créé par</label>
+                <select name="created_by" id="created_by" class="form-control form-control-sm">
+                    <option value="">Tous</option>
+                    {% for u, u_sel in users_opts %}
+                    <option value="{{ u.id }}" {% if u_sel %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap: 4px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Appliquer les filtres
+                </button>
+                <a href="{% url 'prospection:enquetes' %}" class="btn btn-default">
+                    <i class="fas fa-sync-alt"></i> Réinitialiser
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0">Gestion des Enquêtes</h1>
+            </div>
+            <div class="col-sm-6">
+                <ol class="breadcrumb float-sm-right">
+                    <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+                    <li class="breadcrumb-item active">Enquêtes</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col-12 text-right">
+                <a href="#" class="btn btn-success" data-toggle="modal" data-target="#addEnqueteModal">
+                    <i class="fas fa-plus"></i> Ajouter une enquête
+                </a>
+                {% if request.user.is_superuser or request.user.is_RO %}
+                <button type="button" class="btn btn-outline-primary ml-2" data-toggle="modal" data-target="#importExcelModal">
+                    <i class="fas fa-file-upload"></i> Importer Excel
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<section class="content">
+    <div class="container-fluid">
+
+        <!-- Global Analytics Card (collapsible) -->
+        <div class="row">
+            <div class="col-12 col-md-6">
+                <div class="card" id="globalAnalyticsCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0"><i class="fas fa-chart-line mr-2"></i>Analytique globale des enquêtes</h3>
+                        <div class="btn-group ml-auto">
+                            <button type="button" class="btn btn-sm btn-outline-danger js-analytics-pdf" data-href="{% url 'prospection:download_enquetes_analytics_global_pdf' %}?{{ qs }}" title="Télécharger cette section en PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" data-cascade-toggle="collapse" data-target="#globalAnalyticsCollapse" aria-expanded="false" aria-controls="globalAnalyticsCollapse">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="globalAnalyticsCollapse" class="collapse">
+                        <div class="card-body" id="globalAnalyticsBody">
+                            <div class="loading-indicator text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Chargement...</span>
+                                </div>
+                                <p class="mt-2">Chargement des données...</p>
+                            </div>
+                            <div class="row" id="globalChartsContainer" style="display: none;">
+                                <div class="col-md-4 col-12 mb-3">
+                                    <h6 class="text-muted">Taux de réponse</h6>
+                                    <div class="chart-wrap"><canvas id="responseChart"></canvas></div>
+                                </div>
+                                <div class="col-md-4 col-12 mb-3">
+                                    <h6 class="text-muted">Sentiment des commentaires</h6>
+                                    <div class="chart-wrap"><canvas id="sentimentChart"></canvas></div>
+                                </div>
+                                <div class="col-md-4 col-12 mb-3">
+                                    <h6 class="text-muted">Comparatif: Envois / Rappels / Retours</h6>
+                                    <div class="chart-wrap"><canvas id="countsChart" style="height: 140px;"></canvas></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="card" id="questionsDetailsCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0"><i class="fas fa-chart-bar mr-2"></i>Réponses détaillées par question</h3>
+                        <div class="btn-group ml-auto">
+                            <button type="button" class="btn btn-sm btn-outline-danger js-analytics-pdf" data-href="{% url 'prospection:download_enquetes_analytics_questions_pdf' %}?{{ qs }}" title="Télécharger cette section en PDF">
+                                <i class="fas fa-file-pdf"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" data-cascade-toggle="collapse" data-target="#questionsAnalyticsCollapse" aria-expanded="false" aria-controls="questionsAnalyticsCollapse">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="questionsAnalyticsCollapse" class="collapse">
+                        <div class="card-body" id="questionsAnalyticsBody">
+                            <div class="loading-indicator text-center py-4">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Chargement...</span>
+                                </div>
+                                <p class="mt-2">Chargement des données...</p>
+                            </div>
+                            <div id="questionsAnalyticsContent" style="display: none;">
+                                <div class="d-flex flex-wrap small text-muted mb-3" id="questionsLegend">
+                                    <span class="mr-3 mb-1"><span class="d-inline-block rounded-circle mr-1" style="width:10px;height:10px;background:#66BB6A;"></span>Très satisfait</span>
+                                    <span class="mr-3 mb-1"><span class="d-inline-block rounded-circle mr-1" style="width:10px;height:10px;background:#42A5F5;"></span>Satisfait</span>
+                                    <span class="mr-3 mb-1"><span class="d-inline-block rounded-circle mr-1" style="width:10px;height:10px;background:#FFA726;"></span>Peu satisfait</span>
+                                    <span class="mb-1"><span class="d-inline-block rounded-circle mr-1" style="width:10px;height:10px;background:#EF5350;"></span>Pas du tout satisfait</span>
+                                </div>
+                                <div id="questionsAnalytics" class="row">
+                                    <!-- Les barres de progression seront ajoutées ici par JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card" id="questionsCard">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="card-title mb-0"><i class="fas fa-list mr-2"></i>Questions</h3>
+                        <div class="btn-group ml-auto">
+                            {% if not request.user.is_C %}
+                            <button class="btn btn-sm btn-success" data-toggle="modal" data-target="#addQuestionModalEnquete" type="button" title="Ajouter une question">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-cascade-toggle="collapse" data-target="#questionsCollapse" href="#questionsCollapse" aria-expanded="false" aria-controls="questionsCollapse" title="Afficher/Masquer les questions">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="questionsCollapse" class="collapse">
+                        <div class="card-body">
+                            <table id="questionsTable" class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Question</th>
+                                        <th>Type</th>
+                                        <th>Obligatoire</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for question in all_questions %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <div class="font-weight-bold">{{ question.question_fr|truncatechars:50 }}</div>
+                                                <div class="text-muted small">{{ question.question_en|truncatechars:50 }}</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if question.type == "closed" %}
+                                                Échelle
+                                            {% elif question.type == "ouinon" %}
+                                                Oui / Non / Peut-être
+                                            {% elif question.type == "open" %}
+                                                Commentaire libre
+                                            {% elif question.type == "note" %}
+                                                Note (1-10)
+                                            {% else %}
+                                                {{ question.type }}
+                                            {% endif %}
+                                        </td>
+                                        <td>{% if question.obligatoire %}Oui{% else %}Non{% endif %}</td>
+                                        <td>
+                                            <button type="button" style="margin-bottom: 3px;"
+                                                class="btn btn-outline-info btn-sm view-stats-btn-enquete"
+                                                data-question-id="{{ question.id }}" title="Voir les statistiques">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if not request.user.is_C %}
+                                            <button type="button" style="margin-bottom: 3px;"
+                                                class="btn btn-outline-secondary btn-sm" data-toggle="modal"
+                                                data-target="#editQuestionModalEnquete{{ question.id }}" title="Modifier">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" style="margin-bottom: 3px;"
+                                                class="btn btn-outline-danger btn-sm" data-toggle="modal"
+                                                data-target="#deleteQuestionModalEnquete{{ question.id }}" title="Supprimer">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste + pagination -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header justify-content-between align-items-center">
+                        <div class="card-tools float-right" style="text-align:center">
+                            <small style="font-size: 90%;">
+                                {{ page_obj.start_index }} - {{ page_obj.end_index }} sur {{ page_obj.paginator.count }}
+                            </small>
+                            <ul class="pagination pagination-sm justify-content-center mb-0" style="margin-top:0" aria-label="Pagination des enquêtes">
+                                <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                                    <a class="page-link" href="?{% if qs %}{{ qs }}&{% endif %}page=1" aria-label="Première page">&laquo;</a>
+                                </li>
+                                {% for i in page_obj.paginator.page_range %}
+                                <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+                                    <a class="page-link" href="?{% if qs %}{{ qs }}&{% endif %}page={{ i }}" aria-label="Aller à la page {{ i }}">{{ i }}</a>
+                                </li>
+                                {% endfor %}
+                                <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                                    <a class="page-link" href="?{% if qs %}{{ qs }}&{% endif %}page={{ page_obj.paginator.num_pages }}" aria-label="Dernière page">&raquo;</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <table id="enquetes" class="table table-bordered table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Titre</th>
+                                    <th>Description</th>
+                                    <th>Date d'envoi</th>
+                                    <th>Date de rappel</th>
+                                    <th>Date de réponse</th>
+                                    <th>Créé par</th>
+                                    <th>Nombre de questions</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enquete in page_obj %}
+                                <tr data-has-response="{% if enquete.date_reponse %}true{% else %}false{% endif %}">
+                                    <td>{{ enquete.titre|truncatechars:50 }}</td>
+                                    <td>{{ enquete.description|truncatechars:50 }}</td>
+                                    <td class="text-center">
+                                        {% if enquete.date_envoi %}{{ enquete.date_envoi }}{% else %}<i class="fas fa-times text-danger"></i>{% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if enquete.date_rappel %}{{ enquete.date_rappel }}{% else %}<i class="fas fa-times text-danger"></i>{% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if enquete.date_reponse %}{{ enquete.date_reponse }}{% else %}<i class="fas fa-times text-danger"></i>{% endif %}
+                                    </td>
+                                    <td>{{ enquete.created_by }}</td>
+                                    <td>{{ enquete.questions.count }}</td>
+                                    <td>
+                                        <button type="button" style="margin-bottom: 3px;"
+                                            class="btn btn-outline-secondary btn-sm" data-toggle="modal"
+                                            data-target="#editEnqueteModal{{ enquete.id }}" title="Modifier">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+
+                                        <button type="button" style="margin-bottom: 3px;"
+                                            class="btn btn-outline-danger btn-sm" data-toggle="modal"
+                                            data-target="#deleteEnqueteModal{{ enquete.id }}" title="Supprimer">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+
+                                        <button type="button" class="btn btn-outline-primary btn-sm btn-detail-enquete"
+                                            data-id="{{ enquete.id }}" data-toggle="modal"
+                                            data-target="#detailsEnqueteModal" title="Voir">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+
+                                        {% if not enquete.date_envoi %}
+                                        <button type="button" class="btn btn-outline-success btn-sm btn-send-enquete" 
+                                                data-enquete-id="{{ enquete.id }}" 
+                                                data-client-email="{% if enquete.email %}{{ enquete.email }}{% else %}{{ enquete.client.email|default:'' }}{% endif %}"
+                                                data-client-name="{{ enquete.client.nom|default:'' }}"
+                                                data-client-societe-id="{{ enquete.client.societe_id|default:'' }}"
+                                                data-enquete-title="{{ enquete.titre }}"
+                                                data-action="send"
+                                                title="Envoyer l'enquête par mail">
+                                            <i class="fas fa-paper-plane"></i>
+                                        </button>
+                                        {% endif %}
+
+                                        {% if enquete.date_envoi and not enquete.date_reponse %}
+                                        <button type="button" class="btn btn-warning btn-sm btn-send-enquete" 
+                                                data-enquete-id="{{ enquete.id }}" 
+                                                data-client-email="{% if enquete.email %}{{ enquete.email }}{% else %}{{ enquete.client.email|default:'' }}{% endif %}"
+                                                data-client-name="{{ enquete.client.nom|default:'' }}"
+                                                data-client-societe-id="{{ enquete.client.societe_id|default:'' }}"
+                                                data-enquete-title="{{ enquete.titre }}"
+                                                data-action="rappel"
+                                                title="Relancer l'enquête (Rappel)"
+                                                {% if not enquete.date_rappel %}style="border: 2px solid #ffc107;"{% endif %}>
+                                            <i class="fas fa-bell"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% if request.user.is_superuser or request.user.is_RO %}
+<div class="modal fade" id="importExcelModal" tabindex="-1" role="dialog" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <form id="importExcelForm" method="post" enctype="multipart/form-data" action="{% url 'prospection:import-satisfaction' %}">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white py-2">
+          <h6 class="modal-title" id="importExcelModalLabel">
+            <i class="fas fa-file-excel mr-1"></i> Import Excel
+          </h6>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group mb-2">
+            <label class="small font-weight-bold">Société</label>
+            <select name="societe_id" class="form-control form-control-sm" required>
+              <option value="">— Choisir —</option>
+              {% for s in societes %}
+                <option value="{{ s.id }}">{{ s.nom }}</option>
+              {% endfor %}
+            </select>
+            <small class="text-muted">Obligatoire (utilisé pour Sage & rattachement)</small>
+          </div>
+
+          <div class="form-group mb-1">
+            <label class="small font-weight-bold">Fichier Excel (.xlsx)</label>
+            <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="form-control-file" required>
+            <small class="text-muted">Feuilles attendues : “Données envoi” et “Réponses clients”.</small>
+          </div>
+        </div>
+
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-upload"></i> Importer
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<!-- Modal Ajout Enquête -->
+<div class="modal fade" id="addEnqueteModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <form id="addEnqueteForm" method="POST" action="{% url 'prospection:add_enquete' %}">
+            {% csrf_token %}
+            <input type="hidden" name="societe" id="client-societe">
+            <div class="modal-content">
+                <div class="modal-header bg-info">
+                    <h5 class="modal-title">Ajouter une enquête</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Colonne gauche -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Description <span class="required-marker text-danger">*</span></label>
+                                <textarea name="description" placeholder="Description de l'enquête" class="form-control" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Date de création</label>
+                                <input type="date" name="date_creation" class="form-control">
+                            </div>
+                            <div class="form-group">
+                                <label>Client <span class="required-marker text-danger">*</span></label>
+                                <div class="client-search-container">
+                                    <input type="text" id="client-search" class="form-control" placeholder="Rechercher un client..." autocomplete="off">
+                                    <input type="hidden" id="client-id" name="client" required>
+                                    <div id="client-results" class="client-results"></div>
+                                </div>
+                                <div id="client-details-container"></div>
+                            </div>
+                        </div>
+                        <!-- Colonne droite -->
+                        <div class="col-md-6">
+                            <label>Questions non obligatoires à ajouter</label>
+                            <div class="card" style="max-height: 300px; overflow-y: auto;">
+                                <div class="card-body p-2">
+                                    {% for question in questions_non_obl %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="questions" value="{{ question.id }}" id="q{{ question.id }}">
+                                        <label class="form-check-label" for="q{{ question.id }}">{{ question.question_fr }}</label>
+                                    </div>
+                                    {% empty %}
+                                    <p class="small text-muted">Aucune question facultative disponible.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- row -->
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-info">Créer l'enquête</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% for enquete in page_obj %}
+<!-- Modal Modification Enquête -->
+<div class="modal fade" id="editEnqueteModal{{ enquete.id }}" tabindex="-1" role="dialog" aria-labelledby="editEnqueteModalLabel{{ enquete.id }}" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <form method="post" action="{% url 'prospection:edit_enquete' enquete.id %}" class="js-edit-enquete-form">
+            {% csrf_token %}
+            <input type="hidden" 
+                   name="client" 
+                   id="edit-client-{{ enquete.id }}" 
+                   value="{% if enquete.client %}{{ enquete.client.id }}{% endif %}">
+            <input type="hidden" 
+                   name="societe" 
+                   id="edit-client-societe-{{ enquete.id }}"
+                   value="{% if enquete.client.societe %}{{ enquete.client.societe.nom }}{% endif %}">
+            <div class="modal-content">
+                <div class="modal-header bg-info">
+                    <h5 class="modal-title" id="editEnqueteModalLabel{{ enquete.id }}">Modifier l'enquête</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <!-- Colonne gauche : principaux -->
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Description <span class="required-marker">*</span></label>
+                                <textarea name="description" placeholder="Description de l'enquête" class="form-control" required>{{ enquete.description }}</textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Date de création</label>
+                                <input type="date" class="form-control" value="{{ enquete.date_creation|date:'Y-m-d' }}" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Client <span class="required-marker">*</span></label>
+                                <div class="client-search-container">
+                                    <input type="text"
+                                           class="form-control client-search-edit {% if enquete.date_envoi %}bg-light{% endif %}"
+                                           placeholder="Rechercher un client..."
+                                           autocomplete="off"
+                                           value="{{ enquete.client.nom }}{% if enquete.client.societe %} - {{ enquete.client.societe.nom }}{% endif %}"
+                                           {% if enquete.date_envoi %}disabled{% endif %}>
+                                    <input type="hidden" id="client-id-edit" name="client" value="{{ enquete.client.id }}" required>
+                                    <div class="client-results client-results-edit"></div>
+                                </div>
+                                <div class="client-details-container-edit"></div>
+                                {% if enquete.date_envoi %}
+                                <small class="text-muted"><i class="fas fa-info-circle"></i> Le client ne peut plus être modifié après envoi</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- Colonne droite : facultatives -->
+                        <div class="col-md-6">
+                            <label>Questions non obligatoires à ajouter</label>
+                            <div class="card" style="max-height: 300px; overflow-y: auto;">
+                                <div class="card-body p-2">
+                                    {% for question in questions_non_obl %}
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="questions"
+                                               value="{{ question.id }}" id="eq{{ enquete.id }}q{{ question.id }}"
+                                               {% if question in enquete.questions.all %}checked{% endif %}>
+                                        <label class="form-check-label {% if enquete.date_envoi %}text-muted{% endif %}" for="eq{{ enquete.id }}q{{ question.id }}">{{ question.question_fr }}</label>
+                                    </div>
+                                    {% empty %}
+                                    <p class="small text-muted">Aucune question facultative disponible.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div> <!-- row -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                    <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Suppression Enquête -->
+<div class="modal fade" id="deleteEnqueteModal{{ enquete.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteEnqueteModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteEnqueteModalLabel">Supprimer l'enquête</h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer définitivement l'enquête <strong>"{{ enquete.titre }}"</strong> ?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-danger confirm-delete" data-enquete-id="{{ enquete.id }}">
+                    <i class="fas fa-trash"></i> Confirmer la suppression
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% comment %} Détails (une seule instance) {% endcomment %}
+<div class="modal fade" id="detailsEnqueteModal" tabindex="-1" role="dialog" aria-labelledby="detailsEnqueteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="detailsEnqueteModalLabel">
+                    <i class="fas fa-poll mr-2"></i>Détails de l'enquête
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-0"><!-- Injecté par JS --></div>
+            <div class="modal-footer">
+                <div class="mr-auto" id="enqueteDownloadContainer"></div>
+                <button type="button" class="btn btn-success" id="btnSendResponseByEmail" style="display: none;">
+                    <i class="fas fa-envelope mr-1"></i> Envoyer par mail
+                </button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times mr-1"></i> Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Envoi/Rappel Enquête -->
+<div class="modal fade" id="sendEnqueteModal" tabindex="-1" role="dialog" aria-labelledby="sendEnqueteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title" id="sendEnqueteModalLabel">
+                    <i class="fas fa-envelope mr-2"></i><span id="modalTitle">Envoyer l'enquête</span>
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="sendEnqueteForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="enqueteId" name="enquete_id">
+                    <input type="hidden" id="actionType" name="action_type">
+
+                    <div class="form-group">
+                        <label for="recipientEmail" class="font-weight-bold">
+                            <i class="fas fa-at text-primary"></i> Email du destinataire
+                        </label>
+                        <input type="email" class="form-control" id="recipientEmail" name="recipient_email" placeholder="Email du destinataire" required>
+                        <small class="form-text text-muted">Vous pouvez modifier l'email si nécessaire</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emailSubject" class="font-weight-bold">
+                            <i class="fas fa-tag text-primary"></i> Sujet
+                        </label>
+                        <input type="text" class="form-control" id="emailSubject" name="email_subject" readonly>
+                    </div>
+
+                    {% if request.user.is_superuser or request.user.is_RO %}
+                    <div class="form-group">
+                        <label for="societeSubject" class="font-weight-bold">
+                            <i class="fas fa-building text-primary"></i> Société pour l'objet
+                        </label>
+                        <select class="form-control" id="societeSubject" name="societe_id" required>
+                            <option value="">Sélectionner une société (optionnel)</option>
+                            {% for s in societes %}
+                                <option value="{{ s.id }}">{{ s.nom }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Définira la société dans l'objet de l'email (obligatoire).</small>
+                    </div>
+                    {% else %}
+                    <input type="hidden" id="societeSubject" name="societe_id" value="{{ request.user.societe.id }}">
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card border-info">
+                                <div class="card-header bg-info text-white py-2">
+                                    <h6 class="mb-0"><i class="fas fa-language"></i> Langue</h6>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                                        <label class="btn btn-outline-primary active">
+                                            <input type="radio" name="language" id="langFr" value="fr" checked> Français
+                                        </label>
+                                        <label class="btn btn-outline-primary">
+                                            <input type="radio" name="language" id="langEn" value="en"> Anglais
+                                        </label>
+                                        <label class="btn btn-outline-primary">
+                                            <input type="radio" name="language" id="langDe" value="de"> Allemand
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6" id="clientTypeContainer">
+                            <div class="card border-warning">
+                                <div class="card-header bg-warning text-dark py-2">
+                                    <h6 class="mb-0"><i class="fas fa-thermometer-half"></i> Type de client</h6>
+                                </div>
+                                <div class="card-body py-2">
+                                    <div class="btn-group btn-group-toggle w-100" data-toggle="buttons">
+                                        <label class="btn btn-outline-secondary active">
+                                            <input type="radio" name="client_type" id="clientFroid" value="froid" checked> Permanent
+                                        </label>
+                                        <label class="btn btn-outline-danger">
+                                            <input type="radio" name="client_type" id="clientChaud" value="chaud"> Ponctuel
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="missionNameGroup" style="display: none;">
+                        <label for="missionName" class="font-weight-bold">
+                            <i class="fas fa-briefcase text-danger"></i> Nom de la mission
+                        </label>
+                        <input type="text" class="form-control" id="missionName" name="mission_name" placeholder="Entrez le nom de la mission...">
+                        <small class="form-text text-muted">Requis pour les clients chauds</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emailBody" class="font-weight-bold">
+                            <i class="fas fa-file-alt text-primary"></i> Corps du message
+                        </label>
+                        <textarea class="form-control" id="emailBody" name="email_body" rows="8"></textarea>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-success" id="sendEmailBtn">
+                    <i class="fas fa-paper-plane"></i> <span id="sendBtnText">Envoyer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Envoi PDF Réponses par Email -->
+<div class="modal fade" id="sendResponsePdfModal" tabindex="-1" role="dialog" aria-labelledby="sendResponsePdfModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-success text-white">
+                <h5 class="modal-title" id="sendResponsePdfModalLabel">
+                    <i class="fas fa-paper-plane mr-2"></i>Envoyer le PDF des réponses par email
+                </h5>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="sendResponsePdfForm">
+                    {% csrf_token %}
+                    <input type="hidden" id="responsePdfEnqueteId" name="enquete_id">
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Le fichier PDF des réponses sera joint automatiquement à l'email.
+                    </div>
+
+                    <div class="form-group">
+                        <label for="recipientEmails" class="font-weight-bold">
+                            <i class="fas fa-users text-success"></i> Destinataires
+                        </label>
+                        <div class="email-tags-container border rounded p-2" style="min-height: 45px; background: #fff; cursor: text;" id="emailTagsContainer">
+                            <input type="text" 
+                                   id="recipientEmailsInput" 
+                                   class="email-input-field" 
+                                   placeholder="Saisissez un email et appuyez sur Entrée ou Virgule..."
+                                   style="border: none; outline: none; flex: 1; min-width: 200px; padding: 5px;">
+                        </div>
+                        <input type="hidden" id="recipientEmails" name="recipient_emails">
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle"></i> Saisissez les emails et appuyez sur <kbd>Entrée</kbd> ou <kbd>,</kbd> pour ajouter. Cliquez sur ×  pour retirer.
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emailSubjectPdf" class="font-weight-bold">
+                            <i class="fas fa-tag text-success"></i> Sujet de l'email
+                        </label>
+                        <input type="text" class="form-control" id="emailSubjectPdf" name="email_subject" value="Réponses de l'enquête de satisfaction" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="emailMessagePdf" class="font-weight-bold">
+                            <i class="fas fa-comment text-success"></i> Message (optionnel)
+                        </label>
+                        <textarea class="form-control" id="emailMessagePdf" name="email_message" rows="6" placeholder="Entrez un message personnalisé (optionnel)..."></textarea>
+                        <small class="form-text text-muted">Si vous laissez vide, un message par défaut sera utilisé</small>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-success" id="sendPdfEmailBtn">
+                    <i class="fas fa-paper-plane"></i> Envoyer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if not request.user.is_C %}
+<!-- Modal Ajout Question -->
+<div class="modal fade" id="addQuestionModalEnquete" tabindex="-1" role="dialog" aria-labelledby="addQuestionModalEnqueteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="addQuestionModalEnqueteLabel">Ajouter une question</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addQuestionFormEnquete" method="post" action="{% url 'prospection:add_question' %}">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_question_fr_enquete">Question (Français) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_fr" class="form-control" id="id_question_fr_enquete" required placeholder="Entrez la question en français">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_question_en_enquete">Question (English) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_en" class="form-control" id="id_question_en_enquete" required placeholder="Enter the question in English">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_question_de_enquete">Frage (Deutsch) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_de" class="form-control" id="id_question_de_enquete" required placeholder="Geben Sie die Frage auf Deutsch ein">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_type_enquete">Type <span class="required-marker">*</span></label>
+                                <select name="type" class="form-control" id="id_type_enquete" required>
+                                    <option value="">Sélectionnez un type</option>
+                                    <option value="closed">Échelle</option>
+                                    <option value="ouinon">Oui / Non / Peut-être</option>
+                                    <option value="open">Commentaire libre</option>
+                                    <option value="note">Note (1-10)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label d-block">Obligatoire <span class="required-marker">*</span></label>
+                                <div class="btn-group btn-group-toggle mt-2" data-toggle="buttons">
+                                    <label class="btn btn-outline-secondary active">
+                                        <input type="radio" name="obligatoire" value="0" checked> Non
+                                    </label>
+                                    <label class="btn btn-outline-secondary">
+                                        <input type="radio" name="obligatoire" value="1"> Oui
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for question in all_questions %}
+{% if not request.user.is_C %}
+<!-- Modal Modification Question -->
+<div class="modal fade" id="editQuestionModalEnquete{{ question.id }}" tabindex="-1" role="dialog" aria-labelledby="editQuestionModalEnqueteLabel{{ question.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title" id="editQuestionModalEnqueteLabel{{ question.id }}">Modifier la question</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'prospection:edit_question' question.id %}" class="edit-question-form-enquete">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Question (Français) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_fr" class="form-control" value="{{ question.question_fr }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Question (English) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_en" class="form-control" value="{{ question.question_en }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Frage (Deutsch) <span class="required-marker">*</span></label>
+                                <input type="text" name="question_de" class="form-control" value="{{ question.question_de|default:'' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label>Type <span class="required-marker">*</span></label>
+                                <select name="type" class="form-control" required>
+                                    <option value="">Sélectionnez un type</option>
+                                    <option value="closed" {% if question.type == "closed" %}selected{% endif %}>Échelle</option>
+                                    <option value="ouinon" {% if question.type == "ouinon" %}selected{% endif %}>Oui / Non / Peut-être</option>
+                                    <option value="open" {% if question.type == "open" %}selected{% endif %}>Commentaire libre</option>
+                                    <option value="note" {% if question.type == "note" %}selected{% endif %}>Note (1-10)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label d-block">Obligatoire <span class="required-marker">*</span></label>
+                                <div class="btn-group btn-group-toggle mt-2" data-toggle="buttons">
+                                    <label class="btn btn-outline-secondary {% if not question.obligatoire %}active{% endif %}">
+                                        <input type="radio" name="obligatoire" value="0" {% if not question.obligatoire %}checked{% endif %}> Non
+                                    </label>
+                                    <label class="btn btn-outline-secondary {% if question.obligatoire %}active{% endif %}">
+                                        <input type="radio" name="obligatoire" value="1" {% if question.obligatoire %}checked{% endif %}> Oui
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+                        <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Suppression Question -->
+<div class="modal fade" id="deleteQuestionModalEnquete{{ question.id }}" tabindex="-1" role="dialog" aria-labelledby="deleteQuestionModalEnqueteLabel{{ question.id }}" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title" id="deleteQuestionModalEnqueteLabel{{ question.id }}">Supprimer la question</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer cette question ?</p>
+                <div class="alert alert-warning">
+                    <div class="font-weight-bold">Français:</div>
+                    <div>{{ question.question_fr }}</div>
+                    <div class="mt-2 font-weight-bold">English:</div>
+                    <div>{{ question.question_en }}</div>
+                    <div class="mt-2 font-weight-bold">Deutsch:</div>
+                    <div>{{ question.question_de }}</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="{% url 'prospection:delete_question' question.id %}" class="delete-question-form-enquete" data-question-id="{{ question.id }}">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal Statistiques Question -->
+<!-- Indicateur de chargement global -->
+<div id="globalLoading" class="position-fixed w-100 h-100 bg-dark bg-opacity-50 d-none" style="z-index: 2000; top: 0; left: 0;">
+    <div class="d-flex justify-content-center align-items-center h-100">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Chargement...</span>
+        </div>
+        <span class="ms-3 text-white">Chargement en cours...</span>
+    </div>
+</div>
+
+<div class="modal fade" id="questionStatsModalEnquete" tabindex="-1" role="dialog" aria-labelledby="questionStatsModalEnqueteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-primary">
+                <h5 class="modal-title" id="questionStatsModalEnqueteLabel">Statistiques de la question</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <label for="filter_client_enquete">Client</label>
+                        <select id="filter_client_enquete" class="form-control form-control-sm">
+                            <option value="">Tous les clients</option>
+                            {% for client in clients %}
+                                <option value="{{ client.id }}">{{ client.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter_date_from_enquete">De</label>
+                        <input type="date" id="filter_date_from_enquete" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="filter_date_to_enquete">À</label>
+                        <input type="date" id="filter_date_to_enquete" class="form-control form-control-sm">
+                    </div>
+                    {% if request.user.is_superuser or request.user.is_RO %}
+                    <div class="col-md-3">
+                        <label for="filter_societe_enquete">Filiales</label>
+                        <select class="form-control form-control-sm" id="filter_societe_enquete" name="societe">
+                            <option value="">Toutes les filiales</option>
+                            {% for societe in societes %}
+                                <option value="{{ societe.id }}">{{ societe.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-container">
+                            <canvas id="questionChartEnquete"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="comments-container" id="commentsContainerEnquete">
+                            <!-- Les commentaires seront chargés ici -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="control-sidebar-bg"></div>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+<script>
+(function() {
+    function loadScriptOnce(src) {
+        return new Promise(function(resolve, reject) {
+            if (document.querySelector('script[src="' + src + '"]')) return resolve();
+            var s = document.createElement('script');
+            s.src = src;
+            s.type = 'text/javascript';
+            s.onload = resolve;
+            s.onerror = reject;
+            document.getElementsByTagName('head')[0].appendChild(s);
+        });
+    }
+
+    function waitForJQuery(maxRetries) {
+        var retries = 0;
+        return new Promise(function(resolve, reject) {
+            (function tick() {
+                if (window.jQuery) return resolve();
+                if (retries++ >= maxRetries) return reject(new Error('jQuery not available'));
+                setTimeout(tick, 100);
+            })();
+        });
+    }
+
+    window.librariesLoaded = false;
+    window.addEventListener('load', function() {
+        waitForJQuery(80)
+            .then(function() {
+                var promises = [];
+                if (typeof window.jQuery.fn.select2 === 'undefined') {
+                    promises.push(loadScriptOnce('https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js'));
+                }
+                if (typeof window.Chart === 'undefined') {
+                    promises.push(loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js'));
+                }
+                if (typeof window.html2pdf === 'undefined') {
+                    promises.push(loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'));
+                }
+                return Promise.all(promises);
+            })
+            .then(function() {
+                window.librariesLoaded = true;
+                if (typeof window.initializeEnquetesPage === 'function') {
+                    window.initializeEnquetesPage();
+                }
+            })
+            .catch(function(err) {
+                console.error('Failed to load page libraries:', err);
+                if (typeof window.initializeEnquetesPage === 'function') {
+                    window.initializeEnquetesPage();
+                }
+            });
+    });
+})();
+</script>
+
+<style>
+/* Style pour les lignes avec date de réponse */
+tr[data-has-response="true"] {
+    background-color: #e8f5e9 !important; /* Vert clair */
+}
+
+/* Recherche client */
+.client-search-container { position: relative; margin-bottom: 1rem; }
+.client-results, .client-results-dropdown {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    max-height: 300px; overflow-y: auto; background: #fff; z-index: 1000;
+    border: 1px solid #ced4da; border-top: none; border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 6px rgba(0,0,0,.1);
+}
+.client-result-item { padding: 8px 12px; cursor: pointer; transition: background-color .2s; }
+.client-result-item:hover, .client-result-item.active, .client-result-item.highlighted { background-color: #f8f9fa; }
+.invalid-feedback { display:block; font-size:80%; color:#dc3545; }
+.is-invalid { border-color:#dc3545; }
+
+  /* Sidebar filtres */
+  .custom-sidebar { position:fixed; top:56px; right:-300px; width:300px; height:calc(100vh - 56px); background:#343a40; color:#fff; z-index:9999; transition:right .3s ease; overflow-y:auto; overflow-x:hidden; padding:10px; }
+  .custom-sidebar.open { right:0; }
+  .custom-sidebar .form-control, .custom-sidebar .form-group, .custom-sidebar select { max-width:100%; }
+  .custom-sidebar .sidebar-content { overflow-x:hidden; }
+  .sidebar-backdrop { position:fixed; top:0; left:0; width:100%; height:100vh; background:rgba(0,0,0,.5); z-index:1500; display:none; pointer-events: auto; }
+  .sidebar-backdrop.hidden { display:none !important; pointer-events: none !important; }
+  /* Exclure la navbar du backdrop - la navbar a un z-index plus élevé donc elle reste cliquable */
+  body.sidebar-open { overflow:hidden; }
+
+  /* S'assurer que la navbar et ses dropdowns sont au-dessus de TOUT */
+  .main-header { z-index: 10000 !important; }
+  .navbar-nav { z-index: 10000 !important; }
+  .dropdown-menu { z-index: 10001 !important; }
+  .nav-item .dropdown-toggle::after { z-index: 10001 !important; }
+
+  /* Empêcher l'overlay global de couvrir la navbar */
+  #globalLoading { top: 56px !important; height: calc(100vh - 56px) !important; }
+
+/* Timeline + tables */
+.timeline-container { position:relative; }
+.timeline-item { position:relative; padding-left:40px; min-height:50px; }
+.timeline-item.active .timeline-icon { box-shadow:0 0 0 4px rgba(0,123,255,.2); }
+.timeline-icon { position:absolute; left:0; top:0; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; z-index:2; }
+.timeline-content { padding-top:2px; }
+.table-responsive { scrollbar-width:thin; scrollbar-color:#dee2e6 #f8f9fa; }
+.table-responsive::-webkit-scrollbar { width:8px; height:8px; }
+.table-responsive::-webkit-scrollbar-track { background:#f8f9fa; }
+.table-responsive::-webkit-scrollbar-thumb { background-color:#dee2e6; border-radius:20px; }
+.table thead th { background-color: white; border-bottom:2px solid #dee2e6; }
+.table-hover tbody tr:hover { background-color: rgba(0,123,255,.05); }
+.badge-pill { padding:.35em .65em; }
+
+/* Pagination responsive */
+.pagination { flex-wrap: wrap; }
+.pagination .page-item { margin: 2px 1px; }
+.pagination .page-link { min-width: 32px; text-align:center; }
+@media (max-width: 576px) {
+  .pagination.pagination-sm .page-link { padding: .15rem .35rem; font-size: .75rem; }
+  .card-tools small { display:block; margin-bottom: 4px; }
+}
+
+@media (max-width:768px){
+  .modal-dialog { margin:.5rem auto; }
+  .timeline-item { padding-left:35px; min-height:40px; }
+  .timeline-icon { width:25px; height:25px; font-size:.8rem; }
+}
+
+#importExcelModal .modal-dialog { max-width: 420px; }
+#importExcelModal .modal-header .modal-title { font-size: .95rem; }
+#importExcelModal .modal-body .small { font-size: .78rem; }
+
+/* Modals: Ajout et Modification en 800px */
+#addEnqueteModal .modal-dialog { max-width: 800px; }
+[id^="editEnqueteModal"] .modal-dialog { max-width: 800px; }
+
+/* Comments container - scrollable */
+.comments-container {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+    scrollbar-width: thin;
+    scrollbar-color: #dee2e6 #f8f9fa;
+}
+
+/* Chart container for question stats modal */
+.chart-container {
+    position: relative;
+    min-height: 400px;
+    width: 100%;
+    padding: 15px;
+}
+
+#questionChartEnquete {
+    min-height: 400px;
+    width: 100%;
+}
+
+/* Email tags input styling */
+.email-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    padding: 5px !important;
+}
+
+.modal{
+    z-index: 11111 !important;
+}
+
+.email-tag {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    gap: 8px;
+    animation: slideIn 0.2s ease-out;
+}
+
+.email-tag-remove {
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 3px;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.email-tag-remove:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.2);
+}
+
+.email-input-field {
+    flex: 1;
+    min-width: 200px;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.comments-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.comments-container::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.comments-container::-webkit-scrollbar-thumb {
+    background-color: #dee2e6;
+    border-radius: 4px;
+}
+
+.comments-container::-webkit-scrollbar-thumb:hover {
+    background-color: #adb5bd;
+}
+
+/* Select2 personnalisé pour le sidebar */
+.select2-container--default .select2-selection--single {
+    height: calc(1.5em + 0.5rem + 2px) !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.875rem !important;
+    border-color: #ced4da !important;
+    min-height: auto !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: calc(1.5em + 0.5rem) !important;
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+}
+.select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.5rem + 2px) !important;
+    top: 0 !important;
+}
+
+/* Forcer la même hauteur que les autres champs du sidebar */
+.custom-sidebar .select2-container--default .select2-selection--single {
+    height: 31px !important;
+    line-height: 31px !important;
+}
+
+.custom-sidebar .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 27px !important;
+}
+
+.custom-sidebar .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 29px !important;
+}
+
+/* Amélioration du dropdown Select2 - Meilleure visibilité */
+.select2-dropdown {
+    border: 2px solid #007bff !important;
+    border-radius: 4px !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+    z-index: 10000 !important;
+    background-color: #ffffff !important;
+}
+
+.select2-container {
+    width: 100% !important;
+}
+
+/* Champ de recherche dans le dropdown */
+.select2-search--dropdown {
+    padding: 8px !important;
+    background-color: #f8f9fa !important;
+}
+
+.select2-search--dropdown .select2-search__field {
+    border: 2px solid #ced4da !important;
+    border-radius: 4px !important;
+    padding: 8px 12px !important;
+    font-size: 0.95rem !important;
+    background-color: #fff !important;
+    color: #495057 !important;
+}
+
+.select2-search--dropdown .select2-search__field:focus {
+    border-color: #007bff !important;
+    outline: none !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+}
+
+/* Options dans le dropdown */
+.select2-results__options {
+    max-height: 300px !important;
+}
+
+.select2-results__option {
+    padding: 10px 15px !important;
+    font-size: 0.95rem !important;
+    color: #212529 !important;
+    background-color: #fff !important;
+    cursor: pointer !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.select2-results__option:last-child {
+    border-bottom: none !important;
+}
+
+/* Option survolée */
+.select2-results__option--highlighted {
+    background-color: #007bff !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+/* Option sélectionnée */
+.select2-results__option[aria-selected="true"] {
+    background-color: #e7f3ff !important;
+    color: #0056b3 !important;
+    font-weight: 600 !important;
+}
+
+.select2-results__option[aria-selected="true"]:hover {
+    background-color: #007bff !important;
+    color: #ffffff !important;
+}
+
+/* Message "Aucun résultat" */
+.select2-results__option--no-results {
+    padding: 15px !important;
+    color: #6c757d !important;
+    text-align: center !important;
+    font-style: italic !important;
+}
+
+/* Message "Recherche en cours..." */
+.select2-results__option--loading {
+    padding: 15px !important;
+    color: #007bff !important;
+    text-align: center !important;
+}
+</style>
+
+<script>
+// Wait for all libraries to load before initializing
+window.initializeEnquetesPage = (function() {
+    let retryCount = 0;
+    const maxRetries = 50; // Maximum 5 seconds (50 * 100ms)
+    
+    return function() {
+        // Vérifier si jQuery est disponible
+        if (typeof jQuery === 'undefined') {
+            if (retryCount++ < maxRetries) {
+                console.warn('jQuery not loaded, retrying... (' + retryCount + '/' + maxRetries + ')');
+                setTimeout(window.initializeEnquetesPage, 100);
+            } else {
+                console.error('jQuery failed to load after ' + maxRetries + ' attempts');
+            }
+            return;
+        }
+        
+        // Vérifier si Bootstrap est disponible
+        if (typeof jQuery.fn.modal === 'undefined') {
+            if (retryCount++ < maxRetries) {
+                console.warn('Bootstrap not loaded, waiting... (' + retryCount + '/' + maxRetries + ')');
+                setTimeout(window.initializeEnquetesPage, 100);
+            } else {
+                console.error('Bootstrap failed to load after ' + maxRetries + ' attempts. Initializing without Bootstrap checks.');
+                // Initialize anyway - modals might still work from base template
+                initializePageContent();
+            }
+            return;
+        }
+        
+        // Vérifier si Select2 est disponible
+        if (typeof jQuery.fn.select2 === 'undefined') {
+            if (retryCount++ < maxRetries) {
+                console.warn('Select2 not loaded, waiting... (' + retryCount + '/' + maxRetries + ')');
+                setTimeout(window.initializeEnquetesPage, 100);
+            } else {
+                console.error('Select2 failed to load after ' + maxRetries + ' attempts. Initializing without Select2.');
+                initializePageContent();
+            }
+            return;
+        }
+        
+        initializePageContent();
+    };
+})();
+
+// Fonction utilitaire pour afficher les erreurs
+function showError(message, title = 'Erreur') {
+    Swal.fire({
+        icon: 'error',
+        title: title,
+        text: message,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3085d6'
+    });
+}
+
+// Fonction pour gérer le chargement
+function setLoading(isLoading) {
+    const loader = document.getElementById('globalLoading');
+    if (isLoading) {
+        loader.classList.remove('d-none');
+    } else {
+        loader.classList.add('d-none');
+    }
+}
+
+// Détruire les graphiques inutilisés
+const chartInstances = new Map();
+
+function destroyChart(chartId) {
+    if (chartInstances.has(chartId)) {
+        const chart = chartInstances.get(chartId);
+        if (chart) {
+            chart.destroy();
+        }
+        chartInstances.delete(chartId);
+    }
+}
+
+/* -------------------- Analytics (Charts + questions) -------------------- */
+const CHART_COLORS = { green:'#66BB6A', blue:'#42A5F5', orange:'#FFA726', red:'#EF5350' };
+
+// Plugin labels pour Chart.js (afficher valeurs et pourcentages)
+const valueLabelPlugin = {
+  id: 'valueLabel',
+  afterDatasetsDraw(chart, args, pluginOptions) {
+    const {ctx, chartArea:{top}, data} = chart;
+    ctx.save();
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const type = chart.config.type;
+    if (type === 'bar') {
+      const meta = chart.getDatasetMeta(0);
+      meta.data.forEach((bar, i)=>{
+        const v = chart.config.data.datasets[0].data[i];
+        if (v === null || v === undefined) return;
+        // cross-version coordinates
+        let pos = null;
+        try { pos = bar.tooltipPosition ? bar.tooltipPosition() : null; } catch(e) { pos = null; }
+        if (!pos && bar._model) { pos = { x: bar._model.x, y: bar._model.y }; }
+        if (!pos) return;
+        const x = pos.x; const y = pos.y - 10;
+        ctx.fillStyle = '#333';
+        ctx.fillText(String(v), x, Math.max(y, top+8));
+      });
+    } else if (type === 'pie' || type === 'doughnut') {
+      const ds = chart.config.data.datasets[0];
+      const meta = chart.getDatasetMeta(0);
+      const total = ds.data.reduce((a,b)=>a + Number(b||0), 0) || 1;
+      meta.data.forEach((arc, i)=>{
+        const v = Number(ds.data[i]||0);
+        const pct = Math.round((v/total)*100);
+        // cross-version coordinates
+        let pos = null;
+        try { pos = arc.tooltipPosition ? arc.tooltipPosition() : null; } catch(e) { pos = null; }
+        // fallback for Chart.js v2 internal model
+        if (!pos && arc._model) { pos = { x: arc._model.x, y: arc._model.y }; }
+        if (!pos) return;
+        const x = pos.x, y = pos.y;
+        if (pct > 0) {
+          ctx.fillStyle = '#fff';
+          ctx.strokeStyle = 'rgba(0,0,0,.2)';
+          ctx.lineWidth = 2;
+          ctx.strokeText(pct + '%', x, y);
+          ctx.fillText(pct + '%', x, y);
+        }
+      });
+    }
+    ctx.restore();
+  }
+};
+
+let responseChart=null, sentimentChart=null, countsChart=null;
+const safe = (n,d=0)=> {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : d;
+};
+
+function renderQuestionCharts(questions){
+    const questionsContainer = document.getElementById('questionsAnalytics');
+    if (!questionsContainer) return;
+    
+    if (!questions || !questions.length) {
+        questionsContainer.innerHTML = `<div class="col-12"><div class="alert alert-info">Aucune donnée de réponse disponible pour les questions fermées.</div></div>`;
+        return;
+    }
+    const types = [
+        { key:'très satisfait', color:CHART_COLORS.green,  label:'Très satisfait' },
+        { key:'satisfait',      color:CHART_COLORS.blue,   label:'Satisfait' },
+        { key:'peu satisfait',  color:CHART_COLORS.orange, label:'Peu satisfait' },
+        { key:'non satisfait',  color:CHART_COLORS.red,    label:'Pas du tout satisfait' }
+    ];
+    questionsContainer.innerHTML = questions.map(q=>{
+        const segs = types.map(t=>{
+            const p = q.response_percentages[t.key] || 0;
+            return `<div class="progress-bar" role="progressbar"
+                        style="width:${p}%; background-color:${t.color};"
+                        aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100"
+                        title="${t.label}: ${p}%">${p>=15?`${p}%`:''}</div>`;
+        }).join('');
+        return `
+        <div class="col-12 px-2">
+          <div class="d-flex align-items-center py-2 border-bottom">
+            <div class="flex-shrink-0 pr-3" style="width:34%; min-width:220px;">
+              <div class="text-truncate small" title="${q.question_text}">${q.question_text}</div>
+              <span class="badge badge-light border small mt-1">${q.total_responses} réponses</span>
+            </div>
+            <div class="flex-grow-1">
+              <div class="progress" style="height:20px;">${segs}</div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+}
+
+function buildPieOptions(){
+    if (Chart.version && Chart.version.startsWith('2')) {
+        return {
+            responsive:true, maintainAspectRatio:true, aspectRatio:1.6,
+            legend:{ position:'bottom' },
+            tooltips:{ callbacks:{ label:function(item, data){ const ds=data.datasets[item.datasetIndex]; const v=ds.data[item.index]; return `${data.labels[item.index]}: ${Math.round(v)}%`; } } }
+        };
+    }
+    return {
+        responsive:true, maintainAspectRatio:true, aspectRatio:1.6,
+        plugins:{ legend:{ position:'bottom' }, tooltip:{ callbacks:{ label:(ctx)=> `${ctx.label}: ${Math.round(Number(ctx.raw))}%` } } }
+    };
+}
+
+function renderAnalytics(data){
+    if (typeof Chart === 'undefined') { renderQuestionCharts(data && data.question_stats || []); return; }
+    const rs = data.response_stats || {total:0, responded:0, not_responded:0};
+    const sent = data.sentiment || {pos:0, neu:0, neg:0};
+    const counts = data.enquete_counts || {sent:0, reminders:0, returns:0};
+    const pieOptions = buildPieOptions();
+
+    const responseCtx = document.getElementById('responseChart');
+    if (responseCtx){
+        const responded = safe(rs.responded), notResp = safe(rs.not_responded);
+        const total = Math.max(1, responded + notResp);
+        const pct = [Math.round(responded*100/total), Math.max(0, 100 - Math.round(responded*100/total))];
+        if (responseChart) responseChart.destroy();
+        // Enregistrer plugin (Chart.js v3+)
+        if (Chart.register) { try { Chart.register(valueLabelPlugin); } catch(e){} } else if (Chart.plugins && Chart.plugins.register) { Chart.plugins.register(valueLabelPlugin); }
+        responseChart = new Chart(responseCtx.getContext('2d'), {
+            type:'pie',
+            data:{ labels:['Répondu','Non répondu'], datasets:[{ data:pct, backgroundColor:['#66BB6A','#EF5350'], borderWidth:1 }] },
+            options: pieOptions
+        });
+    }
+
+    const sentimentCtx = document.getElementById('sentimentChart');
+    if (sentimentCtx){
+        const pos = safe(sent.pos), neu = safe(sent.neu), neg = safe(sent.neg);
+        const totalRaw = (pos + neu + neg);
+        let labels = ['Positif','Neutre','Négatif'];
+        let values = [];
+        let colors = ['#66BB6A','#9E9E9E','#EF5350'];
+        if (!totalRaw) {
+            // État vide: éviter un faux 100% négatif quand il n'y a aucun commentaire/donnée
+            labels = ['Aucune donnée'];
+            values = [100];
+            colors = ['#CBD5E1'];
+        } else {
+            const total = totalRaw;
+            let posPct = Number(((pos * 100) / total).toFixed(1));
+            let neuPct = Number(((neu * 100) / total).toFixed(1));
+            let negPct = Number((100 - posPct - neuPct).toFixed(1));
+
+            // Si un segment est non nul mais arrondi à 0.0%, le pie peut paraître 100% neutre.
+            // On force une tranche minimale visible et on retire la différence du segment le plus grand.
+            const MIN_VISIBLE = 0.5; // 0.5% reste fidèle (≈ 1 sur 200) tout en étant visible
+            const parts = [
+              { key: 'pos', count: pos, pct: posPct },
+              { key: 'neu', count: neu, pct: neuPct },
+              { key: 'neg', count: neg, pct: negPct },
+            ];
+            const needBump = parts.filter(p => p.count > 0 && p.pct <= 0);
+            if (needBump.length) {
+              // trouver le plus grand segment (en %)
+              const largest = parts.reduce((a,b) => (b.pct > a.pct ? b : a), parts[0]);
+              let bumpTotal = 0;
+              needBump.forEach(p => {
+                const newPct = MIN_VISIBLE;
+                bumpTotal += (newPct - p.pct);
+                p.pct = newPct;
+              });
+              // retirer le surplus du plus grand segment (sans passer sous 0)
+              largest.pct = Number(Math.max(0, (largest.pct - bumpTotal)).toFixed(1));
+
+              // renormaliser (petites erreurs dues aux décimales)
+              const sum = parts.reduce((s,p)=> s + p.pct, 0);
+              const drift = Number((100 - sum).toFixed(1));
+              if (Math.abs(drift) >= 0.1) {
+                const largest2 = parts.reduce((a,b) => (b.pct > a.pct ? b : a), parts[0]);
+                largest2.pct = Number(Math.max(0, (largest2.pct + drift)).toFixed(1));
+              }
+
+              posPct = parts[0].pct;
+              neuPct = parts[1].pct;
+              negPct = parts[2].pct;
+            }
+
+            values = [posPct, neuPct, negPct];
+        }
+        if (sentimentChart) sentimentChart.destroy();
+        sentimentChart = new Chart(sentimentCtx.getContext('2d'), {
+            type:'pie',
+            data:{ labels: labels, datasets:[{ data: values, backgroundColor: colors, borderWidth:1 }] },
+            options: pieOptions
+        });
+    }
+
+    const countsCtx = document.getElementById('countsChart');
+    if (countsCtx){
+        if (countsChart) countsChart.destroy();
+        countsChart = new Chart(countsCtx.getContext('2d'), {
+            type:'bar',
+            data:{ labels:['Envois','Rappels','Retours'], datasets:[{ label:'Nombre', data:[safe(counts.sent), safe(counts.reminders), safe(counts.returns)], backgroundColor:['#42A5F5','#FFB74D','#66BB6A'], borderWidth:1 }] },
+            options:{ responsive:true, maintainAspectRatio:true, aspectRatio:1.6, scales:{ y:{ beginAtZero:true, ticks:{ precision:0, stepSize:1 } } }, plugins:{ legend:{ display:false } } }
+        });
+    }
+
+    renderQuestionCharts(data.question_stats || []);
+}
+
+function loadAnalytics(){
+    const endpoint = "{% url 'prospection:enquetes_analytics' %}" + window.location.search;
+    const globalBody = document.getElementById('globalAnalyticsBody');
+    const questionsBody = document.getElementById('questionsAnalyticsBody');
+    const hideLoaders = (message)=>{
+        if (globalBody) {
+            const loader = globalBody.querySelector('.loading-indicator');
+            const container = document.getElementById('globalChartsContainer');
+            if (loader) loader.style.display = 'none';
+            if (container) container.style.display = '';
+            if (message) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-warning my-2';
+                alert.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>${message}`;
+                container && container.prepend(alert);
+            }
+        }
+        if (questionsBody) {
+            const loader = questionsBody.querySelector('.loading-indicator');
+            const content = document.getElementById('questionsAnalyticsContent');
+            if (loader) loader.style.display = 'none';
+            if (content) content.style.display = '';
+            if (message) {
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-warning my-2';
+                alert.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i>${message}`;
+                content && content.prepend(alert);
+            }
+        }
+    };
+    fetch(endpoint, { headers:{ 'X-Requested-With':'XMLHttpRequest' } })
+        .then(r => {
+            if (!r.ok) throw new Error('Statut HTTP ' + r.status);
+            return r.json().catch(()=>{ throw new Error('Réponse JSON invalide'); });
+        })
+        .then(d => { 
+            if (d && !d.error) {
+                renderAnalytics(d);
+                hideLoaders();
+            } else {
+                hideLoaders(d && d.error ? d.error : "Impossible de charger les analytics.");
+            }
+        })
+        .catch((err)=> { console.error('Analytics fetch failed', err); hideLoaders("Échec de chargement des données analytiques."); });
+}
+
+function initializePageContent() {
+    // Éviter les initialisations multiples qui dupliquent les handlers
+    if (window.__enquetesInitialized) return;
+    window.__enquetesInitialized = true;
+    // Gestion du sidebar de filtrage
+    $('#openFilterBtn').on('click', function() {
+        $('#filterSidebar').addClass('open');
+        $('body').addClass('sidebar-open');
+        // Créer le backdrop
+        if (!$('.sidebar-backdrop').length) {
+            $('<div class="sidebar-backdrop"></div>').appendTo('body').css('display', 'block').fadeIn(300);
+        } else {
+            $('.sidebar-backdrop').css('display', 'block').fadeIn(300);
+        }
+    });
+    
+    // Fermer le sidebar
+    function closeSidebar() {
+        $('#filterSidebar').removeClass('open');
+        $('body').removeClass('sidebar-open');
+        $('.sidebar-backdrop').fadeOut(300, function() {
+            $(this).css('display', 'none');
+        });
+    }
+    
+    $('#closeFilterBtn').on('click', closeSidebar);
+    
+    // Fermer au clic sur le backdrop - utiliser stopPropagation pour éviter les bulles
+    $(document).on('click', '.sidebar-backdrop', function(e) {
+        e.stopPropagation();
+        closeSidebar();
+    });
+    
+    // Initialiser Select2 (robuste) pour le champ client du sidebar
+    (function initSelect2Client(){
+        const init = function(){
+            try {
+                $('.select2-client').select2({
+                    placeholder: "Sélectionnez un client",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('.custom-sidebar'),
+                    language: {
+                        noResults: function() { return "Aucun client trouvé"; },
+                        searching: function() { return "Recherche en cours..."; }
+                    }
+                });
+            } catch(e) { /* silencieux */ }
+        };
+
+        const tryLoadFrom = (src) => new Promise((resolve, reject) => {
+            // ne pas dupliquer le même script
+            if (document.querySelector(`script[src="${src}"]`)) return resolve();
+            const s = document.createElement('script');
+            s.src = src; s.async = true; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+        });
+
+    /* -------------------- Import Excel (force AJAX, empêcher redirection) -------------------- */
+    (function bindImportExcelInterceptors(){
+        function handleImportAjax($form){
+            const fd = new FormData($form[0]);
+            Swal.fire({ title:'Import en cours…', html:'Traitement du fichier Excel, merci de patienter.', allowOutsideClick:false, didOpen:()=>Swal.showLoading() });
+            $.ajax({
+                url: $form.attr('action'), type:'POST', data:fd, processData:false, contentType:false,
+                headers:{ 'X-CSRFToken': $form.find('[name=csrfmiddlewaretoken]').val() },
+                success: function(resp){
+                    Swal.fire({
+                        icon:'success', title:'Import terminé',
+                        html: `
+                          <div class="text-left">
+                            <div><strong>Société:</strong> ${resp.societe ? (resp.societe.nom || '-') : '-'}</div>
+                            <hr/>
+                            <div class="mb-1"><strong>Créés</strong></div>
+                            <ul class="mb-2">
+                              <li>Entreprises: ${resp.created?.entreprises ?? 0}</li>
+                              <li>Enquêtes: ${resp.created?.enquetes ?? 0}</li>
+                              <li>Réponses: ${resp.created?.reponses ?? 0}</li>
+                            </ul>
+                            <div class="mb-1"><strong>MàJ</strong></div>
+                            <ul class="mb-2">
+                              <li>Entreprises: ${resp.updated?.entreprises ?? 0}</li>
+                              <li>Enquêtes: ${resp.updated?.enquetes ?? 0}</li>
+                              <li>Réponses: ${resp.updated?.reponses ?? 0}</li>
+                            </ul>
+                            <div class="mb-1"><strong>Lignes ignorées</strong></div>
+                            <ul>
+                              <li>Envoi: ${resp.skipped?.send_rows ?? 0}</li>
+                              <li>Réponses: ${resp.skipped?.rep_rows ?? 0}</li>
+                            </ul>
+                          </div>`
+                    }).then(()=> { try{$('#importExcelModal').modal('hide');}catch(_){ } $form[0].reset(); location.reload(); });
+                },
+                error: function(xhr){
+                    let msg = "Une erreur est survenue pendant l'import.";
+                    try {
+                        const j = xhr.responseJSON || {};
+                        if (j.error) {
+                            if (j.disponibles) msg = `${j.error}<br><br><code>${(j.disponibles || []).join(' • ')}</code>`;
+                            else if (j.detected || j.missing) {
+                                msg = `${j.error}
+                                <div class="mt-2 text-left">
+                                  <div><strong>En-têtes détectées:</strong></div>
+                                  <div class="small"><code>${(j.detected || []).join(' • ')}</code></div>
+                                  <div class="mt-1"><strong>Manquantes:</strong></div>
+                                  <div class="small text-danger"><code>${(j.missing || []).join(' • ')}</code></div>
+                                </div>`;
+                            } else msg = j.error;
+                        }
+                    } catch(e){}
+                    Swal.fire({ icon:'error', title:"Échec de l’import", html: msg });
+                }
+            });
+        }
+
+        // 1) Intercepter toute soumission de formulaire pointant vers /api/import/satisfaction/
+        $(document).off('submit.__import', 'form[action*="/prospection/api/import/satisfaction"]').on('submit.__import', 'form[action*="/prospection/api/import/satisfaction"]', function(e){
+            try {
+                e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+                handleImportAjax($(this));
+            } catch(_){ }
+            return false;
+        });
+
+        // 2) Intercepter les liens qui redirigent vers /api/import/satisfaction/ pour éviter la navigation
+        $(document).off('click.__import', 'a[href*="/prospection/api/import/satisfaction"]').on('click.__import', 'a[href*="/prospection/api/import/satisfaction"]', function(e){
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            // Ouvrir le modal si présent, sinon tenter soumission AJAX si on trouve le form
+            if ($('#importExcelModal').length) { $('#importExcelModal').modal('show'); return false; }
+            const $form = $('#importExcelForm');
+            if ($form.length) { handleImportAjax($form); return false; }
+            // À défaut, prévenir que l’import doit se faire via le modal
+            Swal.fire({ icon:'info', title:'Importer Excel', text:"Veuillez utiliser le modal d’import ou sélectionner un fichier avant d’importer."});
+            return false;
+        });
+    })();
+
+        // Tenter de charger Select2 si absent
+        if (typeof $.fn.select2 === 'undefined') {
+            const select2Url = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+            tryLoadFrom(select2Url).then(() => {
+                if (typeof $.fn.select2 !== 'undefined') init();
+            }).catch(() => {
+                console.warn('Select2 non disponible, utilisation du select natif');
+            });
+        } else {
+            init();
+        }
+    })();
+    
+    // ====== Gestion des tags d'emails (sans Select2) ======
+    const emailTagsManager = {
+        emails: [],
+        
+        init: function() {
+            const self = this;
+            const $input = $('#recipientEmailsInput');
+            const $container = $('#emailTagsContainer');
+            
+            // Clic sur le conteneur = focus sur l'input
+            $container.on('click', function() {
+                $input.focus();
+            });
+            
+            // Événement sur l'input
+            $input.on('keydown', function(e) {
+                const value = $(this).val().trim();
+                
+                // Entrée ou virgule
+                if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    if (value) {
+                        self.addEmail(value);
+                        $(this).val('');
+                    }
+                }
+                
+                // Backspace sur input vide = supprimer le dernier tag
+                if (e.key === 'Backspace' && !value && self.emails.length > 0) {
+                    self.removeEmail(self.emails[self.emails.length - 1]);
+                }
+            });
+            
+            // Perte de focus = ajouter l'email si valide
+            $input.on('blur', function() {
+                const value = $(this).val().trim();
+                if (value) {
+                    self.addEmail(value);
+                    $(this).val('');
+                }
+            });
+            
+            // Délégation pour les boutons de suppression
+            $container.on('click', '.email-tag-remove', function() {
+                const email = $(this).parent().data('email');
+                self.removeEmail(email);
+            });
+        },
+        
+        addEmail: function(email) {
+            email = email.replace(/,$/g, '').trim(); // Retirer virgule finale
+            
+            
+            if (!email) {
+                return;
+            }
+            
+            // Validation email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Email invalide',
+                    text: `"${email}" n'est pas une adresse email valide.`,
+                    timer: 2000
+                });
+                return;
+            }
+            
+            // Vérifier doublon
+            if (this.emails.includes(email)) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Email déjà ajouté',
+                    text: `"${email}" est déjà dans la liste.`,
+                    timer: 2000
+                });
+                return;
+            }
+            
+            // Ajouter
+            this.emails.push(email);
+            this.render();
+        },
+        
+        removeEmail: function(email) {
+            this.emails = this.emails.filter(e => e !== email);
+            this.render();
+        },
+        
+        clear: function() {
+            this.emails = [];
+            this.render();
+        },
+        
+        setEmails: function(emailsArray) {
+            this.emails = emailsArray;
+            this.render();
+        },
+        
+        getEmails: function() {
+            return this.emails;
+        },
+        
+        render: function() {
+            const $container = $('#emailTagsContainer');
+            const $input = $('#recipientEmailsInput');
+            
+            // Retirer tous les tags existants
+            $container.find('.email-tag').remove();
+            
+            // Ajouter les nouveaux tags
+            this.emails.forEach(email => {
+                const $tag = $(`
+                    <span class="email-tag" data-email="${email}">
+                        <i class="fas fa-envelope"></i>
+                        ${email}
+                        <span class="email-tag-remove">×</span>
+                    </span>
+                `);
+                $tag.insertBefore($input);
+            });
+            
+            // Mettre à jour le champ hidden
+            $('#recipientEmails').val(this.emails.join(','));
+        }
+    };
+    
+    // Initialiser le gestionnaire
+    emailTagsManager.init();
+
+    // Initialiser DataTables (responsive uniquement) sur les tables de la page
+    (function initResponsiveTables(){
+        const initOne = function(sel){
+            const $t = $(sel);
+            if (!$t.length) return;
+            if ($.fn.dataTable && $.fn.dataTable.isDataTable($t)) {
+                try { $t.DataTable().destroy(); } catch(_){ }
+            }
+            try {
+                $t.DataTable({
+                    responsive: true,
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    ordering: false,
+                    lengthChange: false,
+                    autoWidth: false
+                });
+            } catch(_){ }
+        };
+        // Attendre que l'extension responsive soit chargée si besoin
+        const waitAndInit = function(attempts){
+            attempts = attempts || 0;
+            if (typeof $.fn.dataTable === 'function' && $.fn.dataTable.Responsive) {
+                initOne('#enquetes');
+                initOne('#questionsTable');
+                return;
+            }
+            if (attempts > 50) return; // ~5s max
+            setTimeout(function(){ waitAndInit(attempts+1); }, 100);
+        };
+        waitAndInit(0);
+    })();
+    
+    // Gestion du bouton "Envoyer par mail" dans le modal détails
+    let currentEnqueteData = null;
+    
+    $(document).off('click', '.btn-detail-enquete').on('click', '.btn-detail-enquete', function() {
+        const enqueteId = $(this).data('id');
+        currentEnqueteData = { id: enqueteId };
+        
+        // Charger les détails de l'enquête via AJAX pour vérifier la date_reponse
+        $.ajax({
+            url: `/prospection/enquetes/${enqueteId}/details/`,
+            method: 'GET',
+            success: function(response) {
+                if (response.date_reponse) {
+                    currentEnqueteData.hasResponse = true;
+                    currentEnqueteData.clientEmail = response.client_email;
+                    currentEnqueteData.titre = response.titre;
+                    $('#btnSendResponseByEmail').show();
+                } else {
+                    $('#btnSendResponseByEmail').hide();
+                }
+            },
+            error: function() {
+                $('#btnSendResponseByEmail').hide();
+            }
+        });
+    });
+    
+    $(document).off('click', '#btnSendResponseByEmail').on('click', '#btnSendResponseByEmail', function() {
+        if (!currentEnqueteData || !currentEnqueteData.hasResponse) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Aucune réponse',
+                text: "Cette enquête n'a pas encore de réponse.",
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        // Préparer le modal d'envoi
+        $('#responsePdfEnqueteId').val(currentEnqueteData.id);
+        $('#emailSubjectPdf').val(`Réponses de l'enquête : ${currentEnqueteData.titre || 'Satisfaction'}`);
+        
+        // Pré-remplir avec l'email du client si disponible
+        if (currentEnqueteData.clientEmail) {
+            emailTagsManager.setEmails([currentEnqueteData.clientEmail]);
+        } else {
+            emailTagsManager.clear();
+        }
+        
+        // Fermer le modal détails et ouvrir le modal d'envoi
+        $('#detailsEnqueteModal').modal('hide');
+        $('#sendResponsePdfModal').modal('show');
+        // Nettoyage de sécurité quand le modal d'envoi se ferme
+        $('#sendResponsePdfModal').one('hidden.bs.modal', function(){
+            try { $('.modal-backdrop').remove(); } catch(_){ }
+            try { $('body').removeClass('modal-open'); } catch(_){ }
+            try { $('.wrapper').attr('aria-hidden','false'); } catch(_){ }
+        });
+    });
+    
+    // Gestion de l'envoi du PDF par email
+    $(document).off('click', '#sendPdfEmailBtn').on('click', '#sendPdfEmailBtn', function() {
+        const form = $('#sendResponsePdfForm');
+        let emails = emailTagsManager.getEmails();
+
+        // Récupérer un éventuel email saisi mais non ajouté (dans l'input) avant validation
+        const pending = ($('#recipientEmailsInput').val() || '').trim();
+        if ((!emails || emails.length === 0) && pending) {
+            emailTagsManager.addEmail(pending);
+            $('#recipientEmailsInput').val('');
+            emails = emailTagsManager.getEmails();
+        }
+
+        // Fallback: lire le champ caché si toujours vide
+        if (!emails || emails.length === 0) {
+            const hiddenVal = ($('#recipientEmails').val() || '').trim();
+            if (hiddenVal) {
+                const parsed = hiddenVal.split(',').map(e => e.trim()).filter(Boolean);
+                if (parsed.length) {
+                    emailTagsManager.setEmails(parsed);
+                    emails = emailTagsManager.getEmails();
+                }
+            }
+        }
+
+        if (!emails || emails.length === 0) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Destinataires requis',
+                text: 'Veuillez ajouter au moins un destinataire en appuyant sur Entrée après avoir saisi l\'email.',
+                confirmButtonText: 'OK'
+            });
+            return;
+        }
+        
+        const formData = {
+            enquete_id: $('#responsePdfEnqueteId').val(),
+            'recipient_emails[]': emails, // envoyer comme tableau
+            email_subject: $('#emailSubjectPdf').val(),
+            email_message: $('#emailMessagePdf').val(),
+            csrfmiddlewaretoken: form.find('[name=csrfmiddlewaretoken]').val()
+        };
+        
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Envoi en cours...');
+        
+        $.ajax({
+            url: '/prospection/enquetes/send-response-pdf-email/',  // TODO: Créer cette URL dans urls.py
+            method: 'POST',
+            data: formData,
+            success: function(response) {
+                $('#sendResponsePdfModal').modal('hide');
+                // Forcer le nettoyage de l'overlay si nécessaire
+                setTimeout(function(){
+                    try { $('.modal-backdrop').remove(); } catch(_){ }
+                    try { $('body').removeClass('modal-open'); } catch(_){ }
+                    try { $('.wrapper').attr('aria-hidden','false'); } catch(_){ }
+                }, 150);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Email envoyé',
+                    text: response.message || 'Le PDF des réponses a été envoyé avec succès.',
+                    confirmButtonText: 'OK'
+                });
+                $('#sendPdfEmailBtn').prop('disabled', false).html('<i class="fas fa-paper-plane"></i> Envoyer');
+            },
+            error: function(xhr) {
+                let errorMsg = "Une erreur est survenue lors de l'envoi.";
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                // Nettoyage éventuel si le modal a été laissé ouvert/fermé partiellement
+                setTimeout(function(){
+                    try { $('.modal-backdrop').remove(); } catch(_){ }
+                    try { $('body').removeClass('modal-open'); } catch(_){ }
+                    try { $('.wrapper').attr('aria-hidden','false'); } catch(_){ }
+                }, 150);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erreur',
+                    text: errorMsg,
+                    confirmButtonText: 'OK'
+                });
+                $('#sendPdfEmailBtn').prop('disabled', false).html('<i class=\"fas fa-paper-plane\"></i> Envoyer');
+            }
+        });
+    });
+    
+    // Gestion des événements de collapse pour charger les analytics
+    $('#globalAnalyticsCollapse').on('shown.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#globalAnalyticsCollapse"]');
+        btn.find('i').removeClass('fa-plus').addClass('fa-minus');
+        if (!window.__analyticsLoaded) { loadAnalytics(); window.__analyticsLoaded = true; }
+        if (responseChart) responseChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+        if (countsChart) countsChart.resize();
+    }).on('hidden.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#globalAnalyticsCollapse"]');
+        btn.find('i').removeClass('fa-minus').addClass('fa-plus');
+        if (responseChart) responseChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+        if (countsChart) countsChart.resize();
+    });
+    
+    $('#questionsAnalyticsCollapse').on('shown.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#questionsAnalyticsCollapse"]');
+        btn.find('i').removeClass('fa-plus').addClass('fa-minus');
+        if (!window.__analyticsLoaded) { loadAnalytics(); window.__analyticsLoaded = true; }
+        if (responseChart) responseChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+        if (countsChart) countsChart.resize();
+    }).on('hidden.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#questionsAnalyticsCollapse"]');
+        btn.find('i').removeClass('fa-minus').addClass('fa-plus');
+        if (responseChart) responseChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+        if (countsChart) countsChart.resize();
+    });
+    
+    $('#questionsCollapse').on('shown.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#questionsCollapse"]');
+        btn.find('i').removeClass('fa-plus').addClass('fa-minus');
+        // Recalculer la responsivité du tableau des questions à l'ouverture
+        try {
+            const $qt = $('#questionsTable');
+            if ($.fn.dataTable && $.fn.dataTable.isDataTable($qt)) {
+                const api = $qt.DataTable();
+                api.columns.adjust();
+                if (api.responsive && api.responsive.recalc) api.responsive.recalc();
+            }
+        } catch(_){ }
+    }).on('hidden.bs.collapse', function(){
+        const btn = $(this).closest('.card').find('[data-target="#questionsCollapse"]');
+        btn.find('i').removeClass('fa-minus').addClass('fa-plus');
+    });
+    
+    // Forcer un toggle fiable des sections collapsibles au clic (gestion générique via data-cascade-toggle)
+    $(document).on('click', '[data-cascade-toggle="collapse"]', function(e) {
+        // Supporte les clics sur les icônes internes via closest()
+        const $btn = $(e.target).closest('[data-cascade-toggle="collapse"]');
+        const target = $btn.attr('data-target') || $btn.attr('href');
+        if (!target) return; // rien à faire
+        const $collapse = $(target);
+        if (!$collapse.length) return;
+        e.preventDefault();
+        e.stopPropagation();
+        if ($collapse.hasClass('show')) {
+            $collapse.collapse('hide');
+        } else {
+            $collapse.collapse('show');
+        }
+        // Déclenchement analytique si pas encore chargé
+        try {
+            if (!window.__analyticsLoaded && (target === '#globalAnalyticsCollapse' || target === '#questionsAnalyticsCollapse')) {
+                loadAnalytics();
+                window.__analyticsLoaded = true;
+            }
+        } catch(_){}
+    });
+    
+    window.addEventListener('resize', function(){
+        if (responseChart) responseChart.resize();
+        if (sentimentChart) sentimentChart.resize();
+        if (countsChart) countsChart.resize();
+        // Ajuster les DataTables sur redimensionnement
+        try {
+            ['#enquetes', '#questionsTable'].forEach(function(sel){
+                const $t = $(sel);
+                if ($.fn.dataTable && $.fn.dataTable.isDataTable($t)) {
+                    const api = $t.DataTable();
+                    api.columns.adjust();
+                    if (api.responsive && api.responsive.recalc) api.responsive.recalc();
+                }
+            });
+        } catch(_){ }
+    });
+
+    // ================== Recherche Client (création & édition) ==================
+    function escapeHtml(s){ 
+        if (s===null||s===undefined) return ''; 
+        return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); 
+    }
+
+    // Fonction générique de recherche client
+    function createClientSearchHandler($search, $hidden, $results, $societeHidden, $detailsContainer) {
+        let timer = null, currentFocus = -1;
+
+        function buildDisplayName(societe, name) {
+            const s = (societe || '').toString().trim();
+            const n = (name || '').toString().trim();
+            if (!n) return '';
+            return s ? `${n} - ${s}` : n;
+        }
+        
+        function render(list){
+            if (!list || !list.length){ 
+                $results.html('<div class="p-2 text-muted">Aucun client trouvé</div>').show(); 
+                return; 
+            }
+            const html = list.map(c=>{
+                const id = c.id || c.NumeroTiers || '';
+                const name = c.nom || c.text || c.Intitule || 'Client';
+                const tel = c.telephone || c.Telephone || '';
+                const email = c.email || c.Email || '';
+                const societe = c.societe || '';
+                const displayName = buildDisplayName(societe, name);
+                return `<div class="client-result-item" data-id="${escapeHtml(id)}" data-name="${escapeHtml(name)}" data-display-name="${escapeHtml(displayName)}" data-societe="${escapeHtml(societe)}">
+                    <div class="font-weight-bold">${escapeHtml(displayName)}</div>
+                    <small class="text-muted">${escapeHtml(tel)}${tel&&email?' | ':''}${escapeHtml(email)}</small>
+                </div>`;
+            }).join('');
+            $results.html(html).show();
+        }
+        
+        function search(term){
+            if (term.length < 1){ $results.hide(); return; }
+            $results.html('<div class="text-center p-2"><i class="fas fa-spinner fa-spin"></i> Recherche...</div>').show();
+            $.ajax({ 
+                url: '{% url "prospection:ajax_customers" %}', 
+                method:'GET', 
+                data:{ q: term }, 
+                dataType:'json' 
+            }).done(data=>{
+                if (data && Array.isArray(data.results)){
+                    if (data.societe && $societeHidden && $societeHidden.length) {
+                        $societeHidden.val(data.societe);
+                    }
+                    render(data.results.map(r=>{ 
+                        if (data.societe) r.societe=data.societe; 
+                        return r; 
+                    }));
+                } else render([]);
+            }).fail(()=>{ 
+                $results.html('<div class="p-2 text-danger">Erreur lors de la recherche</div>').show(); 
+            });
+        }
+        
+        function loadClientDetails(id, name, societe) {
+            if (!$detailsContainer || !$detailsContainer.length) return;
+            $detailsContainer.html('<div class="p-2 text-muted">Chargement des détails...</div>');
+            $.get(`/prospection/ajax/customers/${encodeURIComponent(id)}/details/`, { societe: societe })
+            .done(raw=>{
+                const d = typeof raw==='string'? (function(){try{return JSON.parse(raw);}catch(e){return {};}})() : raw;
+                const html = `
+                <div class="card client-details-card mt-2"><div class="card-body p-2">
+                    <div class="small"><strong>Code:</strong> ${escapeHtml(d.NumeroTiers||'')}</div>
+                    <div class="small"><strong>Désignation:</strong> ${escapeHtml(d.Intitule||name)}</div>
+                    <div class="small"><strong>Email:</strong> ${escapeHtml(d.fact_email||d.Email||'')}</div>
+                    <div class="small"><strong>Téléphone:</strong> ${escapeHtml(d.fact_tel||d.Telephone||'')}</div>
+                    <div class="small"><strong>Adresse:</strong> ${escapeHtml((d.fact_adresse||'').toString()).replace(/\n/g,'<br>')}</div>
+                </div></div>`;
+                $detailsContainer.html(html);
+            }).fail(()=>{ 
+                $detailsContainer.html('<div class="alert alert-warning">Impossible de charger les détails.</div>'); 
+            });
+        }
+        
+        return {
+            init: function() {
+                $search.off('input.clientSearch').on('input.clientSearch', function(){
+                    if ($search.is(':disabled')) return;
+                    clearTimeout(timer); 
+                    const term = $(this).val().trim();
+                    if (!term){ $hidden.val(''); $results.hide(); return; }
+                    timer = setTimeout(()=> search(term), 250);
+                });
+                
+                $search.off('keydown.clientSearch').on('keydown.clientSearch', function(e){
+                    const $items = $results.find('.client-result-item');
+                    if (e.key === 'ArrowDown'){ 
+                        e.preventDefault(); 
+                        currentFocus = Math.min(currentFocus+1, $items.length-1); 
+                        $items.removeClass('active'); 
+                        if (currentFocus>=0) $items.eq(currentFocus).addClass('active')[0].scrollIntoView({block:'nearest'}); 
+                    }
+                    else if (e.key === 'ArrowUp'){ 
+                        e.preventDefault(); 
+                        currentFocus = Math.max(currentFocus-1, -1); 
+                        $items.removeClass('active'); 
+                        if (currentFocus>=0) $items.eq(currentFocus).addClass('active')[0].scrollIntoView({block:'nearest'}); 
+                    }
+                    else if (e.key === 'Enter'){ 
+                        if (currentFocus>-1){ 
+                            e.preventDefault(); 
+                            $results.find('.client-result-item').eq(currentFocus).trigger('click'); 
+                        } 
+                    }
+                });
+                
+                $results.off('click.clientSearch', '.client-result-item').on('click.clientSearch', '.client-result-item', function(){
+                    const id = $(this).data('id'); 
+                    const name = $(this).data('name');
+                    const displayName = $(this).data('display-name') || name;
+                    const societe=$(this).data('societe')||'';
+                    $search.val(displayName);
+                    $hidden.val(id); 
+                    if ($societeHidden && $societeHidden.length) $societeHidden.val(societe); 
+                    $results.hide();
+                    loadClientDetails(id, name, societe);
+                });
+                
+                $(document).on('click.clientSearch', function(e){ 
+                    if (!$(e.target).closest('.client-search-container').length) $results.hide(); 
+                });
+            },
+            destroy: function() {
+                $search.off('input.clientSearch keydown.clientSearch');
+                $results.off('click.clientSearch');
+                $(document).off('click.clientSearch');
+            }
+        };
+    }
+
+    // Création: utilisation du handler factorisé
+    let createClientHandler = null;
+    $('#addEnqueteModal').off('shown.bs.modal.create').on('shown.bs.modal.create', function(){
+        const $modal = $(this);
+        const $search = $modal.find('#client-search');
+        const $hidden = $modal.find('#client-id');
+        const $results = $modal.find('#client-results');
+        const $societeHidden = $modal.find('#client-societe');
+        const $details = $modal.find('#client-details-container');
+        
+        if (!$search.length || !$hidden.length || !$results.length) return;
+        
+        // Détruire l'ancien handler si existe
+        if (createClientHandler) createClientHandler.destroy();
+        
+        // Créer nouveau handler
+        createClientHandler = createClientSearchHandler($search, $hidden, $results, $societeHidden, $details);
+        createClientHandler.init();
+    });
+
+    // Édition: utilisation du handler factorisé
+    let editClientHandlers = new Map();
+    $(document).off('shown.bs.modal.editClient', '.modal[id^="editEnqueteModal"]').on('shown.bs.modal.editClient', '.modal[id^="editEnqueteModal"]', function(){
+        const $m = $(this);
+        const modalId = $m.attr('id');
+        const $search = $m.find('.client-search-edit');
+        const $hidden = $m.find('#client-id-edit');
+        const $results = $m.find('.client-results-edit');
+        const $societeHidden = $m.find('#edit-client-societe-'+modalId.replace('editEnqueteModal',''));
+        const $details = $m.find('.client-details-container-edit');
+        
+        if (!$search.length || !$hidden.length || !$results.length) return;
+        
+        // Détruire l'ancien handler si existe
+        if (editClientHandlers.has(modalId)) {
+            editClientHandlers.get(modalId).destroy();
+        }
+        
+        // Créer nouveau handler
+        const handler = createClientSearchHandler($search, $hidden, $results, $societeHidden, $details);
+        handler.init();
+        editClientHandlers.set(modalId, handler);
+    });
+
+    // Validation stricte: empêcher soumission sans client
+    $(document).off('submit.addEnquete').on('submit.addEnquete', '#addEnqueteForm', function(e){
+        const $form = $(this);
+        const $hidden = $form.find('#client-id');
+        if (!$hidden.val()){
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            const $search = $form.find('#client-search');
+            $search.addClass('is-invalid');
+            if (!$search.next('.invalid-feedback').length){ $search.after('<div class="invalid-feedback">Veuillez sélectionner un client</div>'); }
+            Swal.fire({ icon:'warning', title:'Client requis', text:"Veuillez sélectionner un client avant de créer l'enquête." });
+            return false;
+        }
+    });
+    $(document).off('submit.editEnquete').on('submit.editEnquete', '.js-edit-enquete-form', function(e){
+        const $form = $(this);
+        const $search = $form.find('.client-search-edit');
+        const disabled = $search.is(':disabled');
+        const $hidden = $form.find('#client-id-edit');
+        if (!disabled && $hidden.length && !$hidden.val()){
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            $search.addClass('is-invalid');
+            if (!$search.next('.invalid-feedback').length){ $search.after('<div class="invalid-feedback">Veuillez sélectionner un client</div>'); }
+            Swal.fire({ icon:'warning', title:'Client requis', text:"Veuillez sélectionner un client avant d'enregistrer." });
+            return false;
+        }
+    });
+
+    /* -------------------- Add/Edit/Delete Question (AJAX + SweetAlert) -------------------- */
+    function handleQuestionAjaxSubmit(e, $form) {
+        try { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); } catch(_){ }
+        const url = $form.attr('action');
+        const method = ($form.attr('method') || 'POST').toUpperCase();
+        const data = $form.serialize();
+        const $submitBtn = $form.find('button[type="submit"]:last');
+        const originalHtml = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ...');
+        $.ajax({
+            url, method, data,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp){
+                let title = 'Succès';
+                let text = '';
+                let icon = 'success';
+                try {
+                    if (typeof resp === 'string') { resp = JSON.parse(resp); }
+                } catch(_){}
+                if (resp && (resp.message || resp.detail)) text = resp.message || resp.detail;
+                if (resp && (resp.title)) title = resp.title;
+                if (resp && resp.success === false) icon = 'warning';
+                Swal.fire({ icon, title, text: text || 'Opération effectuée avec succès.' })
+                    .then(()=>{ try { $form.closest('.modal').modal('hide'); } catch(_){ } window.location.reload(); });
+            },
+            error: function(xhr){
+                let msg = 'Une erreur est survenue.';
+                try { const j = xhr.responseJSON || JSON.parse(xhr.responseText||'{}'); msg = j.error || j.message || msg; } catch(_){}
+                Swal.fire({ icon:'error', title:'Erreur', text: msg }).then(()=>{ try { $form.closest('.modal').modal('hide'); } catch(_){ } window.location.reload(); });
+            },
+            complete: function(){ $submitBtn.prop('disabled', false).html(originalHtml); }
+        });
+        return false;
+    }
+
+    // Ajouter une question
+    $(document).off('submit.addQuestion', '#addQuestionFormEnquete').on('submit.addQuestion', '#addQuestionFormEnquete', function(e){
+        return handleQuestionAjaxSubmit(e, $(this));
+    });
+
+    // Éditer une question
+    $(document).off('submit.editQuestion', '.edit-question-form-enquete').on('submit.editQuestion', '.edit-question-form-enquete', function(e){
+        return handleQuestionAjaxSubmit(e, $(this));
+    });
+
+    // Supprimer une question
+    $(document).off('submit.deleteQuestion', '.delete-question-form-enquete').on('submit.deleteQuestion', '.delete-question-form-enquete', function(e){
+        return handleQuestionAjaxSubmit(e, $(this));
+    });
+
+    // Supprimer une enquête (AJAX + SweetAlert)
+    function getCsrfToken(){
+        const inp = document.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (inp && inp.value) return inp.value;
+        function readCookie(name){ const m = document.cookie.match(new RegExp('(^|; )'+name+'=([^;]*)')); return m? decodeURIComponent(m[2]) : null; }
+        return readCookie('csrftoken') || '';
+    }
+    $(document).off('click.deleteEnquete', '.confirm-delete').on('click.deleteEnquete', '.confirm-delete', function(e){
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        const $btn = $(this);
+        const enqueteId = $btn.data('enquete-id');
+        if (!enqueteId) return false;
+        const url = `/prospection/enquetes/delete/${enqueteId}/`;
+        const csrf = getCsrfToken();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> ...');
+        $.ajax({
+            url: url,
+            method: 'POST',
+            data: { csrfmiddlewaretoken: csrf },
+            headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp){
+                let title='Enquête supprimée', text='La suppression a été effectuée avec succès.';
+                try { if (typeof resp === 'string') resp = JSON.parse(resp); } catch(_){ }
+                if (resp && (resp.message || resp.detail)) text = resp.message || resp.detail;
+                if (resp && resp.title) title = resp.title;
+                Swal.fire({ icon:'success', title, text }).then(()=>{ try { $('#deleteEnqueteModal'+enqueteId).modal('hide'); } catch(_){ } window.location.reload(); });
+            },
+            error: function(xhr){
+                let msg = 'Échec de la suppression.';
+                try { const j = xhr.responseJSON || JSON.parse(xhr.responseText||'{}'); msg = j.error || j.message || msg; } catch(_){ }
+                Swal.fire({ icon:'error', title:'Erreur', text: msg });
+            },
+            complete: function(){ $btn.prop('disabled', false).html('<i class="fas fa-trash"></i> Confirmer la suppression'); }
+        });
+        return false;
+    });
+
+    /* -------------------- Envoi / Rappel Email -------------------- */
+    const emailTemplates = {
+      send: {
+        fr: { subject: "Enquête de satisfaction AB SERVE", body: { froid: "Bonjour,\n\nNous vous remercions pour la confiance que vous accordez à notre société.\nNous aimerions avoir votre retour sur l'enquête de satisfaction ci-jointe, telle que dictée par notre procédure groupe à la fin de chaque mission.\nVotre retour favorise la démarche d'amélioration continue de notre entreprise et nous aidera à mieux répondre à vos attentes.\n\nCordialement,", chaud: "Bonjour,\n\nNous vous remercions pour la confiance que vous accordez à notre société et de nous avoir missionné pour assurer la sécurité de vos produits chez {mission}.\nNous aimerions avoir votre retour sur l'enquête de satisfaction ci-jointe, telle que dictée par notre procédure groupe à la fin de chaque mission.\nVotre retour favorise la démarche d'amélioration continue de notre entreprise et nous aidera à mieux répondre à vos attentes.\n\nCordialement," } },
+        en: { subject: "Satisfaction Survey AB SERVE", body: { froid: "Dear Customer,\n\nWe thank you for the trust you have attributed to our company.\nHowever, we would like your feedback on the attached satisfaction survey, as dictated by our group procedure at the end of each mission.\nYour return promotes the continuous improvement process in our company and will help us better meet your expectations.\n\nBest regards,", chaud: "Dear Customer,\n\nWe thank you for the trust you have attributed to our company and for having missioned us to provide security for your products at {mission}.\nHowever, we would like your feedback on the attached satisfaction survey, as dictated by our group procedure at the end of each mission.\nYour return promotes the continuous improvement process in our company and will help us better meet your expectations.\n\nBest regards," } },
+        de: { subject: "Zufriedenheitsumfrage AB SERVE", body: { froid: "Sehr geehrter Kunde,\n\nwir danken Ihnen für das Vertrauen, das Sie unserem Unternehmen entgegenbringen.\nWir würden uns über Ihr Feedback zu der beigefügten Zufriedenheitsumfrage freuen, wie es unser Gruppenverfahren am Ende jedes Einsatzes vorsieht.\nIhr Feedback fördert den kontinuierlichen Verbesserungsprozess in unserem Unternehmen und wird uns helfen, Ihre Erwartungen besser zu erfüllen.\n\nMit freundlichen Grüßen,", chaud: "Sehr geehrter Kunde,\n\nwir danken Ihnen für das Vertrauen, das Sie unserem Unternehmen entgegenbringen und dafür, dass Sie uns mit der Sicherheit Ihrer Produkte in {mission} beauftragt haben.\nWir würden uns über Ihr Feedback zu der beigefügten Zufriedenheitsumfrage freuen, wie es unser Gruppenverfahren am Ende jedes Einsatzes vorsieht.\nIhr Feedback fördert den kontinuierlichen Verbesserungsprozess in unserem Unternehmen und wird uns helfen, Ihre Erwartungen besser zu erfüllen.\n\nMit freundlichen Grüßen," } }
+      },
+      rappel: {
+        fr: { subject: "RE: Enquête de satisfaction AB SERVE", body: { froid: "Bonjour,\n\nVeuillez nous partager votre retour sur l'enquête de satisfaction, votre avis compte énormément.\nNous vous remercions pour votre collaboration.\n\nCordialement,", chaud: "Bonjour,\n\nVeuillez nous partager votre retour sur l'enquête de satisfaction, votre avis compte énormément.\nNous vous remercions pour votre collaboration.\n\nCordialement," } },
+        en: { subject: "RE: Satisfaction Survey AB SERVE", body: { froid: "Dear Customer,\n\nPlease share your feedback on the satisfaction survey with us, your opinion matters a lot.\nThank you for your cooperation.\n\nSincerely,", chaud: "Dear Customer,\n\nPlease share your feedback on the satisfaction survey with us, your opinion matters a lot.\nThank you for your cooperation.\n\nSincerely," } },
+        de: { subject: "RE: Zufriedenheitsumfrage AB SERVE", body: { froid: "Sehr geehrter Kunde,\n\nBitte teilen Sie uns Ihr Feedback zur Zufriedenheitsumfrage mit, Ihre Meinung ist uns sehr wichtig.\nWir danken Ihnen für Ihre Zusammenarbeit.\n\nMit freundlichen Grüßen,", chaud: "Sehr geehrter Kunde,\n\nBitte teilen Sie uns Ihr Feedback zur Zufriedenheitsumfrage mit, Ihre Meinung ist uns sehr wichtig.\nWir danken Ihnen für Ihre Zusammenarbeit.\n\nMit freundlichen Grüßen," } }
+      }
+    };
+
+    function updateEmailContent(){
+        const action = $('#actionType').val();
+        const lang = $('input[name="language"]:checked').val();
+        const type = $('input[name="client_type"]:checked').val();
+        const mission = $('#missionName').val();
+        const tpl = emailTemplates[action] && emailTemplates[action][lang];
+        if (!tpl) return;
+        $('#emailSubject').val(tpl.subject);
+        let body = (tpl.body && tpl.body[type]) ? tpl.body[type] : '';
+        if (type === 'chaud' && mission) body = body.replace('{mission}', mission);
+        $('#emailBody').val(body);
+    }
+
+    $(document).off('click.openSendEnquete', '.btn-send-enquete').on('click.openSendEnquete', '.btn-send-enquete', function(){
+        const action = $(this).data('action');
+        $('#enqueteId').val($(this).data('enquete-id'));
+        $('#actionType').val(action);
+        const email = $(this).data('client-email') || '';
+        $('#recipientEmail').val(email);
+
+        if (action === 'send') {
+            $('#modalTitle').text("Envoyer l'enquête");
+            $('#sendBtnText').text('Envoyer');
+            $('#clientTypeContainer').show();
+            $('#clientFroid').prop('checked', true).parent().addClass('active');
+            $('#clientChaud').prop('checked', false).parent().removeClass('active');
+        } else {
+            $('#modalTitle').text('Envoyer un rappel');
+            $('#sendBtnText').text('Envoyer le rappel');
+            $('#clientTypeContainer').hide();
+            $('input[name="client_type"][value="froid"]').prop('checked', true).trigger('change');
+        }
+
+        $('#langFr').prop('checked', true).parent().addClass('active');
+        $('#langEn,#langDe').prop('checked', false).parent().removeClass('active');
+        $('#missionNameGroup').hide(); $('#missionName').val('');
+
+        // Pré-sélection société selon société du client
+        const clientSocieteId = String($(this).data('client-societe-id') || '').trim();
+        if (clientSocieteId) {
+            try {
+                const $societe = $('#societeSubject');
+                if ($societe.length) {
+                    $societe.val(clientSocieteId);
+                    $societe.trigger('change');
+                }
+            } catch(_){ }
+        }
+
+        updateEmailContent();
+        $('#sendEnqueteModal').modal('show');
+    });
+
+    $(document).off('change.updateEmail', 'input[name="language"], input[name="client_type"]').on('change.updateEmail', 'input[name="language"], input[name="client_type"]', function(){
+        if ($(this).attr('name') === 'client_type') {
+            if ($(this).val() === 'chaud') { $('#missionNameGroup').show().find('input').prop('required', true); }
+            else { $('#missionNameGroup').hide().find('input').prop('required', false).val(''); }
+        }
+        updateEmailContent();
+    });
+
+    $('#missionName').off('input.updateEmail').on('input.updateEmail', updateEmailContent);
+
+    $(document).off('click.sendEmail', '#sendEmailBtn').on('click.sendEmail', '#sendEmailBtn', function(){
+        const type = $('input[name="client_type"]:checked').val();
+        const mission = $('#missionName').val();
+        const email = $('#recipientEmail').val();
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        const societeId = $('#societeSubject').val();
+        if (type === 'chaud' && !mission.trim()) return Swal.fire({ icon:'warning', title:'Attention', text:'Veuillez saisir le nom de la mission.' });
+        if (!isEmail) return Swal.fire({ icon:'warning', title:'Attention', text:'Veuillez saisir une adresse email valide.' });
+        if (!societeId) return Swal.fire({ icon:'warning', title:'Attention', text:"Veuillez sélectionner une société pour l'objet." });
+
+        const $btn = $(this), orig = $btn.html();
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Envoi en cours...');
+        const csrf = getCsrfToken();
+        $.ajax({
+            url: '/prospection/enquetes/send-email/', method:'POST',
+            data: {
+                enquete_id: $('#enqueteId').val(),
+                action_type: $('#actionType').val(),
+                recipient_email: email,
+                email_subject: $('#emailSubject').val(),
+                email_body: $('#emailBody').val(),
+                language: $('input[name="language"]:checked').val(),
+                client_type: type,
+                mission_name: mission,
+                societe_id: societeId,
+                csrfmiddlewaretoken: csrf
+            },
+            headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp){
+                let ok = false;
+                let msg = 'Email envoyé !';
+                try { if (typeof resp === 'string') resp = JSON.parse(resp); } catch(_){}
+                if (resp && (resp.success === true || resp.status === 'ok' || resp.status === 'success' || resp.code === 'sent')) ok = true;
+                if (resp && (resp.message || resp.detail)) msg = resp.message || resp.detail;
+                $('#sendEnqueteModal').modal('hide');
+                if (ok) {
+                    Swal.fire({ icon:'success', title:'Succès !', text: msg }).then(()=> location.reload());
+                } else {
+                    const err = (resp && (resp.error || resp.message || resp.detail)) || "Échec de l'envoi.";
+                    Swal.fire({ icon:'error', title:'Erreur', text: err });
+                }
+            },
+            error: function(xhr){
+                const msg = (xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : "Erreur lors de l'envoi.";
+                Swal.fire({ icon:'error', title:'Erreur', text: msg });
+            },
+            complete: function(){ $btn.prop('disabled', false).html(orig); }
+        });
+    });
+
+    /* -------------------- Statistiques Question (AJAX) -------------------- */
+    $(document).on('click', '.view-stats-btn-enquete', function() {
+        const questionId = $(this).data('question-id');
+        const $modal = $('#questionStatsModalEnquete');
+        
+        $modal.data('current-question-id', questionId);
+        
+        // Afficher le modal et attendre qu'il soit complètement ouvert
+        $modal.modal('show');
+        
+        // Attendre que le modal soit complètement visible avant de charger les données
+        $modal.one('shown.bs.modal', function() {
+            loadQuestionStats(questionId);
+        });
+    });
+
+    // Sécurité: auto-charger les analytics après un court délai si l'utilisateur n'a pas encore ouvert les cartes
+    if (!window.__analyticsLoaded) {
+        setTimeout(function(){
+            try {
+                if (!window.__analyticsLoaded) { loadAnalytics(); window.__analyticsLoaded = true; }
+            } catch(_){}
+        }, 2500);
+    }
+
+    function loadQuestionStats(questionId) {
+        
+        const clientId = $('#filter_client_enquete').val();
+        const dateFrom = $('#filter_date_from_enquete').val();
+        const dateTo = $('#filter_date_to_enquete').val();
+        const createdBy = $('#filter_created_by_enquete').val();
+        const societeId = $('#filter_societe_enquete').val();
+        
+        const params = new URLSearchParams({
+            question_id: questionId,
+            client_id: clientId || '',
+            date_from: dateFrom || '',
+            date_to: dateTo || '',
+            created_by: createdBy || '',
+            societe_id: societeId || ''
+        });
+        
+        const baseStatsUrl = "{% url 'prospection:question_stats' question_id=0 %}".replace('/0/', `/${questionId}/`);
+        const url = `${baseStatsUrl}?${params.toString()}`;
+        
+        $.ajax({
+            url: url,
+            method: 'GET',
+            beforeSend: function() {
+                const $chartContainer = $('#questionStatsModalEnquete').find('.chart-container');
+                if ($chartContainer.length) {
+                    $chartContainer.html('<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Chargement des statistiques...</p></div>');
+                }
+                $('#commentsContainerEnquete').html('<div class="text-center py-3"><div class="spinner-border text-sm text-primary"></div></div>');
+            },
+            success: function(data) {
+                
+                if (!data) {
+                    const $chartContainer = $('#questionStatsModalEnquete').find('.chart-container');
+                    if ($chartContainer.length) {
+                        $chartContainer.html('<div class="alert alert-warning">Aucune donnée reçue du serveur.</div>');
+                    }
+                    return;
+                }
+                
+                renderQuestionStatsChart(data);
+                updateCommentsEnquete(data.comments || data.comment || []);
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur AJAX:', status, error);
+                console.error('Réponse du serveur:', xhr.responseText);
+                
+                let errorMsg = 'Erreur lors du chargement des statistiques.';
+                if (xhr.status === 404) {
+                    errorMsg = 'Endpoint non trouvé. Vérifiez que l\'URL existe dans urls.py';
+                } else if (xhr.status === 500) {
+                    errorMsg = 'Erreur serveur. Vérifiez les logs Django.';
+                } else if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                
+                const $chartContainer = $('#questionStatsModalEnquete').find('.chart-container');
+                if ($chartContainer.length) {
+                    $chartContainer.html(`<div class="alert alert-danger"><i class="fas fa-exclamation-circle mr-2"></i>${errorMsg}<br><small class="text-muted">Status: ${xhr.status}</small></div>`);
+                }
+                $('#commentsContainerEnquete').html('');
+            }
+        });
+    }
+
+    function renderQuestionStatsChart(data) {
+        // Chercher .chart-container directement (le canvas peut avoir été supprimé par beforeSend)
+        const $container = $('#questionStatsModalEnquete').find('.chart-container');
+        if (!$container.length) {
+            console.error('Conteneur .chart-container introuvable dans le modal');
+            return;
+        }
+        $container.empty();
+        
+        // Extraire les données de statistiques selon différentes structures possibles
+        let chartData = null;
+        let questionText = '';
+        let chartType = 'bar';
+        
+        // Chercher le texte de la question
+        questionText = data.question_text || data.question_text_fr || data.text || data.question || 'Statistiques';
+        
+        // Ajouter la moyenne si disponible
+        if (data.average !== null && data.average !== undefined) {
+            questionText += ` (Moyenne: ${data.average.toFixed(2)}/10)`;
+        }
+        
+        chartType = data.chart_type || data.type || 'bar';
+        
+        // Méthode 1 : stats comme ARRAY (questions type "note" 1-10)
+        if (data.stats && Array.isArray(data.stats)) {
+            
+            // Pour les questions de type "note", stats est un array [count_note1, count_note2, ...]
+            if (data.question_type === 'note') {
+                // Générer les labels 1, 2, 3, ... 10
+                const labels = Array.from({length: data.stats.length}, (_, i) => String(i + 1));
+                chartData = {
+                    labels: labels,
+                    values: data.stats
+                };
+                chartType = 'bar'; // Meilleur affichage pour les notes
+            } else {
+                // Pour d'autres types, utiliser les options si disponibles
+                let labels;
+                
+                if (data.options && Array.isArray(data.options) && data.options.length === data.stats.length) {
+                    // Si les options sont fournies par le backend
+                    labels = data.options;
+                } else if (data.question_options && Array.isArray(data.question_options) && data.question_options.length === data.stats.length) {
+                    // Alternative : question_options
+                    labels = data.question_options;
+                } else if (data.choices && Array.isArray(data.choices) && data.choices.length === data.stats.length) {
+                    // Alternative : choices
+                    labels = data.choices;
+                } else {
+                    // Fallback : utiliser des labels par défaut selon le type de question
+                    if (data.question_type === 'ouinon') {
+                        labels = ['Oui', 'Non'];
+                    } else if (data.question_type === 'open' || data.question_type === 'ouverte') {
+                        // Questions ouvertes : sentiment analysis
+                        labels = ['Positif', 'Négatif', 'Neutre'];
+                    } else if (data.question_type === 'closed' || data.question_type === 'fermee') {
+                        // Questions échelle de satisfaction
+                        labels = ['Très satisfait', 'Satisfait', 'Peu satisfait', 'Pas du tout satisfait'];
+                    } else {
+                        labels = Array.from({length: data.stats.length}, (_, i) => `Réponse ${i + 1}`);
+                    }
+                }
+                
+                chartData = {
+                    labels: labels.slice(0, data.stats.length), // S'assurer qu'on a le même nombre de labels que de valeurs
+                    values: data.stats
+                };
+                
+       
+            }
+        }
+        // Méthode 2 : Structure standard avec stats.labels et stats.values
+        else if (data.stats && data.stats.labels && data.stats.values) {
+            chartData = data.stats;
+        }
+        // Méthode 3 : chart_data
+        else if (data.chart_data && data.chart_data.labels && data.chart_data.values) {
+            chartData = data.chart_data;
+        }
+        // Méthode 4 : responses comme objet
+        else if (data.responses && typeof data.responses === 'object' && !Array.isArray(data.responses)) {
+            chartData = {
+                labels: Object.keys(data.responses),
+                values: Object.values(data.responses)
+            };
+        }
+        // Méthode 5 : responses comme array
+        else if (data.responses && Array.isArray(data.responses)) {
+            // Construire les labels et values à partir du tableau
+            chartData = {
+                labels: data.responses.map(r => r.label || r.name || r.key || 'Sans nom'),
+                values: data.responses.map(r => r.value || r.count || r.total || 0)
+            };
+        }
+        // Méthode 5 : Recherche automatique dans TOUTES les clés
+        else {
+            
+            // Chercher des clés qui pourraient contenir les données
+            for (let key of Object.keys(data)) {
+                const value = data[key];
+                
+                // Si on trouve un objet avec labels et values
+                if (value && typeof value === 'object' && value.labels && value.values) {
+                    chartData = value;
+                    break;
+                }
+                
+                // Si on trouve un objet avec des paires clé-valeur numériques
+                if (value && typeof value === 'object' && !Array.isArray(value)) {
+                    const keys = Object.keys(value);
+                    const firstValue = value[keys[0]];
+                    
+                    // Si les valeurs sont des nombres, c'est probablement des statistiques
+                    if (typeof firstValue === 'number' && keys.length > 0) {
+                        chartData = {
+                            labels: keys,
+                            values: Object.values(value)
+                        };
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Si toujours pas de données, afficher un message détaillé
+        if (!chartData) {
+            console.error('Impossible d\'extraire les données du chart');
+            console.error('Structure complète reçue:', JSON.stringify(data, null, 2));
+            
+            $container.html(`
+                <div class="alert alert-warning">
+                    <i class="fas fa-chart-bar mr-2"></i>
+                    <strong>Pas de statistiques disponibles</strong><br>
+                    <small class="text-muted">La question "${questionText}" n'a pas encore de réponses exploitables.</small>
+                    <hr>
+                    <details>
+                        <summary class="cursor-pointer"><small>Voir les données brutes (debug)</small></summary>
+                        <pre class="mt-2" style="font-size: 11px; max-height: 200px; overflow-y: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                </div>
+            `);
+            return;
+        }
+        
+        if (!chartData || !chartData.labels || !chartData.values || chartData.values.length === 0) {
+            $container.html(`
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Aucune donnée de réponse disponible pour cette question.
+                </div>
+            `);
+            return;
+        }
+        
+        // Créer un wrapper avec une hauteur fixe
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.height = '400px';
+        wrapper.style.width = '100%';
+        wrapper.style.minHeight = '400px';
+        
+        const canvas = document.createElement('canvas');
+        canvas.id = 'questionChart';
+        canvas.style.display = 'block';
+        canvas.style.boxSizing = 'border-box';
+        wrapper.appendChild(canvas);
+        $container.append(wrapper);
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Détruire le chart précédent s'il existe
+        if (window.questionStatsChart) {
+            window.questionStatsChart.destroy();
+            window.questionStatsChart = null;
+        }
+        
+        // Petit délai pour s'assurer que le DOM est prêt
+        setTimeout(() => {
+            try {
+                window.questionStatsChart = new Chart(ctx, {
+                    type: chartType,
+                    data: {
+                        labels: chartData.labels || [],
+                        datasets: [{
+                            label: questionText || 'Réponses',
+                            data: chartData.values || [],
+                            backgroundColor: [
+                                'rgba(102, 187, 106, 0.8)',
+                                'rgba(66, 165, 245, 0.8)',
+                                'rgba(255, 167, 38, 0.8)',
+                                'rgba(239, 83, 80, 0.8)',
+                                'rgba(156, 39, 176, 0.8)',
+                                'rgba(255, 193, 7, 0.8)',
+                                'rgba(103, 58, 183, 0.8)',
+                                'rgba(0, 150, 136, 0.8)',
+                                'rgba(233, 30, 99, 0.8)',
+                                'rgba(96, 125, 139, 0.8)'
+                            ],
+                            borderColor: [
+                                'rgba(102, 187, 106, 1)',
+                                'rgba(66, 165, 245, 1)',
+                                'rgba(255, 167, 38, 1)',
+                                'rgba(239, 83, 80, 1)',
+                                'rgba(156, 39, 176, 1)',
+                                'rgba(255, 193, 7, 1)',
+                                'rgba(103, 58, 183, 1)',
+                                'rgba(0, 150, 136, 1)',
+                                'rgba(233, 30, 99, 1)',
+                                'rgba(96, 125, 139, 1)'
+                            ],
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 750
+                        },
+                        plugins: {
+                            legend: {
+                                display: chartType === 'pie' || chartType === 'doughnut',
+                                position: 'bottom'
+                            },
+                            title: {
+                                display: true,
+                                text: questionText || 'Statistiques de la question',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                },
+                                padding: {
+                                    top: 10,
+                                    bottom: 20
+                                }
+                            }
+                        },
+                        scales: chartType === 'bar' ? {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0,
+                                    stepSize: 1
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    autoSkip: false,
+                                    maxRotation: 45,
+                                    minRotation: 0
+                                }
+                            }
+                        } : {}
+                    }
+                });
+                                
+                // Forcer le rendu après un court délai
+                setTimeout(() => {
+                    if (window.questionStatsChart) {
+                        window.questionStatsChart.resize();
+                        window.questionStatsChart.update();
+                        
+                        // Vérifier que le canvas a des dimensions
+                        const canvasEl = document.getElementById('questionChart');
+                    }
+                }, 200);
+                
+            } catch (error) {
+                console.error('Erreur lors de la création du chart:', error);
+                $container.html(`<div class="alert alert-danger">Erreur lors de la création du graphique: ${error.message}</div>`);
+            }
+        }, 150);
+    }
+
+    // Gestionnaires de filtres pour les statistiques de questions
+    $('#filter_client_enquete, #filter_date_from_enquete, #filter_date_to_enquete, #filter_created_by_enquete, #filter_societe_enquete').on('change', function() {
+        const questionId = $('#questionStatsModalEnquete').data('current-question-id');
+        if (questionId && $('#questionStatsModalEnquete').hasClass('show')) {
+            loadQuestionStats(questionId);
+        }
+    });
+
+    /* -------------------- Détails Enquête (AJAX) -------------------- */
+    $(document).on('click', '.btn-detail-enquete', function () {
+        const id = $(this).data('id'); 
+        const $modal = $('#detailsEnqueteModal'); 
+        const $body = $modal.find('.modal-body');
+        
+        $body.html('<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div><p class="mt-2 text-muted">Chargement des détails...</p></div>');
+        
+        $.ajax({
+            url: `/prospection/enquetes/${id}/details/`,
+            method: 'GET',
+            dataType: 'json'
+        }).done(function (data) {
+            let html = `
+            <div class="container-fluid p-0">
+                <div class="card rounded-0 border-0 shadow-sm mb-3">
+                    <div class="card-header bg-info text-white py-3">
+                        <h6 class="mb-0"><i class="fas fa-info-circle mr-2"></i>Informations générales</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge badge-light badge-pill mr-2"><i class="fas fa-heading"></i></span>
+                                    <div><small class="text-muted d-block">Titre</small><strong>${data.titre || '—'}</strong></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge badge-light badge-pill mr-2"><i class="fas fa-building"></i></span>
+                                    <div><small class="text-muted d-block">Client</small><span class="badge badge-info">${(data.client || data.client_nom) || '—'}</span></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <span class="badge badge-light badge-pill mr-2"><i class="fas fa-user"></i></span>
+                                    <div><small class="text-muted d-block">Créé par</small><span class="badge badge-secondary">${data.created_by || ''}</span></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-start">
+                                    <span class="badge badge-light badge-pill mr-2"><i class="fas fa-align-left"></i></span>
+                                    <div><small class="text-muted d-block">Description</small><div>${data.description || '—'}</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-container mt-4">
+                            <div class="row">
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="timeline-item ${data.date_creation ? 'active' : ''}">
+                                        <div class="timeline-icon bg-primary"><i class="fas fa-plus text-white"></i></div>
+                                        <div class="timeline-content"><small class="text-muted d-block">Créée</small><strong>${data.date_creation || '—'}</strong></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="timeline-item ${data.date_modification ? 'active' : ''}">
+                                        <div class="timeline-icon bg-warning"><i class="fas fa-edit text-white"></i></div>
+                                        <div class="timeline-content"><small class="text-muted d-block">Modifiée</small><strong>${data.date_modification || '—'}</strong></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="timeline-item ${data.date_envoi ? 'active' : ''}">
+                                        <div class="timeline-icon bg-info"><i class="fas fa-paper-plane text-white"></i></div>
+                                        <div class="timeline-content"><small class="text-muted d-block">Envoyée</small><strong>${data.date_envoi || '—'}</strong></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 col-6 mb-3">
+                                    <div class="timeline-item ${data.date_reponse ? 'active' : ''}">
+                                        <div class="timeline-icon bg-success"><i class="fas fa-check text-white"></i></div>
+                                        <div class="timeline-content"><small class="text-muted d-block">Réponse</small><strong>${data.date_reponse || '—'}</strong></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card rounded-0 border-0 shadow-sm">
+                    <div class="card-header bg-info text-white py-3">
+                        <h6 class="mb-0"><i class="fas fa-question-circle mr-2"></i>Questions & réponses</h6>
+                    </div>
+                    <div class="card-body p-0">`;
+
+            const questionsArr = Array.isArray(data.questions) ? data.questions : [];
+            if (!questionsArr.length) {
+                html += `<div class="alert alert-warning m-3"><i class="fas fa-exclamation-triangle mr-2"></i>Aucune donnée de réponse disponible.</div>`;
+            } else {
+                html += `
+                    <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="bg-light sticky-top">
+                                <tr>
+                                    <th width="50">#</th>
+                                    <th>Question</th>
+                                    <th width="150">Type</th>
+                                    <th width="120">Statut</th>
+                                    <th width="200">Réponse</th>
+                                    <th width="120">Commentaire</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                questionsArr.forEach(function (q, i) {
+                    const typeCls = (t => { t=(t||'').toLowerCase(); if(t==='closed')return'badge-info'; if(t==='ouinon')return'badge-primary'; if(t==='open')return'badge-secondary'; if(t==='note')return'badge-danger'; return'badge-light'; })(q.type);
+                    const reponse = (q.reponse || '').toString().toLowerCase();
+                    const badge = (q.reponse && reponse !== 'nan' && reponse.trim() !== '' 
+                            ? `<span class="badge badge-success">${q.reponse}</span>` 
+                            : '-');
+                    const comment = (q.commentaire && q.commentaire.toString().trim() !== '') ? q.commentaire : '-';
+                    html += `
+                        <tr>
+                            <td class="align-middle"><strong>${i+1}</strong></td>
+                            <td class="align-middle">${q.question}</td>
+                            <td class="align-middle"><span class="badge ${typeCls}">${q.type}</span></td>
+                            <td class="align-middle">${q.obligatoire ? '<span class="badge badge-warning">Obligatoire</span>' : '<span class="badge badge-secondary">Optionnel</span>'}</td>
+                            <td class="align-middle">${badge}</td>
+                            <td class="align-middle">${comment}</td>
+                        </tr>`;
+                });
+                html += `</tbody></table></div>`;
+            }
+
+            html += `</div></div></div>`;
+            $body.html(html);
+
+            if (data.is_completed) {
+                $('#enqueteDownloadContainer').html(`<a class="btn btn-outline-danger js-download-pdf" href="/prospection/enquetes/export/pdf/${data.id}/"><i class="fas fa-file-pdf"></i> Télécharger PDF</a>`);
+            } else {
+                $('#enqueteDownloadContainer').html(`<a class="btn btn-outline-success js-download-excel" href="/prospection/enquetes/export/excel/${data.id}/"><i class="fas fa-file-excel"></i> Télécharger Excel</a>`);
+            }
+
+            // Helper pour télécharger sans changer l'URL courante
+            async function downloadByFetch(url) {
+                const resp = await fetch(url, { credentials: 'same-origin' });
+                if (!resp.ok) throw new Error('Téléchargement échoué');
+                const blob = await resp.blob();
+                // Essayer de récupérer le nom depuis l'en-tête Content-Disposition
+                let filename = '';
+                try {
+                    const cd = resp.headers.get('Content-Disposition') || resp.headers.get('content-disposition');
+                    if (cd) {
+                        const m = cd.match(/filename\*=([^']*)''([^;]+)|filename="?([^";]+)"?/i);
+                        filename = decodeURIComponent((m && (m[2] || m[3])) || '');
+                    }
+                } catch(_){ }
+                // Fallback: déduire à partir de l'URL (ex: /enquetes/export/pdf/3842/)
+                if (!filename) {
+                    try {
+                        const u = new URL(url, window.location.origin);
+                        const parts = u.pathname.split('/').filter(Boolean); // ["enquetes","export","pdf","3842"]
+                        const type = parts[2] || 'pdf';
+                        const id = parts[3] || 'export';
+                        const ext = type.toLowerCase().includes('excel') ? 'xlsx' : (type.toLowerCase().includes('pdf') ? 'pdf' : 'dat');
+                        filename = `Enquete_${id}.${ext}`;
+                    } catch(_){ filename = 'export'; }
+                }
+                const urlObj = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = urlObj; a.download = filename; document.body.appendChild(a); a.click();
+                setTimeout(()=>{ URL.revokeObjectURL(urlObj); a.remove(); }, 200);
+            }
+
+            $('#enqueteDownloadContainer').off('click', '.js-download-pdf').on('click', '.js-download-pdf', function (e) {
+                e.preventDefault(); const url = $(this).attr('href');
+                Swal.fire({ title:'Télécharger le PDF ?', text:"Rapport PDF de l'enquête.", icon:'question', showCancelButton:true, confirmButtonText:'Oui, télécharger' })
+                    .then(async (r) => {
+                        if (r.isConfirmed) {
+                            try { await downloadByFetch(url); window.location.assign('/enquetes'); }
+                            catch(err){ console.error(err); Swal.fire({icon:'error', title:'Erreur', text:"Le téléchargement a échoué."}); }
+                        }
+                    });
+            });
+
+            $('#enqueteDownloadContainer').off('click', '.js-download-excel').on('click', '.js-download-excel', function (e) {
+                e.preventDefault(); const url = $(this).attr('href');
+                Swal.fire({ title:'Télécharger l\'Excel ?', text:"Fichier Excel de l'enquête.", icon:'question', showCancelButton:true, confirmButtonText:'Oui, télécharger' })
+                    .then(async (r) => {
+                        if (r.isConfirmed) {
+                            try { await downloadByFetch(url); window.location.assign('/enquetes'); }
+                            catch(err){ console.error(err); Swal.fire({icon:'error', title:'Erreur', text:"Le téléchargement a échoué."}); }
+                        }
+                    });
+            });
+        }).fail(function (xhr) {
+            let msg = 'Erreur lors du chargement des détails.';
+            if (xhr && xhr.responseJSON && (xhr.responseJSON.error || xhr.responseJSON.message)) {
+                msg = xhr.responseJSON.error || xhr.responseJSON.message;
+            }
+            $body.html(`<div class="alert alert-danger m-3"><i class="fas fa-exclamation-circle mr-2"></i>${msg}</div>`);
+        });
+    });
+
+    // Intercepter TOUT clic sur un lien d'export pour empêcher le changement d'URL
+    (function bindGlobalExportInterceptors(){
+        // Réutilise le helper s'il existe, sinon en crée un léger
+        async function __dl(url){
+            if (typeof downloadByFetch === 'function') return downloadByFetch(url);
+            const resp = await fetch(url, { credentials: 'same-origin' });
+            const blob = await resp.blob();
+            const u = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href=u; a.download='export'; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(u); a.remove();},200);
+        }
+        $(document).off('click.__exports', 'a[href*="/prospection/enquetes/export/"]').on('click.__exports', 'a[href*="/prospection/enquetes/export/"]', function(e){
+            const href = this.getAttribute('href') || '';
+            // Ne pas doubler la confirmation si un handler spécifique est déjà présent
+            if (this.classList.contains('js-download-pdf') || this.classList.contains('js-download-excel')) return;
+            // N'intercepter que les liens même origine
+            let sameOrigin = false;
+            try { const u = new URL(href, window.location.origin); sameOrigin = (u.origin === window.location.origin); } catch(_) { sameOrigin = href.startsWith('/'); }
+            if (!sameOrigin) return; // laisser passer les liens externes
+            e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+            // Déterminer type pour le message
+            let isPdf = /\/export\/pdf\//i.test(href);
+            let title = isPdf ? 'Télécharger le PDF ?' : 'Télécharger l\'Excel ?';
+            let text = isPdf ? 'Rapport PDF de l\'enquête.' : 'Fichier Excel de l\'enquête.';
+            Swal.fire({ title, text, icon:'question', showCancelButton:true, confirmButtonText:'Oui, télécharger' })
+                .then(async (r) => {
+                    if (r.isConfirmed) {
+                        try { await __dl(href); window.location.assign('/enquetes'); }
+                        catch(err){ console.error(err); Swal.fire({icon:'error', title:'Erreur', text:"Le téléchargement a échoué."}); }
+                    }
+                });
+            return false;
+        });
+    })();
+
+    // Analytics PDFs: open in new tab without changing the current /enquetes URL
+    $(document).off('click.__analyticsPdf', '.js-analytics-pdf').on('click.__analyticsPdf', '.js-analytics-pdf', function(e){
+        const href = this.getAttribute('data-href') || this.getAttribute('href') || '';
+        if (!href) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        let w = null;
+        try { w = window.open(href, '_blank', 'noopener'); } catch(_) { w = null; }
+
+        // Popup blocked: keep current URL, but still trigger download in background
+        if (!w) {
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = href;
+            document.body.appendChild(iframe);
+            setTimeout(() => { try { iframe.remove(); } catch(_) {} }, 60000);
+        }
+        return false;
+    });
+}
+
+function updateCommentsEnquete(comments) {
+    const $container = $('#commentsContainerEnquete');
+    $container.empty();
+    
+    if (!comments || comments.length === 0) {
+        $container.html('<div class="alert alert-info"><i class="fas fa-info-circle"></i> Aucun commentaire disponible</div>');
+        return;
+    }
+    
+    $container.append('<h6 class="mb-3"><i class="fas fa-comments"></i> Commentaires</h6>');
+    
+    comments.forEach(function(comment) {
+        const clientName = comment.client_name || comment.client || 'N/A';
+        const commentText = comment.text || 'N/A';
+        const commentDate = comment.date || 'N/A';
+        
+        const commentHtml = `
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <p class="mb-1 small">${commentText}</p>
+                    <small class="text-muted">
+                        <i class="fas fa-building"></i> ${clientName} - 
+                        <i class="fas fa-calendar"></i> ${commentDate}
+                    </small>
+                </div>
+            </div>
+        `;
+        $container.append(commentHtml);
+    });
+}
+</script>
+{% endblock %}

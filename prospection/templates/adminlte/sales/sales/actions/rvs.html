@@ -1,0 +1,2051 @@
+{% extends 'adminlte/base.html' %}
+{% load static %}
+{% block body %}
+
+<!-- ===== Bouton filtres ===== -->
+<button class="btn btn-primary" id="openFilterBtn" style="position: fixed; right: 20px; top: 40%; z-index: 999;">
+  <i class="fas fa-filter"></i> Filtres
+</button>
+
+<!-- ===== SIDEBAR FILTRES ===== -->
+<div class="custom-sidebar" id="filterSidebar">
+  <div class="sidebar-header">
+    <button class="close-btn" id="closeFilterBtn"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="sidebar-content">
+    <form method="GET" id="filterForm">
+      <!-- Statut -->
+      <div class="form-group">
+        <label>Statut</label>
+        <select name="status" class="form-control">
+          <option value="">Tous les statuts</option>
+          {% for value, label in status_choices.items %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if is_superuser or is_RO %}
+      <div class="form-group">
+        <label>Filiale</label>
+        <select name="societe" class="form-control">
+          <option value="">Toutes les filiales</option>
+          {% for societe in societes %}
+            <option value="{{ societe.id }}" {% if societe_filter == societe.id|stringformat:"s" %}selected{% endif %}>{{ societe.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="form-group">
+        <label>Type d'entreprise</label>
+        <select name="type_entreprise" class="form-control">
+          <option value="">Tous les types</option>
+          <option value="client" {% if type_entreprise_filter == 'client' %}selected{% endif %}>Clients uniquement</option>
+          <option value="prospect" {% if type_entreprise_filter == 'prospect' %}selected{% endif %}>Prospects uniquement</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Prospect/Client</label>
+        <select name="entreprise" class="form-control">
+          <option value="">Tous les prospects/clients</option>
+          {% for entreprise in entreprises %}
+            <option value="{{ entreprise.id }}" {% if entreprise_filter == entreprise.id|stringformat:"s" %}selected{% endif %}>
+              {{ entreprise.nom }} ({% if entreprise.is_CLT %}Client{% else %}Prospect{% endif %})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Dates -->
+      <div class="form-group">
+        <label>Date de création</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="created_from" class="form-control" value="{{ created_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="created_to" class="form-control" value="{{ created_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Date planifiée</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="planned_from" class="form-control" value="{{ planned_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="planned_to" class="form-control" value="{{ planned_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Date réalisée</label>
+        <div class="row">
+          <div class="col-6"><input type="date" name="realized_from" class="form-control" value="{{ realized_date_from|default_if_none:'' }}"></div>
+          <div class="col-6"><input type="date" name="realized_to" class="form-control" value="{{ realized_date_to|default_if_none:'' }}"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Recherche</label>
+        <input type="text" name="search" class="form-control" placeholder="Rechercher..." value="{{ search_query|default_if_none:'' }}">
+      </div>
+
+      <div class="form-group d-flex justify-content-center gap-2 mt-3" style="gap:4px;">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Appliquer</button>
+        <a href="{% url 'prospection:rv_list' %}" class="btn btn-default"><i class="fas fa-sync-alt"></i> Réinitialiser</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== EN-TÊTE ===== -->
+<div class="content-header">
+  <div class="container-fluid">
+    <div class="row mb-2">
+      <div class="col-sm-6"><h1 class="m-0">Liste des rendez-vous</h1></div>
+      <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+          <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+          <li class="breadcrumb-item active">Rendez-vous</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="row mb-2">
+      <div class="col-12 text-right">
+        {% if is_superuser or is_RO %}
+        <button type="button" class="btn btn-warning mr-2" data-toggle="modal" data-target="#importRvsModal">
+          <i class="fas fa-file-import"></i> Importer
+        </button>
+        {% endif %}
+        <button type="button" class="btn btn-info mr-2" data-toggle="modal" data-target="#calendarModal">
+          <i class="far fa-calendar-alt"></i> Voir le calendrier
+        </button>
+        <button type="button" class="btn btn-success" data-toggle="modal" data-target="#addAppointmentModal">
+          <i class="fas fa-plus"></i> Ajouter un rendez-vous
+        </button>
+      </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="row">
+      <div class="col-md-6 mb-3 pe-md-2">
+        <div class="card card-success collapsed-card">
+          <div class="card-header">
+            <h3 class="card-title">Répartition des rendez-vous par entreprise</h3>
+            <div class="card-tools"><button class="btn btn-tool" data-card-widget="collapse" data-target="#cardA"><i class="fas fa-plus"></i></button></div>
+          </div>
+          <div class="card-body collapse" id="cardA">
+            <!-- Filtre par entreprise -->
+            <div class="form-group mb-3">
+              <label for="filterEntrepriseRvs">Rechercher une entreprise :</label>
+              <input type="text" id="filterEntrepriseRvs" class="form-control" placeholder="Tapez le nom de l'entreprise...">
+            </div>
+            <div style="position:relative;height:400px;"><canvas id="rvsChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 ps-md-2">
+        <div class="card card-info collapsed-card">
+          <div class="card-header">
+            <h3 class="card-title">Évolution mensuelle des rendez-vous</h3>
+            <div class="card-tools"><button class="btn btn-tool" data-card-widget="collapse" data-target="#cardB"><i class="fas fa-plus"></i></button></div>
+          </div>
+          <div class="card-body collapse" id="cardB">
+            <!-- Filtres année/mois (checkbox multiples + Tout/Aucun) -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center">
+                  <label class="mb-0">Années :</label>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="yearAllRvs">
+                    <label class="form-check-label" for="yearAllRvs">Tout/Aucun</label>
+                  </div>
+                </div>
+                <div id="yearCheckboxesRvs" class="border rounded p-2 mt-2" style="max-height: 180px; overflow-y:auto; overflow-x:hidden;"></div>
+              </div>
+              <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-center">
+                  <label class="mb-0">Mois :</label>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="monthAllRvs">
+                    <label class="form-check-label" for="monthAllRvs">Tout/Aucun</label>
+                  </div>
+                </div>
+                <div id="monthCheckboxesRvs" class="border rounded p-2 mt-2" style="max-height: 180px; overflow-y:auto; overflow-x:hidden;"></div>
+              </div>
+            </div>
+            <div style="position:relative;height:400px;"><canvas id="monthlyRvsChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TABLE ===== -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row"><div class="col-md-12">
+        <div class="card">
+          <div class="card-header justify-content-between align-items-center">
+            <div class="card-tools mx-auto" style="text-align:center;">
+              <small style="font-size:90%;">{{ rvs.start_index }} - {{ rvs.end_index }} sur {{ rvs.paginator.count }}</small>
+              <ul class="pagination pagination-sm justify-content-center" style="margin-top:0">
+                <li class="page-item"><a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&laquo;</a></li>
+                {% for i in rvs.paginator.page_range %}
+                  <li class="page-item {% if rvs.number == i %}active{% endif %}">
+                    <a class="page-link" href="?page={{ i }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">{{ i }}</a>
+                  </li>
+                {% endfor %}
+                <li class="page-item"><a class="page-link" href="?page={{ rvs.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if societe_filter %}&societe={{ societe_filter }}{% endif %}{% if created_date_from %}&created_from={{ created_date_from }}{% endif %}{% if created_date_to %}&created_to={{ created_date_to }}{% endif %}{% if planned_date_from %}&planned_from={{ planned_date_from }}{% endif %}{% if planned_date_to %}&planned_to={{ planned_date_to }}{% endif %}{% if realized_date_from %}&realized_from={{ realized_date_from }}{% endif %}{% if realized_date_to %}&realized_to={{ realized_date_to }}{% endif %}{% if search_query %}&search={{ search_query|urlencode }}{% endif %}">&raquo;</a></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <table id="rvs" class="table table-bordered table-hover">
+              <thead>
+              <tr>
+                <th>Sujet</th>
+                <th>Prospect/Client</th>
+                <th>Statut</th>
+                {% if is_superuser or is_RO %}<th>Filiale</th>{% endif %}
+                {% if is_superuser or is_RC or is_RO %}<th>Créé par</th>{% endif %}
+                <th>Date planifiée</th>
+                <th>Date réalisée</th>
+                <th>Actions</th>
+              </tr>
+              </thead>
+              <tbody>
+              {% if rvs %}
+              {% for appointment in rvs %}
+                <tr>
+                  <td>{{ appointment.sujet|truncatechars:10 }}</td>
+                  <td>
+                    {% if appointment.entreprise %}
+                      {{ appointment.entreprise.nom|truncatechars:15 }}
+                      <span class="badge badge-{% if appointment.entreprise.is_CLT %}success{% else %}info{% endif %}">
+                        {% if appointment.entreprise.is_CLT %}Client{% else %}Prospect{% endif %}
+                      </span>
+                    {% else %}
+                      <span class="text-danger">Non spécifié</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if appointment.etat == 'planifie' %}
+                      <span class="badge badge-info">Planifié</span>
+                    {% elif appointment.etat == 'termine' %}
+                      <span class="badge badge-success">Terminé</span>
+                    {% elif appointment.etat == 'annule' %}
+                      <span class="badge badge-danger">Annulé</span>
+                    {% else %}-{% endif %}
+                  </td>
+                  {% if is_superuser or is_RO %}<td>{{ appointment.societe.nom|default:"-"|truncatechars:15 }}</td>{% endif %}
+                  {% if is_superuser or is_RC or is_RO %}<td>{{ appointment.created_by.username|default:"-" }}</td>{% endif %}
+                  <td>{{ appointment.date_heure_planifie|date:"d/m/Y H:i"|default:"-" }}</td>
+                  <td>{{ appointment.date_heure_realiser|date:"d/m/Y H:i"|default:"-" }}</td>
+                  <td>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="viewAppointmentDetails({{ appointment.id }})" title="Voir détails"><i class="fas fa-eye"></i></button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="modal" data-target="#editAppointmentModal{{ appointment.id }}" title="Modifier"><i class="fas fa-edit"></i></button>
+                    {% if is_superuser or is_RC or is_RO %}
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="confirmDeleteAppointment({{ appointment.id }})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                  {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="{% if is_superuser or is_RO %}8{% else %}{% if is_RC %}7{% else %}6{% endif %}{% endif %}" class="text-center py-4">
+                    <div class="d-flex flex-column align-items-center">
+                      <i class="fas fa-users fa-3x text-muted mb-2"></i>
+                      <h5 class="text-muted">Aucun rendez-vous trouvé</h5>
+                      <p class="text-muted mb-0">Utilisez les filtres pour affiner votre recherche ou créez un nouveau rendez-vous.</p>
+                    </div>
+                  </td>
+                </tr>
+              {% endif %}
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </div></div>
+    </div>
+  </section>
+</div>
+
+<!-- ===== MODAL AJOUT ===== -->
+<div class="modal fade" id="addAppointmentModal" tabindex="-1" role="dialog" aria-labelledby="addAppointmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header bg-success">
+      <h5 class="modal-title" id="addAppointmentModalLabel">Ajouter un nouveau rendez-vous</h5>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="addAppointmentForm" method="post" action="{% url 'prospection:add_rv' %}">
+        {% csrf_token %}
+        <input type="hidden" id="clientNumTiers" name="numTiers">
+        <input type="hidden" name="client_type" id="clientTypeInput">
+        <input type="hidden" name="entreprise" id="selectedEntreprise">
+        <input type="hidden" id="addClientSocieteName" name="client_societe_name">
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label for="addSujet">Sujet*</label>
+            <input type="text" name="sujet" class="form-control" placeholder="Tapez un sujet" id="addSujet" required>
+            <small id="sujet-error" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="addEtat">Statut</label>
+            <select name="etat" class="form-control" id="addEtat">
+              <option value="">Sélectionnez un statut</option>
+              {% for value, label in status_choices.items %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <small id="etat-error" class="text-danger"></small>
+          </div></div>
+        </div>
+        <div class="form-group">
+          <label>Type*</label>
+          <select class="form-control" id="clientType" required>
+            <option value="">Sélectionnez un type</option>
+            <option value="prospect">Prospect</option>
+            <option value="client">Client</option>
+          </select>
+          <small id="type-error" class="text-danger"></small>
+        </div>
+
+        <!-- Prospect -->
+        <div class="form-group" id="prospectField" style="display:none;">
+          <label for="addProspect">Prospect*</label>
+          <div class="input-group">
+            <select name="prospect" class="form-control" id="addProspect">
+              <option value="">Sélectionnez un prospect</option>
+              {% for e in entreprises %}{% if not e.is_CLT %}<option value="{{ e.id }}" data-societe="{{ e.societe.id }}">{{ e.nom }}</option>{% endif %}{% endfor %}
+            </select>
+            <div class="input-group-append">
+              <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#addProspectFromEmailModal">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+          </div>
+          <small id="prospect-error" class="text-danger"></small>
+        </div>
+
+        <!-- Client -->
+        <div class="form-group" id="clientField" style="display:none; position:relative;">
+          <label for="addClient">Nom du client*</label>
+          <input type="text" name="client_name" class="form-control" id="addClient" autocomplete="off" placeholder="Tapez pour rechercher (ex: C123, nom...)" >
+          <small id="client-error" class="text-danger"></small>
+          <div id="clientSearchResults" class="list-group" style="position:absolute; z-index:1000; width:100%; max-height:220px; overflow-y:auto; display:none;"></div>
+
+          <!-- Détails client -->
+          <div id="clientDetails" class="mt-3 p-3 border rounded" style="display:none;">
+            <h6 class="font-weight-bold mb-3">Informations du client</h6>
+            <div class="row">
+              <div class="col-md-6">
+                <p><strong>Nom:</strong> <span id="clientName"></span></p>
+                <p><strong>Téléphone:</strong> <span id="clientPhone"></span></p>
+                <p><strong>Numéro de compte:</strong> <span id="displayClientNumTiers"></span></p>
+              </div>
+              <div class="col-md-6">
+                <p><strong>Email:</strong> <span id="clientEmail"></span></p>
+                <p><strong>Adresse:</strong> <span id="clientAddress"></span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label for="addDatePlanifie">Date planifiée*</label>
+            <input type="datetime-local" name="date_heure_planifie" class="form-control" id="addDatePlanifie">
+            <small id="date_heure_planifie-error" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="addDateRealiser">Date réalisée</label>
+            <input type="datetime-local" name="date_heure_realiser" class="form-control" id="addDateRealiser">
+            <small id="date_heure_realiser-error" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <!-- Compte-rendu -->
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label>Compte-rendu</label>
+            <button type="button" class="btn btn-primary" id="startReportBtn" disabled><i class="fas fa-edit"></i> Générer le compte-rendu</button>
+            <div id="reportQuestionsContainer" class="mt-3 d-none"></div>
+            <textarea name="compte_rendu" class="form-control mt-3 d-none" id="generatedReport" rows="8" placeholder="Le compte-rendu généré apparaîtra ici..." style="background-color: #f8f9fa; border: 2px solid #28a745;"></textarea>
+            <small class="text-muted" id="reportHelp">Complétez Sujet, Date, et Prospect/Client pour activer.</small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="addNotes">Notes</label>
+            <textarea name="notes" class="form-control" id="addNotes" rows="3" placeholder="Notes"></textarea>
+            <small id="notes-error" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-success">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODALS EDIT ===== -->
+{% for appointment in rvs %}
+<div class="modal fade" id="editAppointmentModal{{ appointment.id }}" tabindex="-1" role="dialog" aria-labelledby="editAppointmentModalLabel{{ appointment.id }}" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+    <div class="modal-header bg-info">
+      <h5 class="modal-title" id="editAppointmentModalLabel{{ appointment.id }}">Modifier le rendez-vous</h5>
+      <button type="button" class="close" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="editAppointmentForm{{ appointment.id }}" method="post" action="{% url 'prospection:edit_rv' appointment.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="client_type" id="client_type_{{ appointment.id }}" value="{% if appointment.entreprise.is_CLT %}client{% else %}prospect{% endif %}">
+        <input type="hidden" name="entreprise_id" id="editEntrepriseId{{ appointment.id }}" value="{{ appointment.entreprise.id }}">
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label for="editSujet{{ appointment.id }}">Sujet*</label>
+            <input type="text" name="sujet" value="{{ appointment.sujet }}" class="form-control" id="editSujet{{ appointment.id }}" required>
+            <small id="edit-sujet-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="editEtat{{ appointment.id }}">Statut</label>
+            <select name="etat" class="form-control" id="editEtat{{ appointment.id }}">
+              <option value="">Sélectionnez un statut</option>
+              {% for value, label in status_choices.items %}
+                <option value="{{ value }}" {% if appointment.etat == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <small id="edit-etat-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label for="editClientType{{ appointment.id }}">Type*</label>
+            <select name="client_type_selector" class="form-control" id="editClientType{{ appointment.id }}" onchange="updateClientType(this.value, '{{ appointment.id }}')" disabled>
+              <option value="">Sélectionnez un type</option>
+              <option value="prospect" {% if not appointment.entreprise.is_CLT %}selected{% endif %}>Prospect</option>
+              <option value="client" {% if appointment.entreprise.is_CLT %}selected{% endif %}>Client</option>
+            </select>
+          </div></div>
+
+          <div class="col-md-6">
+            <!-- Prospect (EDIT) -->
+            <div class="form-group" id="editProspectContainer{{ appointment.id }}" {% if appointment.entreprise.is_CLT %}style="display:none;"{% endif %}>
+              <label for="editClientSelect{{ appointment.id }}">Sélectionner un prospect</label>
+              <div class="input-group">
+                <select name="entreprise" class="form-control" id="editClientSelect{{ appointment.id }}" {% if appointment.entreprise.is_CLT %}style="display:none;"{% endif %} data-selected="{{ appointment.entreprise.id }}">
+                  <option value="">Sélectionnez un prospect</option>
+                  {% for e in entreprises %}
+                    {% if not e.is_CLT %}
+                      <option value="{{ e.id }}" data-societe="{{ e.societe.id }}" {% if e.id == appointment.entreprise.id %}selected{% endif %}>{{ e.nom }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+                <div class="input-group-append">
+                  <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#addProspectFromEmailModal">
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <!-- emplacement erreur prospect -->
+              <small id="edit-prospect-error{{ appointment.id }}" class="text-danger"></small>
+            </div>
+
+            <!-- Client (EDIT) -->
+            <div class="form-group" id="editClientContainer{{ appointment.id }}" {% if not appointment.entreprise.is_CLT %}style="display:none;"{% endif %} style="position:relative;">
+              <label for="editClientInput{{ appointment.id }}">Nom du client</label>
+              <input type="text" class="form-control" id="editClientInput{{ appointment.id }}"
+                     value="{% if appointment.entreprise.is_CLT %}{{ appointment.entreprise.num_compte }} - {{ appointment.entreprise.nom }}{% endif %}"
+                     {% if appointment.entreprise.is_CLT %}data-default-display="{{ appointment.entreprise.num_compte }} - {{ appointment.entreprise.nom }}" data-default-num="{{ appointment.entreprise.num_compte }}"{% endif %}
+                     placeholder="Rechercher un client..." autocomplete="off">
+              <div id="clientSearchResults{{ appointment.id }}" class="list-group" style="position:absolute;width:100%;z-index:1000;display:none;"></div>
+              <input type="hidden" id="editNumeroTiers{{ appointment.id }}" name="numero_tiers" value="">
+              <input type="hidden" name="client_societe_name" id="editClientSocieteName{{ appointment.id }}" value="{% if appointment.entreprise.is_CLT %}{{ appointment.entreprise.societe.nom }}{% endif %}">
+              <small id="edit-client-error{{ appointment.id }}" class="text-danger"></small>
+
+              <div id="clientDetails{{ appointment.id }}" class="client-details mt-3 p-3 border rounded" style="display:none;">
+                <h6>Détails du client</h6>
+                <div id="client-info-{{ appointment.id }}"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label for="editDatePlanifie{{ appointment.id }}">Date planifiée*</label>
+            <input type="datetime-local" value="{{ appointment.date_heure_planifie|date:'Y-m-d\\TH:i' }}" name="date_heure_planifie" class="form-control" id="editDatePlanifie{{ appointment.id }}">
+            <small id="edit-date_heure_planifie-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="editDateRealiser{{ appointment.id }}">Date réalisée</label>
+            <input type="datetime-local" value="{{ appointment.date_heure_realiser|date:'Y-m-d\\TH:i' }}" name="date_heure_realiser" class="form-control" id="editDateRealiser{{ appointment.id }}">
+            <small id="edit-date_heure_realiser-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="form-group">
+            <label>Compte-rendu</label>
+            <div id="reportButtonContainer{{ appointment.id }}"></div>
+            <textarea name="compte_rendu" class="form-control" id="editCompteRendu{{ appointment.id }}" rows="8" placeholder="Le compte-rendu généré apparaîtra ici..." style="background-color: #f8f9fa; border: 2px solid #17a2b8;">{{ appointment.compte_rendu|default:'' }}</textarea>
+            <small id="edit-compte_rendu-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+          <div class="col-md-6"><div class="form-group">
+            <label for="editNotes{{ appointment.id }}">Notes</label>
+            <textarea name="notes" class="form-control" id="editNotes{{ appointment.id }}" rows="3">{{ appointment.notes }}</textarea>
+            <small id="edit-notes-error{{ appointment.id }}" class="text-danger"></small>
+          </div></div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+          <button type="submit" class="btn btn-info">Enregistrer les modifications</button>
+        </div>
+      </form>
+    </div>
+  </div></div>
+</div>
+{% endfor %}
+
+<!-- ===== MODAL DÉTAILS ===== -->
+<div class="modal fade" id="appointmentDetailsModal" tabindex="-1" role="dialog" aria-labelledby="appointmentDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document"><div class="modal-content shadow-sm">
+    <div class="modal-header bg-info text-white">
+      <h5 class="modal-title" id="appointmentDetailsModalLabel"><i class="fas fa-users"></i> Détails du rendez-vous</h5>
+      <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <div class="card p-3">
+        <div class="table-responsive">
+          <table class="table table-bordered"><tbody>
+            <tr>
+              <th><i class="fas fa-comment"></i> Sujet</th><td id="detailSujet"></td>
+              <th><i class="fas fa-building"></i> Prospect/Client</th><td id="detailEntreprise"></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-building"></i> Filiale</th><td id="detailSociete"></td>
+              <th><i class="fas fa-user"></i> Créé par</th><td id="detailCreatedBy"></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-user-tie"></i> Pilote</th><td id="detailPilote"></td>
+              <th><i class="fas fa-calendar-alt"></i> Créé le</th><td id="detailDateHeure"></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-clock"></i> Date planifiée</th><td id="detailDatePlanifie"></td>
+              <th><i class="fas fa-check-circle"></i> Date réalisée</th><td id="detailDateRealiser"></td>
+            </tr>
+            <tr>
+              <th><i class="fas fa-toggle-on"></i> Statut</th><td id="detailEtat"></td>
+            </tr>
+            <tr><th colspan="4"><i class="fas fa-file-alt"></i> Compte-rendu</th></tr>
+            <tr><td colspan="4" id="detailCompteRendu" class="text-justify"></td></tr>
+            <tr><th colspan="4"><i class="fas fa-sticky-note"></i> Notes</th></tr>
+            <tr><td colspan="4" id="detailNotes" class="text-justify"></td></tr>
+          </tbody></table>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer d-flex justify-content-between">
+      <button type="button" class="btn btn-primary" id="sendEmailBtn"><i class="fas fa-envelope"></i> Envoyer par email</button>
+      <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fas fa-times"></i> Fermer</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODAL ENVOI EMAIL ===== -->
+<div class="modal fade" id="emailOverlayModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document"><div class="modal-content">
+    <div class="modal-header bg-primary text-white">
+      <h5 class="modal-title">Envoyer les détails du rendez-vous</h5>
+      <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer"><span>&times;</span></button>
+    </div>
+    <div class="modal-body">
+      <form id="emailForm">
+        <div class="form-group"><label for="recipientEmail">Email du destinataire</label><input type="email" class="form-control" id="recipientEmail" required></div>
+        <div class="form-group"><label for="emailSubject">Sujet</label><input type="text" class="form-control" id="emailSubject" required></div>
+        <div class="form-group"><label for="emailMessage">Message supplémentaire</label><textarea class="form-control" id="emailMessage" rows="3"></textarea></div>
+      </form>
+      <div id="emailError" class="alert alert-danger d-none"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+      <button type="button" class="btn btn-primary" id="confirmSendEmail">Envoyer l'email</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ===== MODAL CALENDRIER ===== -->
+<div class="modal fade" id="calendarModal" tabindex="-1" role="dialog" aria-labelledby="calendarModalLabel">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="calendarModalLabel">Calendrier des rendez-vous</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="col-md-3">
+            <div class="card card-primary">
+              <div class="card-header"><h3 class="card-title">Filtres</h3></div>
+              <div class="card-body">
+                <div class="form-group">
+                  <label>Type de vue :</label>
+                  <select id="view-type" class="form-control">
+                    <option value="dayGridMonth">Mois</option>
+                    <option value="timeGridWeek">Semaine</option>
+                    <option value="timeGridDay">Jour</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Type de date :</label>
+                  <select id="date-type" class="form-control">
+                    <option value="planned">Dates planifiées</option>
+                    <option value="realized">Dates réalisées</option>
+                  </select>
+                </div>
+                <div class="card-footer">
+                  <p><strong>Légende des couleurs :</strong></p>
+                  <div><span class="badge" style="background:#586BAA; color:#fff;">&nbsp;</span> - Planifié</div>
+                  <div><span class="badge bg-success">&nbsp;</span> - Terminé</div>
+                  <div><span class="badge" style="background:#FA4750; color:#fff;">&nbsp;</span> - Annulé</div>
+                  <div><span class="badge bg-secondary">&nbsp;</span> - Autre statut</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-9">
+            <div class="card card-primary">
+              <div class="card-body p-0">
+                <div id="calendar" style="min-height:500px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL IMPORTATION RENDEZ-VOUS ===== -->
+<div class="modal fade" id="importRvsModal" tabindex="-1" role="dialog" aria-labelledby="importRvsModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title" id="importRvsModalLabel"><i class="fas fa-file-import"></i> Importer des rendez-vous</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="importRvsForm" method="post" action="{% url 'prospection:import_rvs' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="rvs_excel_file">Fichier Excel <span class="text-danger">*</span></label>
+            <input type="file" name="excel_file" class="form-control-file" id="rvs_excel_file" accept=".xlsx,.xls" required>
+            <small class="form-text text-muted">Le fichier doit contenir une feuille "Rendez-vous" avec les colonnes requises.</small>
+          </div>
+          <div class="form-group">
+            <label for="rvs_societe">Filiale <span class="text-danger">*</span></label>
+            <select name="societe_id" class="form-control" id="rvs_societe" required>
+              <option value="">Sélectionner une filiale</option>
+              {% for societe in societes %}
+              <option value="{{ societe.id }}">{{ societe.nom }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div id="importRvsProgress" class="d-none">
+            <div class="progress">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+            </div>
+            <p class="text-center mt-2">Importation en cours...</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-warning" id="importRvsBtn"><i class="fas fa-upload"></i> Importer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL AJOUT PROSPECT ===== -->
+<div class="modal fade" id="addProspectFromEmailModal" tabindex="-1" role="dialog" aria-labelledby="addProspectFromEmailModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h5 class="modal-title" id="addProspectFromEmailModalLabel">Ajouter un prospect</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addProspectFromEmailForm">
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_nom">Nom <span class="text-danger">*</span></label>
+                <input type="text" name="nom" class="form-control" id="id_nom" required placeholder="Entrez le nom du prospect">
+                <div class="invalid-feedback">Veuillez entrer le nom du prospect</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_adresse">Adresse <span class="text-danger">*</span></label>
+                <input type="text" name="adresse" class="form-control" id="id_adresse" required placeholder="Entrez l'adresse">
+                <div class="invalid-feedback">Veuillez entrer l'adresse</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_secteur_activite">Secteur d'activité <span class="text-danger">*</span></label>
+                <input type="text" name="secteur_activite" class="form-control" id="id_secteur_activite" required placeholder="Ex: Informatique, BTP...">
+                <div class="invalid-feedback">Veuillez entrer le secteur d'activité</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_telephone">Téléphone <span class="text-danger">*</span></label>
+                <input type="text" name="telephone" class="form-control" id="id_telephone" required placeholder="Entrez le numéro de téléphone">
+                <div class="invalid-feedback">Veuillez entrer un numéro de téléphone valide</div>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_email">Email <span class="text-danger">*</span></label>
+                <input type="email" name="email" class="form-control" id="id_email" required placeholder="Entrez l'adresse e-mail">
+                <div class="invalid-feedback">Veuillez entrer une adresse email valide</div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="id_date">Date <span class="text-danger">*</span></label>
+                <input type="date" name="date" class="form-control" id="id_date" required>
+                <div class="invalid-feedback">Veuillez sélectionner une date</div>
+              </div>
+            </div>
+          </div>
+          {% if is_superuser or is_RO %}
+          <div class="row">
+            <div class="col-md-12">
+              <div class="form-group">
+                <label for="id_societe">Filiale <span class="text-danger">*</span></label>
+                <select name="societe" class="form-control" id="id_societe" required>
+                  <option value="">Sélectionner une filiale</option>
+                  {% for s in societes %}
+                  <option value="{{ s.id }}">{{ s.nom }}</option>
+                  {% endfor %}
+                </select>
+                <div class="invalid-feedback">Veuillez sélectionner une filiale</div>
+              </div>
+            </div>
+          </div>
+          {% endif %}
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button>
+            <button type="submit" class="btn btn-info">Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="appointments-data" data-appointments="{{ rvs|safe }}"></div>
+<div class="modal fade" id="dateAppointmentsModal" tabindex="-1" role="dialog"><div class="modal-dialog modal-lg" role="document"><div class="modal-content"></div></div></div>
+<div class="control-sidebar-bg control-sidebar-right"></div>
+
+<!-- ===== LIBS ===== -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+/* ============ Gestion des messages Django ============ */
+{% if messages %}
+  document.addEventListener('DOMContentLoaded', function() {
+    {% for message in messages %}
+      {% if message.tags == 'success' %}
+        Swal.fire({
+          icon: 'success',
+          title: 'Succès',
+          text: '{{ message|escapejs }}',
+          timer: 3000
+        });
+      {% elif message.tags == 'error' %}
+        Swal.fire({
+          icon: 'error',
+          title: 'Erreur',
+          text: '{{ message|escapejs }}'
+        });
+      {% elif message.tags == 'warning' %}
+        Swal.fire({
+          icon: 'warning',
+          title: 'Attention',
+          text: '{{ message|escapejs }}'
+        });
+      {% elif message.tags == 'info' %}
+        Swal.fire({
+          icon: 'info',
+          title: 'Information',
+          text: '{{ message|escapejs }}'
+        });
+      {% endif %}
+    {% endfor %}
+  });
+{% endif %}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const params = new URLSearchParams(window.location.search);
+  ['created_from','created_to','planned_from','planned_to','realized_from','realized_to']
+    .forEach(name => {
+      const v = params.get(name);
+      if (v) {
+        document.querySelectorAll(`input[name="${name}"]`).forEach(el => { try { el.value = v; } catch(e){} });
+      }
+    });
+});
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@4.4.0/main.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@4.4.0/main.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/timegrid@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap@4.4.0/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/interaction@4.4.0/main.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap4.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap4.min.js"></script>
+
+<style>
+  #clientSearchResults, [id^="clientSearchResults"] { max-height:300px; overflow-y:auto; border:1px solid #ced4da; border-radius:4px; box-shadow:0 6px 12px rgba(0,0,0,.175); margin-top:2px; }
+  #clientSearchResults .list-group-item, [id^="clientSearchResults"] .list-group-item { border:none; border-bottom:1px solid #eee; padding:8px 15px; cursor:pointer; }
+  #clientSearchResults .list-group-item:last-child, [id^="clientSearchResults"] .list-group-item:last-child { border-bottom:none; }
+  #clientSearchResults .list-group-item:hover, [id^="clientSearchResults"] .list-group-item:hover { background:#f8f9fa; }
+
+  .custom-sidebar { position:fixed; top:0; right:-250px; width:250px; height:100vh; background:#343a40; color:#fff; z-index:9999; transition:right .3s ease; overflow-y:auto; padding:10px; }
+  .custom-sidebar.open { right:0; }
+  .sidebar-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.5); z-index:999; display:none; }
+
+  .client-details { background:#f8f9fa; border:1px solid #dee2e6; border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+  #generatedReport { background:#f8f9fa; border:1px solid #ced4da; white-space:pre-wrap; }
+</style>
+
+<script>
+  /* ============ Utils ============ */
+  if(!window.debounce){ window.debounce=function(fn,d){ let t; return function(){ const a=arguments; clearTimeout(t); t=setTimeout(function(){ fn.apply(null,a); }, d||300); }; }; }
+  if(!window.isEmpty){ window.isEmpty=function(v){ return v===undefined || v===null || String(v).trim()===''; }; }
+  if(!window.qsa){ window.qsa=function(sel){ return Array.from(document.querySelectorAll(sel)); }; }
+
+  /* ============ AJAX helpers ============ */
+  const postJSON = (url, data, csrf) =>
+    fetch(url, { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(data) });
+  const postForm = (url, formData) =>
+    fetch(url, { method:'POST', body:formData, headers:{'X-Requested-With':'XMLHttpRequest'} });
+
+  /* ============ Sidebar filtre ============ */
+  (function(){
+    const sidebar = document.getElementById('filterSidebar');
+    const openBtn = document.getElementById('openFilterBtn');
+    const closeBtn = document.getElementById('closeFilterBtn');
+    const backdrop = Object.assign(document.createElement('div'), { className:'sidebar-backdrop' });
+    document.body.appendChild(backdrop);
+    const open=()=>{ sidebar.classList.add('open'); backdrop.style.display='block'; };
+    const close=()=>{ sidebar.classList.remove('open'); backdrop.style.display='none'; };
+    openBtn?.addEventListener('click', open);
+    closeBtn?.addEventListener('click', close);
+    backdrop.addEventListener('click', close);
+  })();
+
+  /* ============ Préselection du prospect en MODAL EDIT ============ */
+  (function(){
+    jQuery(document).on('shown.bs.modal', function(e){
+      const $m = jQuery(e.target);
+      if(!$m.attr('id') || !$m.attr('id').startsWith('editAppointmentModal')) return;
+      $m.find('select[id^="editClientSelect"]').each(function(){
+        const $sel=jQuery(this);
+        const selectedId=$sel.data('selected');
+        if(selectedId){ $sel.val(String(selectedId)).trigger('change'); }
+      });
+    });
+  })();
+
+  /* ============ Détails & suppression ============ */
+  (function(){
+    window.viewAppointmentDetails = function(id){
+      jQuery.get(`/rvs/${id}/details/`).done(r=>{
+        const map={planifie:'Planifié',termine:'Terminé',annule:'Annulé'};
+        const cls=r.etat==='planifie'?'badge-info':(r.etat==='termine'?'badge-success':(r.etat==='annule'?'badge-danger':'badge-secondary'));
+        jQuery('#detailSujet').text(r.sujet);
+        jQuery('#detailEtat').html(`<span class="badge ${cls}">${map[r.etat]||r.etat||'-'}</span>`);
+        jQuery('#detailSociete').text(r.societe||'-');
+        jQuery('#detailCreatedBy').text(r.created_by||'-');
+        jQuery('#detailPilote').text(r.pilote||'-');
+        jQuery('#detailDateHeure').text(r.date_heure||'-');
+        jQuery('#detailDatePlanifie').text(r.date_heure_planifie||'-');
+        jQuery('#detailDateRealiser').text(r.date_heure_realiser||'-');
+        jQuery('#detailCompteRendu').text(r.compte_rendu||'-');
+        jQuery('#detailNotes').text(r.notes||'-');
+        jQuery('#detailEntreprise').text(r.entreprise||'-');
+        jQuery('#appointmentDetailsModal').modal('show');
+      }).fail(()=> Swal.fire({icon:'error',title:'Erreur',text:"Échec du chargement des détails."}));
+    };
+
+    window.confirmDeleteAppointment = function(id){
+      Swal.fire({
+        title:'Es-tu sûr ?', text:"Action irréversible.", icon:'warning',
+        showCancelButton:true, confirmButtonColor:'#dc3545', cancelButtonColor:'#6c757d', confirmButtonText:'Oui, supprimer'
+      }).then(res=>{ if(res.isConfirmed){ doDelete(id); }});
+    };
+
+    function doDelete(id){
+      jQuery.post(`/rvs/${id}/delete/`, { csrfmiddlewaretoken:'{{ csrf_token }}' })
+        .done(r=>{ if(r.success){ Swal.fire({icon:'success',title:'Supprimé',text:r.success}).then(()=>location.reload()); }})
+        .fail(xhr=>{
+          if(xhr.status===403) Swal.fire({icon:'error',title:'Autorisation refusée',text:xhr.responseJSON?.error||''});
+          else Swal.fire({icon:'error',title:'Erreur',text:"Échec de la suppression."});
+        });
+    }
+  })();
+
+  /* ============ Calendrier (FullCalendar v4) ============ */
+  $(function(){
+    let calendar, initialized=false;
+    $('#calendarModal').on('shown.bs.modal', function(){
+      if(!initialized){ initCalendar(); initialized=true; }
+      else { calendar.render(); calendar.updateSize(); calendar.refetchEvents(); }
+    });
+
+    function initCalendar(){
+      const el=document.getElementById('calendar'); if(!el||typeof FullCalendar==='undefined') return;
+      calendar=new FullCalendar.Calendar(el,{
+        header:{left:'prev,next today',center:'title',right:'dayGridMonth,timeGridWeek,timeGridDay'},
+        defaultView:localStorage.getItem('fcDefaultView')||'dayGridMonth',
+        plugins:['dayGrid','timeGrid','interaction','bootstrap'],
+        themeSystem:'bootstrap', nowIndicator:true, editable:true,
+
+        eventDrop:function(info){
+          if(info?.event?.start){ updateActionDate(info.event, info.event.start, info); }
+          else { toastr.error('Erreur de glisser'); info.revert(); }
+        },
+        dateClick:function(info){ fetchAppointmentsForDate(info.date); },
+        eventClick:function(info){ info.jsEvent.preventDefault(); fetchAppointmentsForDate(info.event.start); },
+
+        events:function(fetchInfo, success, failure){
+          const urlParams=new URLSearchParams(window.location.search);
+          $.ajax({
+            url:'{% url "prospection:get_all_filtered_rvs" %}',
+            data:{
+              search:urlParams.get('search'), status:urlParams.get('status'), societe:urlParams.get('societe'),
+              created_from:urlParams.get('created_from'), created_to:urlParams.get('created_to'),
+              planned_from:urlParams.get('planned_from'), planned_to:urlParams.get('planned_to'),
+              realized_from:urlParams.get('realized_from'), realized_to:urlParams.get('realized_to'),
+              start:fetchInfo.start.toISOString(), end:fetchInfo.end.toISOString(), date_type:$('#date-type').val()
+            },
+            beforeSend:()=>$('#calendar').addClass('loading'),
+            complete: ()=>$('#calendar').removeClass('loading'),
+            success:function(resp){
+              const dateType=$('#date-type').val();
+              const evts=(resp.rvs||[]).map(a=>{
+                const map={planifie:'#586BAA',termine:'#28a745',annule:'#FA4750'}; const color=map[a.etat]||'#6c757d';
+                const start = dateType==='planned'?a.date_heure_planifie:a.date_heure_realiser;
+                const eid = (a && a.id != null) ? String(a.id) : undefined;
+                return {id:eid, title:a.sujet, start, backgroundColor:color, borderColor:color, textColor:'#fff', extendedProps:{ appointmentId: a.id }};
+              });
+              success(evts);
+            },
+            error:failure
+          });
+        },
+        datesRender:function(info){ const type=info.view.type; localStorage.setItem('fcDefaultView',type); $('#view-type').val(type); }
+      });
+      calendar.render();
+      $('#view-type').on('change', function(){ calendar.changeView(this.value); });
+      $('#date-type').on('change', function(){ calendar.refetchEvents(); });
+    }
+
+    function updateActionDate(event,newDate,info){
+      const dateType=$('#date-type').val(); const local=new Date(newDate.getTime()-newDate.getTimezoneOffset()*60000);
+      const iso=local.toISOString().replace('Z','');
+      $.ajax({
+        url:'{% url "prospection:update_rv_date" %}', method:'POST', headers:{'X-CSRFToken':'{{ csrf_token }}'},
+        data:{action_id:event.id, new_date:iso, date_type:dateType}
+      }).done(()=>{ toastr.success('Date mise à jour'); event.setStart(local); })
+        .fail(xhr=>{ toastr.error('Erreur: '+(xhr.responseJSON?.message||xhr.statusText)); info.revert(); });
+    }
+
+    function fetchAppointmentsForDate(date){
+      const dateType=$('#date-type').val(); const local=new Date(date.getTime()-date.getTimezoneOffset()*60000); const str=local.toISOString().split('T')[0];
+      $.get('{% url "prospection:get_rvs_by_date" %}',{date:str,date_type:dateType,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone})
+        .done(resp=>{
+          const items = Array.isArray(resp) ? resp : (resp.appointments||resp.rvs||[]);
+          showAppointmentsList(items, local);
+        })
+        .fail(()=> toastr.error('Erreur lors du chargement des rendez-vous'));
+    }
+
+    function showAppointmentsList(appointments,date){
+      const display=date.toLocaleDateString('fr-FR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+      let html=`<div class="modal-header"><h5 class="modal-title">Rendez-vous du ${display}</h5><button type="button" class="close" data-dismiss="modal">&times;</button></div><div class="modal-body"><div class="list-group">`;
+      if(!appointments?.length){ html+=`<p class="text-muted">Aucun rendez-vous</p>`; }
+      else{
+        const map=s=>s==='planifie'?{c:'primary',t:'Planifié'}:s==='termine'?{c:'success',t:'Terminé'}:s==='annule'?{c:'danger',t:'Annulé'}:{c:'secondary',t:'Inconnu'};
+        appointments.forEach(a=>{
+          const m=map(a.etat); const dt=new Date(a.date_heure_planifie||a.date_heure_realiser).toLocaleString('fr-FR',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+          html+=`<a href="#" class="list-group-item list-group-item-action" onclick="event.preventDefault(); viewAppointmentDetails(${a.id})"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1">${a.sujet||'Sans objet'}</h6><small class="text-${m.c}">${m.t}</small></div><p class="mb-1">${a.notes||'Aucune note'}</p><small>${dt} - ${(a.entreprise&&a.entreprise.nom)||'Client non spécifié'}</small></a>`;
+        });
+      }
+      html+=`</div></div><div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Fermer</button></div>`;
+      $('#dateAppointmentsModal .modal-content').html(html);
+      $('#dateAppointmentsModal').off('hidden.bs.modal').on('hidden.bs.modal',function(){ $('body').addClass('modal-open'); $('#calendarModal').css('overflow','auto'); });
+      $('#dateAppointmentsModal').modal('show');
+    }
+  });
+
+  // Fonction utilitaire (sauvegarde) pour ne pas écraser la version fonctionnelle définie plus haut
+  if (typeof window.viewAppointmentDetails !== 'function') {
+    window.viewAppointmentDetails = function(id) {
+      if (!id) return;
+      $.get(`/rvs/${id}/details/`).done(function(r){
+        const map={planifie:'Planifié',termine:'Terminé',annule:'Annulé'};
+        const cls=r.etat==='planifie'?'badge-info':(r.etat==='termine'?'badge-success':(r.etat==='annule'?'badge-danger':'badge-secondary'));
+        $('#detailSujet').text(r.sujet||'-');
+        $('#detailEtat').html(`<span class="badge ${cls}">${map[r.etat]||r.etat||'-'}</span>`);
+        $('#detailSociete').text(r.societe||'-');
+        $('#detailCreatedBy').text(r.created_by||'-');
+        $('#detailPilote').text(r.pilote||'-');
+        $('#detailDateHeure').text(r.date_heure||'-');
+        $('#detailDatePlanifie').text(r.date_heure_planifie||'-');
+        $('#detailDateRealiser').text(r.date_heure_realiser||'-');
+        $('#detailCompteRendu').text(r.compte_rendu||'-');
+        $('#detailNotes').text(r.notes||'-');
+        $('#detailEntreprise').text(r.entreprise||'-');
+        $('#appointmentDetailsModal').modal('show');
+      }).fail(function(){ toastr.error('Erreur lors du chargement des détails'); });
+    };
+  }
+
+  // Initialisation des tooltips
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+    
+    /* ===== Gestion de l'ajout d'un nouveau prospect depuis les modaux ===== */
+    $(document).on('submit', '#addProspectFromEmailForm', function(e) {
+      e.preventDefault();
+      
+      // Désactiver le bouton pour éviter les doubles soumissions
+      const submitBtn = $(this).find('button[type="submit"]');
+      const originalBtnText = submitBtn.html();
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Enregistrement...');
+      
+      // Préparer les données du formulaire
+      const formData = new FormData(this);
+      
+      // Envoyer les données via AJAX
+      $.ajax({
+        url: '{% url "prospection:add_entreprise" "prospect" %}',
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        headers: {
+          'X-CSRFTTOKEN': $('[name=csrfmiddlewaretoken]').val(),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+          if (response.success) {
+            // Créer la nouvelle option pour le select
+            const newOption = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+            
+            // Mettre à jour le select dans le modal d'ajout de rendez-vous
+            const addSelect = document.getElementById('addProspect');
+            if (addSelect) {
+              const option = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+              addSelect.add(option);
+              // Mettre à jour les champs cachés nécessaires pour la validation
+              document.getElementById('clientTypeInput').value = 'prospect';
+              document.getElementById('selectedEntreprise').value = response.entreprise.id;
+              // Déclencher les événements de changement
+              $(addSelect).val(response.entreprise.id).trigger('change');
+              // Mettre à jour le type de client si nécessaire
+              const typeSelect = document.getElementById('clientType');
+              if (typeSelect) {
+                typeSelect.value = 'prospect';
+                $(typeSelect).trigger('change');
+              }
+            }
+            
+            // Mettre à jour les selects dans les modaux de modification de rendez-vous
+            document.querySelectorAll('select[id^="editClientSelect"]').forEach(select => {
+              // Vérifier si l'option n'existe pas déjà
+              if (!select.querySelector(`option[value="${response.entreprise.id}"]`)) {
+                const option = new Option(response.entreprise.nom, response.entreprise.id, true, true);
+                select.add(option);
+              }
+              // Sélectionner le nouveau prospect
+              $(select).val(response.entreprise.id).trigger('change');
+              
+              // Mettre à jour le champ caché entreprise_id correspondant
+              const modal = select.closest('.modal');
+              if (modal) {
+                const apptId = modal.id.replace('editAppointmentModal', '');
+                const entrepriseHidden = document.getElementById(`editEntrepriseId${apptId}`);
+                if (entrepriseHidden) {
+                  entrepriseHidden.value = response.entreprise.id;
+                }
+                // Mettre à jour le type de client
+                const clientType = document.getElementById(`client_type_${apptId}`);
+                if (clientType) {
+                  clientType.value = 'prospect';
+                }
+              }
+            });
+            
+            // Fermer le modal et réinitialiser le formulaire
+            $('#addProspectFromEmailModal').modal('hide');
+            $('#addProspectFromEmailForm')[0].reset();
+            
+            // Afficher un message de succès
+            Swal.fire({
+              icon: 'success',
+              title: 'Succès',
+              text: 'Le prospect a été ajouté avec succès',
+              timer: 2000,
+              showConfirmButton: false
+            });
+          } else {
+            // Afficher les erreurs de validation côté serveur
+            if (response.errors) {
+              $.each(response.errors, function(field, messages) {
+                const input = $('#addProspectFromEmailForm').find('[name="' + field + '"]');
+                input.addClass('is-invalid');
+                input.siblings('.invalid-feedback').text(messages.join(' '));
+              });
+              
+              Swal.fire({
+                icon: 'error',
+                title: 'Erreur de validation',
+                text: 'Veuillez corriger les erreurs dans le formulaire.'
+              });
+            } else {
+              Swal.fire({
+                icon: 'error',
+                title: 'Erreur',
+                text: 'Une erreur est survenue lors de l\'ajout du prospect.'
+              });
+            }
+          }
+        },
+        error: function(xhr, status, error) {
+          console.error('Erreur AJAX:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Erreur',
+            text: 'Une erreur est survenue lors de la communication avec le serveur.'
+          });
+        },
+        complete: function() {
+          // Réactiver le bouton
+          submitBtn.prop('disabled', false).html(originalBtnText);
+        }
+      });
+    });
+    
+    // Réinitialiser le formulaire quand le modal est fermé
+    $('#addProspectFromEmailModal').on('hidden.bs.modal', function () {
+      const form = $('#addProspectFromEmailForm')[0];
+      form.reset();
+      $(form).find('.is-invalid').removeClass('is-invalid');
+    });
+  });
+
+  jQuery(document).on('shown.bs.modal', function(e){
+    const $m = jQuery(e.target);
+    if(!$m.attr('id') || !$m.attr('id').startsWith('editAppointmentModal')) return;
+    $m.find('select[id^="editClientSelect"]').each(function(){
+      const $sel=jQuery(this);
+      const selectedId=$sel.data('selected');
+      if(selectedId){ $sel.val(String(selectedId)).trigger('change'); }
+    });
+
+    $m.find('input[id^="editClientInput"]').each(function(){
+      const $inp=jQuery(this);
+      $inp.on('input', function(){
+        const cur=(this.value||'').trim();
+        if(!cur){
+          $m.find('input[id^="editNumeroTiers"]').val('');
+        }
+      });
+    });
+  });
+
+  /* ============ Envoi par e-mail depuis “Détails” ============ */
+  (function(){
+    let details={};
+    jQuery('#sendEmailBtn').on('click', function(){
+      details={
+        sujet:jQuery('#detailSujet').text(),
+        entreprise:jQuery('#detailEntreprise').text(),
+        societe:jQuery('#detailSociete').text(),
+        createdBy:jQuery('#detailCreatedBy').text(),
+        pilote:jQuery('#detailPilote').text(),
+        dateHeure:jQuery('#detailDateHeure').text(),
+        datePlanifie:jQuery('#detailDatePlanifie').text(),
+        dateRealiser:jQuery('#detailDateRealiser').text(),
+        etat:jQuery('#detailEtat').text(),
+        compteRendu:jQuery('#detailCompteRendu').text(),
+        notes:jQuery('#detailNotes').text()
+      };
+      const real=(details.dateRealiser||'').trim();
+      const empties=['-','none','null','undefined',''];
+      const hasReal=real && !empties.includes(real.toLowerCase());
+      const info= hasReal ? `réalisé le ${details.dateRealiser}`
+                          : (details.datePlanifie && details.datePlanifie.trim()!=='-' ? `planifié le ${details.datePlanifie}` : '(date non précisée)');
+      jQuery('#emailSubject').val(`Détails du rendez-vous: "${details.sujet}" ${info}`);
+      jQuery('#emailOverlayModal').modal('show');
+    });
+
+    jQuery('#confirmSendEmail').on('click', function(){
+      const to=jQuery('#recipientEmail').val();
+      const subj=jQuery('#emailSubject').val();
+      const msg=jQuery('#emailMessage').val();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){
+        jQuery('#emailError').text("Adresse e-mail invalide").removeClass('d-none'); return;
+      }
+      jQuery('#emailError').addClass('d-none');
+      const btn=jQuery(this).prop('disabled',true).html('<span class="spinner-border spinner-border-sm"></span> Envoi...');
+
+      jQuery.ajax({
+        url:'/prospection/send_appoitment_details_pdf/', type:'POST',
+        data:{
+          csrfmiddlewaretoken:'{{ csrf_token }}',
+          recipient_email: to,
+          subject: subj,
+          message: msg,
+          'appoitment_details[sujet]': details.sujet,
+          'appoitment_details[entreprise]': details.entreprise,
+          'appoitment_details[societe]': details.societe,
+          'appoitment_details[createdBy]': details.createdBy,
+          'appoitment_details[pilote]': details.pilote,
+          'appoitment_details[dateHeure]': details.dateHeure,
+          'appoitment_details[datePlanifie]': details.datePlanifie,
+          'appoitment_details[dateRealiser]': details.dateRealiser,
+          'appoitment_details[etat]': details.etat,
+          'appoitment_details[compteRendu]': details.compteRendu
+        }
+      }).done(r=>{
+        if(r.success){
+          jQuery('#emailOverlayModal').modal('hide');
+          Swal.fire({toast:true,position:'top-end',icon:'success',title:'E-mail envoyé',showConfirmButton:false,timer:3000});
+        }else{
+          jQuery('#emailError').text(r.error || "Échec de l'envoi").removeClass('d-none');
+        }
+      }).fail(xhr=>{
+        jQuery('#emailError').text("Erreur: "+(xhr.responseJSON?.error||'Serveur')).removeClass('d-none');
+      }).always(()=> btn.prop('disabled',false).html("Envoyer l'email"));
+    });
+  })();
+
+  /* ============ Form (ADD) : validation + génération CR + submit AJAX ============ */
+  (function(){
+    const addForm=document.getElementById('addAppointmentForm'); if(!addForm) return;
+    const isSuperuser={% if request.user.is_superuser or request.user.is_RO %}true{% else %}false{% endif %};
+    const userSocieteId="{{ request.user.societe.id|default:'' }}";
+    const userSocieteName="{{ request.user.societe.nom|default:'' }}";
+    const csrf='{{ csrf_token }}';
+
+    const typeSel=document.getElementById('clientType');
+    const prospectSel=document.getElementById('addProspect');
+    const clientInput=document.getElementById('addClient');
+    const clientSug=document.getElementById('clientSearchResults');
+    const numTiersHidden=document.getElementById('clientNumTiers');
+    const entrepriseHidden=document.getElementById('selectedEntreprise');
+    const societeSel=document.getElementById('addSociete');
+    const sujetInput=document.getElementById('addSujet');
+    const datePlan=document.getElementById('addDatePlanifie');
+    const clientTypeHidden=document.getElementById('clientTypeInput');
+
+    const startBtn=document.getElementById('startReportBtn');
+    const qaContainer=document.getElementById('reportQuestionsContainer');
+    const reportTextarea=document.getElementById('generatedReport');
+    const reportHelp=document.getElementById('reportHelp');
+
+    const setClientTypeHidden=v=>{ if(clientTypeHidden) clientTypeHidden.value=v||''; };
+    typeSel?.addEventListener('change', e=> setClientTypeHidden(e.target.value));
+    prospectSel?.addEventListener('change', ()=>{ if(prospectSel.value) setClientTypeHidden('prospect'); });
+    clientSug?.addEventListener('click', e=>{ if(e.target.closest('.list-group-item-action')) setClientTypeHidden('client'); });
+
+    addForm.addEventListener('submit', (e)=>{
+      // Vérifier si c'est un prospect
+      if (prospectSel?.value) {
+        setClientTypeHidden('prospect');
+        // S'assurer que le champ caché est bien mis à jour
+        if (entrepriseHidden) {
+          entrepriseHidden.value = prospectSel.value;
+        }
+      } else if (entrepriseHidden?.value || numTiersHidden?.value) {
+        setClientTypeHidden('client');
+      } else if (clientTypeHidden && !clientTypeHidden.value) {
+        // Si aucun type n'est défini et qu'aucune sélection valide n'est faite
+        e.preventDefault();
+        const typeSelect = document.getElementById('clientType');
+        if (typeSelect) {
+          typeSelect.focus();
+          // Afficher un message d'erreur si nécessaire
+          const errorDiv = document.createElement('div');
+          errorDiv.className = 'alert alert-danger mt-2';
+          errorDiv.textContent = 'Veuillez sélectionner un type de client et un prospect/client';
+          typeSelect.parentNode.insertBefore(errorDiv, typeSelect.nextSibling);
+          // Supprimer le message après 5 secondes
+          setTimeout(() => errorDiv.remove(), 5000);
+        }
+      }
+    }, true);
+
+    function toggleEntrepriseFields(){
+      const t=typeSel?.value||'';
+      const pF=document.getElementById('prospectField');
+      const cF=document.getElementById('clientField');
+      if(t==='prospect'){
+        pF.style.display='block'; cF.style.display='none';
+        prospectSel.required=true; clientInput.required=false;
+        entrepriseHidden.value=prospectSel?.value||'';
+      }else if(t==='client'){
+        pF.style.display='none'; cF.style.display='block';
+        prospectSel.required=false; clientInput.required=true;
+      }else{
+        pF.style.display='none'; cF.style.display='none';
+        prospectSel.required=false; clientInput.required=false;
+        entrepriseHidden.value='';
+      }
+      refreshGenerateState();
+    }
+
+    // Autocomplete client
+    if(clientInput && clientSug){
+      clientInput.addEventListener('input', debounce(async e=>{
+        const q=e.target.value.trim();
+        if(q.length<2){ clientSug.style.display='none'; clientSug.innerHTML=''; return; }
+        try{
+          clientSug.innerHTML='<div class="list-group-item"><i class="fas fa-spinner fa-spin mr-2"></i> Recherche...</div>';
+          clientSug.style.display='block';
+          const ctrl=new AbortController();
+          const timer=setTimeout(()=>ctrl.abort(),8000);
+          let resp, data;
+          try{
+            resp = await fetch(`/prospection/ajax/customers/?q=${encodeURIComponent(q)}`, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+            data = await resp.json();
+          }finally{ clearTimeout(timer); }
+          if(data && data.error){ clientSug.innerHTML = `<div class="list-group-item text-danger">${data.error}</div>`; return; }
+          clientSug.innerHTML=(data?.results||[]).length
+            ? data.results.map(it=>{
+                const txt=it.text||''; const soc=it.societe||''; const id=it.id;
+                return `<button type="button" class="list-group-item list-group-item-action" data-id="${id}" data-name="${txt}" data-societe="${String(soc).replace(/"/g,'&quot;')}">${txt}</button>`;
+              }).join('')
+            : '<div class="list-group-item">Aucun résultat</div>';
+          clientSug.style.display='block';
+        }catch(err){ clientSug.innerHTML=`<div class="list-group-item text-danger">Erreur de recherche${err?.name==='AbortError'?' (délai dépassé)':''}</div>`; clientSug.style.display='block'; }
+      },300));
+
+      clientSug.addEventListener('click', async e=>{
+        const btn=e.target.closest('.list-group-item-action'); if(!btn) return;
+        e.preventDefault();
+        const id=btn.dataset.id, name=btn.dataset.name; const soc=btn.dataset.societe||'';
+        clientInput.value=name; entrepriseHidden.value=id; numTiersHidden.value=id; clientSug.style.display='none';
+        try{
+          let url=`/prospection/ajax/customers/${id}/details/`;
+          if(soc) url += `?societe=${encodeURIComponent(soc)}`;
+          const d=await (await fetch(url)).json();
+          const det=document.getElementById('clientDetails');
+          if(det){
+            det.style.display='block';
+            document.getElementById('clientName').textContent=d.Intitule||name||'—';
+            document.getElementById('clientPhone').textContent=d.fact_tel||'—';
+            document.getElementById('clientEmail').textContent=d.fact_email||'—';
+            document.getElementById('clientAddress').textContent=d.fact_adresse||'—';
+            document.getElementById('displayClientNumTiers').textContent=d.NumeroTiers||id||'—';
+          }
+          const socHidden=document.getElementById('addClientSocieteName');
+          if(socHidden){
+            // Stocker le nom de société (la vue backend gérera la conversion)
+            if(soc){ 
+              socHidden.value = soc;
+            }
+            else {
+              const respSoc = d.societe || d.Societe || d.societe_nom || d.societe_name || '';
+              socHidden.value = respSoc || userSocieteName || '';
+            }
+          }
+        }catch{}
+        refreshGenerateState();
+      });
+
+      document.addEventListener('click', e=>{
+        if(!clientSug.contains(e.target) && e.target!==clientInput){ clientSug.style.display='none'; }
+      });
+    }
+
+    function refreshGenerateState(){
+      const sujet=sujetInput?.value.trim();
+      const dP=datePlan?.value;
+      const type=typeSel?.value;
+      const company='';
+      let contactOk=false;
+      if(type==='prospect') contactOk=!!(prospectSel?.value);
+      else if(type==='client') contactOk=!!(entrepriseHidden?.value);
+      const ok=!!(sujet && dP && type && contactOk);
+      if(startBtn) startBtn.disabled=!ok;
+
+      if(reportHelp){
+        reportHelp.textContent =
+          !sujet ? 'Le champ Sujet est obligatoire.' :
+          !dP ? 'La Date planifiée est obligatoire.' :
+          !type ? 'Choisissez Prospect ou Client.' :
+          !contactOk ? (type==='client' ? 'Sélectionnez un client valide.' : 'Sélectionnez un prospect.') :
+          'Prêt à générer le compte-rendu.';
+      }
+    }
+
+    typeSel?.addEventListener('change', toggleEntrepriseFields);
+    prospectSel?.addEventListener('change', ()=>{ entrepriseHidden.value=prospectSel.value; refreshGenerateState(); });
+    // societeSel removed
+    sujetInput?.addEventListener('input', refreshGenerateState);
+    datePlan?.addEventListener('input', refreshGenerateState);
+    toggleEntrepriseFields();
+
+    // Q&A → génération
+    const questions=[
+      "Quels ont été les 2-3 sujets principaux du rendez-vous ?",
+      "Quel a été le niveau d'engagement / réactions ?",
+      "Quelles décisions et prochaines étapes (qui/quoi/quand) ?"
+    ];
+    const answersAdd={};
+
+    function renderQuestion(i){
+      const box=document.getElementById('reportQuestionsContainer'); if(!box) return;
+      box.innerHTML=`
+        <div class="card"><div class="card-body">
+          <h5 class="card-title">Question ${i+1}/${questions.length}</h5>
+          <p>${questions[i]}</p>
+          <textarea class="form-control mb-2" id="qAdd" rows="3">${answersAdd['q'+i]||''}</textarea>
+          <div class="d-flex justify-content-between">
+            ${i > 0 ? '<button type="button" class="btn btn-outline-secondary" id="prevAddBtn">Précédent</button>' : '<span></span>'}
+            <button type="button" class="btn btn-primary" id="nextAddBtn">${i===questions.length-1?'Générer un rapport':'Question suivante'}</button>
+          </div>
+        </div></div>`;
+      const prevBtn = document.getElementById('prevAddBtn');
+      if (prevBtn) {
+        prevBtn.onclick = ()=>{
+          answersAdd['q'+i]=document.getElementById('qAdd').value;
+          renderQuestion(i-1);
+        };
+      }
+      document.getElementById('nextAddBtn').onclick=async ()=>{
+        answersAdd['q'+i]=document.getElementById('qAdd').value;
+        if(i<questions.length-1) renderQuestion(i+1);
+        else await generateReport();
+      };
+    }
+
+    async function generateReport(){
+      const subject=sujetInput?.value.trim();
+      const planned=datePlan?.value;
+      const contact=entrepriseHidden?.value || prospectSel?.value || '';
+      
+      // Récupérer la société du contact sélectionné
+      let company = '';
+      const type=typeSel?.value;
+      if (type === 'prospect' && prospectSel?.value) {
+        const selectedOption = prospectSel.options[prospectSel.selectedIndex];
+        company = selectedOption?.dataset?.societe || '';
+      } else if (type === 'client') {
+        const societeHidden = document.getElementById('addClientSocieteName');
+        company = societeHidden?.value || '';
+      }
+      
+      if(!(subject && planned && contact && company)){ toastr?.error?.('Champs requis manquants.'); return; }
+
+      const btn=document.getElementById('nextAddBtn'); btn?.setAttribute('disabled','disabled'); if(btn) btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Génération...';
+      try{
+        const res=await postJSON('/prospection/generate-action-report/',{ action_type:'appointment', answers:answersAdd, subject, company, contact, planned_date:planned },csrf);
+        const data=await res.json();
+        if(!res.ok || !data.report) throw new Error(data.error || 'Échec de génération');
+        reportTextarea.value=data.report; reportTextarea.classList.remove('d-none');
+        document.getElementById('reportQuestionsContainer').classList.add('d-none');
+        toastr?.success?.('Compte-rendu généré.');
+      }catch(e){
+        Swal.fire({icon:'error',title:'Erreur',text:e.message});
+      }finally{
+        btn?.removeAttribute('disabled'); if(btn) btn.innerHTML='Générer un rapport';
+      }
+    }
+
+    startBtn?.addEventListener('click', function(){
+      if(this.disabled) return;
+      this.classList.add('d-none');
+      document.getElementById('reportQuestionsContainer').classList.remove('d-none');
+      renderQuestion(0);
+    });
+
+    // Submit ADD
+    addForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      const fd=new FormData(this);
+      qsa('#addAppointmentModal .text-danger').forEach(el=> el.textContent='');
+      postForm(this.action, fd).then(r=>r.json()).then(data=>{
+        if(data.errors){
+          Object.entries(data.errors).forEach(([f,msg])=>{
+            const el=document.getElementById(`${f}-error`); if(el) el.textContent=msg;
+          });
+        }else if(data.success){
+          jQuery('#addAppointmentModal').modal('hide');
+          Swal.fire({icon:'success',title:'Succès',text:data.success}).then(()=>{
+            this.reset(); window.location.href=data.redirect_url || window.location.href;
+          });
+        }
+      }).catch(()=> Swal.fire({icon:'error',title:'Erreur',text:"Une erreur s'est produite. Veuillez réessayer."}));
+    });
+  })();
+
+  /* ============ EDIT : génération CR + autocomplete + submit AJAX + preset prospect ============ */
+  (function(){
+    const isSuperuser={% if request.user.is_superuser or request.user.is_RO %}true{% else %}false{% endif %};
+    const userSocieteId="{{ request.user.societe.id|default:'' }}";
+    const csrf='{{ csrf_token }}';
+
+    // 1) Pré-sélection du prospect à l'ouverture de la modale
+    qsa('[id^="editAppointmentModal"]').forEach(modal => {
+        jQuery(modal).on('show.bs.modal', function() {
+            const apptId = parseInt(modal.id.replace('editAppointmentModal', ''), 10);
+            const form = modal.querySelector(`#editAppointmentForm${apptId}`);
+            const prospectSelect = modal.querySelector(`#editProspect${apptId}`);
+            const clientSelect = modal.querySelector(`#editClient${apptId}`);
+            const clientType = modal.querySelector(`input[name="client_type"][value="prospect"]:checked, 
+                                                  input[name="client_type"][value="client"]:checked`);
+            
+            // Si c'est un prospect, on pré-sélectionne dans la liste déroulante
+            if (prospectSelect && clientType?.value === 'prospect') {
+                const selectedProspectId = modal.querySelector('#editEntrepriseId' + apptId)?.value;
+                if (selectedProspectId) {
+                    prospectSelect.value = selectedProspectId;
+                }
+            }
+        });
+    });
+
+    // 2) Wiring par modal
+    qsa('[id^="editAppointmentModal"]').forEach(modal=>{
+      const apptId=parseInt(modal.id.replace('editAppointmentModal',''),10); if(!apptId) return;
+
+      const form=modal.querySelector(`#editAppointmentForm${apptId}`);
+      const sujet=modal.querySelector(`#editSujet${apptId}`);
+      const datePlan=modal.querySelector(`#editDatePlanifie${apptId}`);
+      const societe=modal.querySelector(`#editSociete${apptId}`);
+      
+      // Mettre à jour le champ caché entreprise_id lors du changement de sélection du prospect
+      const prospectSelect = modal.querySelector(`#editClientSelect${apptId}`);
+      const entrepriseHiddenInput = modal.querySelector(`#editEntrepriseId${apptId}`);
+      if (prospectSelect && entrepriseHiddenInput) {
+        prospectSelect.addEventListener('change', function() {
+          entrepriseHiddenInput.value = this.value;
+          // Mettre à jour également le type de client
+          const clientType = modal.querySelector(`#client_type_${apptId}`);
+          if (clientType && this.value) {
+            clientType.value = 'prospect';
+          }
+        });
+      }
+      const compteRendu=modal.querySelector(`#editCompteRendu${apptId}`);
+      const buttonSlot=modal.querySelector(`#reportButtonContainer${apptId}`);
+      const prospectSel=modal.querySelector(`#editClientSelect${apptId}`);
+      const clientInput=modal.querySelector(`#editClientInput${apptId}`);
+      // La variable entrepriseHidden a été renommée en entrepriseHiddenInput pour éviter les conflits
+      // Le textarea est toujours visible
+
+      // Bouton Générer (edit)
+      const btn=document.createElement('button');
+      btn.type='button'; btn.className='btn btn-primary mb-2';
+      btn.id=`generateReportBtn${apptId}`;
+      btn.textContent=isEmpty(compteRendu?.value)?'Générer un rapport':'Régénérer le rapport';
+      buttonSlot?.appendChild(btn);
+
+      const qa=document.createElement('div');
+      qa.id=`reportQuestionsContainer${apptId}`;
+      qa.className='mt-3 d-none';
+      buttonSlot?.appendChild(qa);
+
+      const entrepriseHidden = modal.querySelector(`#editEntrepriseId${apptId}`);
+      const refresh=()=>{
+        const cpy='';
+        const contact=entrepriseHidden?.value||'';
+        btn.disabled=!(sujet?.value.trim() && datePlan?.value && contact);
+        btn.title=btn.disabled?'Veuillez remplir tous les champs obligatoires':'';
+      };
+      sujet?.addEventListener('input', refresh);
+      datePlan?.addEventListener('input', refresh);
+      // no societe dependency
+      prospectSel?.addEventListener('change', ()=>{ if(entrepriseHidden) entrepriseHidden.value=prospectSel.value; refresh(); });
+      refresh();
+
+      const questions=["Sujets clés discutés ?","Réactions/engagement des participants ?","Décisions & prochaines étapes ?"];
+      const ans={};
+
+      function renderQ(i){
+        qa.innerHTML=`
+          <div class="card"><div class="card-body">
+            <h5 class="card-title">Question ${i+1}/${questions.length}</h5>
+            <p>${questions[i]}</p>
+            <textarea class="form-control mb-2" id="qEdit${apptId}" rows="3">${ans['q'+i]||''}</textarea>
+            <div class="d-flex justify-content-between">
+              ${i > 0 ? `<button type="button" class="btn btn-outline-secondary" id="prevQ${apptId}">Précédent</button>` : '<span></span>'}
+              <button class="btn btn-primary" id="nextQ${apptId}">${i===questions.length-1?'Générer un rapport':'Question suivante'}</button>
+            </div>
+          </div></div>`;
+        const prevBtn = qa.querySelector(`#prevQ${apptId}`);
+        if (prevBtn) {
+          prevBtn.onclick = ()=>{
+            ans['q'+i]=qa.querySelector(`#qEdit${apptId}`).value;
+            renderQ(i-1);
+          };
+        }
+        qa.querySelector(`#nextQ${apptId}`).onclick=async ()=>{
+          ans['q'+i]=qa.querySelector(`#qEdit${apptId}`).value;
+          if(i<questions.length-1) renderQ(i+1); else await generate();
+        };
+      }
+
+      async function generate(){
+        const contact=entrepriseHidden?.value||'';
+        const subject=sujet?.value.trim();
+        const planned=datePlan?.value;
+        
+        // Récupérer la société du contact sélectionné
+        let cpy = '';
+        const typeEntreprise = modal.querySelector(`#client_type_${apptId}`)?.value;
+        if (typeEntreprise === 'prospect' && prospectSel?.value) {
+          const selectedOption = prospectSel.options[prospectSel.selectedIndex];
+          cpy = selectedOption?.dataset?.societe || '';
+        } else if (typeEntreprise === 'client') {
+          // Récupérer depuis le champ caché avec l'ID spécifique
+          const societeHidden = modal.querySelector(`#editClientSocieteName${apptId}`);
+          cpy = societeHidden?.value || '';
+        }
+        
+        if(!(contact && subject && planned && cpy)){ toastr?.error?.('Champs requis manquants.'); return; }
+
+        const actionBtn=qa.querySelector(`#nextQ${apptId}`); if(actionBtn){ actionBtn.disabled=true; actionBtn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Génération...'; }
+        try{
+          const res=await postJSON('/prospection/generate-action-report/',{ action_type:'appointment', answers:ans, subject, company:cpy, contact, planned_date:planned }, csrf);
+          const data=await res.json();
+          if(!res.ok || !data.report) throw new Error(data.error||'Échec de génération');
+          if(compteRendu){ compteRendu.value=data.report; }
+          qa.classList.add('d-none'); btn.classList.remove('d-none'); btn.textContent='Régénérer le rapport';
+          toastr?.success?.('Compte-rendu généré.');
+        }catch(e){ Swal.fire({icon:'error',title:'Erreur',text:e.message}); }
+        finally{ if(actionBtn){ actionBtn.disabled=false; actionBtn.innerHTML='Générer un rapport'; } }
+      }
+
+      btn.addEventListener('click', function(){ if(this.disabled) return; this.classList.add('d-none'); qa.classList.remove('d-none'); renderQ(0); });
+
+      // Autocomplete client (EDIT)
+      if(clientInput){
+        const list=modal.querySelector(`#clientSearchResults${apptId}`);
+        clientInput.addEventListener('input', debounce(async e=>{
+          const q=e.target.value.trim();
+          if(q.length<2){ list.style.display='none'; list.innerHTML=''; return; }
+          try{
+            list.innerHTML='<div class="list-group-item"><i class="fas fa-spinner fa-spin mr-2"></i> Recherche...</div>';
+            list.style.display='block';
+            const ctrl=new AbortController();
+            const timer=setTimeout(()=>ctrl.abort(),8000);
+            let resp, data;
+            try{
+              resp = await fetch(`/prospection/ajax/customers/?q=${encodeURIComponent(q)}`, {headers:{'X-Requested-With':'XMLHttpRequest'}});
+              data = await resp.json();
+            }finally{ clearTimeout(timer); }
+            if(data && data.error){ list.innerHTML = `<div class=\"list-group-item text-danger\">${data.error}</div>`; return; }
+            list.innerHTML=(data?.results||[]).length
+              ? data.results.map(it=>{
+                  const txt=it.text||''; const soc=it.societe||''; const id=it.id;
+                  return `<button type=\"button\" class=\"list-group-item list-group-item-action\" data-id=\"${id}\" data-name=\"${txt}\" data-societe=\"${String(soc).replace(/\"/g,'&quot;')}\">${txt}</button>`;
+                }).join('')
+              : '<div class="list-group-item">Aucun résultat</div>';
+            list.style.display='block';
+          }catch(err){ list.innerHTML=`<div class=\"list-group-item text-danger\">Erreur de recherche${err?.name==='AbortError'?' (délai dépassé)':''}</div>`; list.style.display='block'; }
+        },300));
+
+        modal.addEventListener('click', e=>{
+          const btn=e.target.closest('.list-group-item-action'); if(!btn) return;
+          e.preventDefault();
+          entrepriseHidden.value=btn.dataset.id; clientInput.value=btn.dataset.name;
+          list.style.display='none'; refresh();
+          let detailsUrl=`/prospection/ajax/customers/${btn.dataset.id}/details/`;
+          const soc=btn.dataset.societe||'';
+          if(soc) detailsUrl += `?societe=${encodeURIComponent(soc)}`;
+          fetch(detailsUrl).then(r=>r.json()).then(d=>{
+            const cont=modal.querySelector(`#clientDetails${apptId}`); if(!cont) return;
+            cont.style.display='block';
+            modal.querySelector(`#client-info-${apptId}`).innerHTML=`
+              <div class="row">
+                <div class="col-md-6"><p><strong>Nom :</strong> ${d.Intitule||btn.dataset.name||'—'}</p><p><strong>Téléphone :</strong> ${d.fact_tel||'—'}</p></div>
+                <div class="col-md-6"><p><strong>Email :</strong> ${d.fact_email||'—'}</p><p><strong>Adresse :</strong> ${d.fact_adresse||'—'}</p></div>
+              </div>`;
+            const socHidden=modal.querySelector(`#editClientSocieteName${apptId}`);
+            if(socHidden){
+              if(soc){ socHidden.value=soc; }
+              else {
+                const respSoc = d.societe || d.Societe || d.societe_nom || d.societe_name || '';
+                socHidden.value = respSoc || userSocieteName || '';
+              }
+            }
+          }).catch(()=>{});
+        });
+      }
+
+      // 3) Submit EDIT en AJAX + mapping erreurs → sous-champs
+      form.addEventListener('submit', function(e){
+        e.preventDefault();
+        // nettoie seulement le contenu des smalls de CETTE modale
+        modal.querySelectorAll('.text-danger').forEach(el=> el.textContent='');
+        const fd=new FormData(form);
+        fetch(form.action, { method:'POST', body:fd, headers:{'X-Requested-With':'XMLHttpRequest'} })
+          .then(r=>r.json().then(data=>({ok:r.ok, status:r.status, data})))
+          .then(({ok, data})=>{
+            if(!ok){
+              if(data.errors){
+                // Mapping fin → ids existants
+                Object.entries(data.errors).forEach(([key,msg])=>{
+                  let target=null;
+                  if(key==='entreprise'){ // erreur côté prospect si mode prospect
+                    target = modal.querySelector(`#edit-prospect-error${apptId}`) || modal.querySelector(`#edit-client-error${apptId}`);
+                  } else if (key.startsWith('edit-')) {
+                    target = modal.querySelector(`#${key}${apptId}`);
+                  } else if (key==='__all__') {
+                    target = modal.querySelector(`#edit-sujet-error${apptId}`); // fallback global
+                  } else if (key==='edit-client-error') {
+                    target = modal.querySelector(`#edit-client-error${apptId}`);
+                  }
+                  (target||modal.querySelector(`#edit-sujet-error${apptId}`)).textContent = msg;
+                });
+                toastr?.error?.('Veuillez corriger les erreurs.');
+              }else if(data.error){
+                Swal.fire({icon:'error',title:'Erreur',text:data.error});
+              }
+              return;
+            }
+            if(data.success){
+              jQuery(modal).modal('hide');
+              Swal.fire({icon:'success',title:'Succès',text:data.success}).then(()=> window.location.reload());
+            }
+          })
+          .catch(()=> Swal.fire({icon:'error',title:'Erreur',text:"Une erreur s'est produite. Réessayez."}));
+      });
+    });
+  })();
+
+  /* ============ Charts (Chart.js) + fix resize ============ */
+  (function(){
+    if(typeof Chart==='undefined') return;
+
+    let barRef=null, lineRef=null;
+
+    try{
+      const el=document.getElementById('rvsChart');
+      if(el){
+        const allLabels=[], allDataVals=[], allBg=[], allBd=[];
+        {% for client in clients_data %}
+          allLabels.push("{{ client.name|escapejs }} (Client)"); allDataVals.push({{ client.count }}); allBg.push('rgba(54, 162, 235, 0.7)'); allBd.push('rgba(54, 162, 235, 1)');
+        {% endfor %}
+        {% for prospect in prospects_data %}
+          allLabels.push("{{ prospect.name|escapejs }} (Prospect)"); allDataVals.push({{ prospect.count }}); allBg.push('rgba(255, 99, 132, 0.7)'); allBd.push('rgba(255, 99, 132, 1)');
+        {% endfor %}
+
+        function createRvsChart(labels, dataVals, bg, bd) {
+          if(barRef) barRef.destroy();
+          barRef = new Chart(el.getContext('2d'), {
+            type: 'bar',
+            data: {
+              labels,
+              datasets: [{ label: 'Nombre de rendez-vous', data: dataVals, backgroundColor: bg, borderColor: bd, borderWidth: 1 }]
+            },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } } },
+              plugins: { legend: { display: false } }
+            }
+          });
+        }
+
+        function filterRvsChart() {
+          const searchTerm = document.getElementById('filterEntrepriseRvs').value.toLowerCase();
+          const filteredData = allLabels.reduce((acc, label, idx) => {
+            if (searchTerm === '' || label.toLowerCase().includes(searchTerm)) {
+              acc.labels.push(allLabels[idx]);
+              acc.dataVals.push(allDataVals[idx]);
+              acc.bg.push(allBg[idx]);
+              acc.bd.push(allBd[idx]);
+            }
+            return acc;
+          }, { labels: [], dataVals: [], bg: [], bd: [] });
+          createRvsChart(filteredData.labels, filteredData.dataVals, filteredData.bg, filteredData.bd);
+        }
+
+        createRvsChart(allLabels, allDataVals, allBg, allBd);
+        const filterInput = document.getElementById('filterEntrepriseRvs');
+        if (filterInput) filterInput.addEventListener('input', filterRvsChart);
+      }
+    }catch(_){}
+
+    try{
+      const el2=document.getElementById('monthlyRvsChart');
+      if(!el2) return;
+      
+      // Données complètes du backend
+      let allMonths = [], allClients = [], allProspects = [], allTotal = [];
+      try{
+        const sM='{{ months|default:"[]"|escapejs }}';
+        const sC='{{ client_counts|default:"[]"|escapejs }}';
+        const sP='{{ prospect_counts|default:"[]"|escapejs }}';
+        const sT='{{ total_counts|default:"[]"|escapejs }}';
+        const norm = s => {
+          const trimmed = (s||'').trim();
+          const jsonish = trimmed.replace(/'/g,'"');
+          return JSON.parse(jsonish || '[]');
+        };
+        allMonths = norm(sM).map(x=>String(x));
+        allClients = norm(sC).map(x=>+x||0);
+        allProspects = norm(sP).map(x=>+x||0);
+        allTotal = norm(sT).map(x=>+x||0);
+      }catch(e){ console.error('[RVS] parse error', e); return; }
+
+      // Extraire les années uniques
+      const years = Array.from(new Set((allMonths||[]).map(m => (m.match(/(\d{4})/)||[null,null])[1]).filter(Boolean))).sort();
+
+      // Checkbox containers and masters
+      const yearBox = document.getElementById('yearCheckboxesRvs');
+      const yearAll = document.getElementById('yearAllRvs');
+      const monthBox = document.getElementById('monthCheckboxesRvs');
+      const monthAll = document.getElementById('monthAllRvs');
+
+      // Populate years
+      if (yearBox){
+        yearBox.innerHTML='';
+        years.forEach(y=>{
+          const id=`yrvs-${y}`;
+          const w=document.createElement('div');
+          w.className='form-check';
+          w.innerHTML=`<input class="form-check-input year-item" type="checkbox" id="${id}" value="${y}" checked>
+                       <label class="form-check-label" for="${id}">${y}</label>`;
+          yearBox.appendChild(w);
+        });
+        if (yearAll) { yearAll.checked = true; yearAll.indeterminate = false; }
+      }
+
+      // Populate months
+      const MONTHS = [['01','Janvier'],['02','Février'],['03','Mars'],['04','Avril'],['05','Mai'],['06','Juin'],['07','Juillet'],['08','Août'],['09','Septembre'],['10','Octobre'],['11','Novembre'],['12','Décembre']];
+      if (monthBox){
+        monthBox.innerHTML='';
+        MONTHS.forEach(([val,label])=>{
+          const id=`mrvs-${val}`;
+          const w=document.createElement('div');
+          w.className='form-check';
+          w.innerHTML=`<input class=\"form-check-input month-item\" type=\"checkbox\" id=\"${id}\" value=\"${val}\" checked>
+                       <label class=\"form-check-label\" for=\"${id}\">${label}</label>`;
+          monthBox.appendChild(w);
+        });
+        if (monthAll) { monthAll.checked = true; monthAll.indeterminate = false; }
+      }
+
+      function createChart(filteredMonths, filteredClients, filteredProspects, filteredTotal) {
+        if (lineRef && typeof lineRef.destroy==='function') { try{ lineRef.destroy(); }catch(e){} }
+        
+        lineRef = new Chart(el2.getContext('2d'), {
+          type: 'line',
+          data: { labels: filteredMonths, datasets: [
+            { label:'Clients', data: filteredClients, borderColor:'rgba(54, 162, 235, 1)', backgroundColor:'rgba(54, 162, 235, 0.1)', borderWidth:2, tension:0.1, fill:true },
+            { label:'Prospects', data: filteredProspects, borderColor:'rgba(255, 99, 132, 1)', backgroundColor:'rgba(255, 99, 132, 0.1)', borderWidth:2, tension:0.1, fill:true },
+            { label:'Total', data: filteredTotal, borderColor:'rgba(75, 192, 192, 1)', backgroundColor:'rgba(75, 192, 192, 0.1)', borderWidth:2, tension:0.1, fill:true, borderDash:[5,5] }
+          ]},
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            interaction:{ intersect:false, mode:'index' },
+            scales:{ y:{ beginAtZero:true, ticks:{ stepSize:1 } }, x:{ ticks:{ autoSkip:false, maxRotation:45, minRotation:45 } } },
+            plugins:{ tooltip:{ mode:'index', intersect:false }, legend:{ position:'top', labels:{ usePointStyle:true, padding:20 } } }
+          }
+        });
+      }
+
+      function getSelected(selector){
+        return Array.from(document.querySelectorAll(selector)).filter(x=>x.checked).map(x=>x.value);
+      }
+
+      function filterData() {
+        const selectedYears = getSelected('#yearCheckboxesRvs .year-item');
+        const selectedMonths = getSelected('#monthCheckboxesRvs .month-item');
+
+        if (selectedYears.length === 0 || selectedMonths.length === 0){
+          createChart([], [], [], []);
+          return;
+        }
+
+        const filteredData = (allMonths||[]).reduce((acc, month, idx) => {
+          // Format attendu: "YYYY-MM" (ex: "2019-01", "2020-12")
+          const match = month.match(/^(\d{4})-(\d{2})$/);
+          
+          if (match) {
+            const year = match[1];
+            const monthNum = match[2];
+            
+            // Filtrage strict selon sélection
+            const isYearSelected = selectedYears.includes(year);
+            const isMonthSelected = selectedMonths.includes(monthNum);
+            
+            if (isYearSelected && isMonthSelected) {
+              acc.months.push(month);
+              acc.clients.push(allClients[idx]);
+              acc.prospects.push(allProspects[idx]);
+              acc.total.push(allTotal[idx]);
+            }
+          }
+          return acc;
+        }, { months: [], clients: [], prospects: [], total: [] });
+
+        createChart(filteredData.months, filteredData.clients, filteredData.prospects, filteredData.total);
+      }
+
+      // Initialiser avec toutes les données
+      createChart(allMonths, allClients, allProspects, allTotal);
+
+      // Masters toggle and item listeners
+      function updateMaster(master, itemsSelector){
+        const items = Array.from(document.querySelectorAll(itemsSelector));
+        if (!master || items.length===0){ if(master){ master.indeterminate=false; master.checked=false; } return; }
+        const checked = items.filter(i=>i.checked).length;
+        master.indeterminate = checked>0 && checked<items.length;
+        master.checked = checked===items.length;
+      }
+      function toggleAll(master, itemsSelector){
+        const items=document.querySelectorAll(itemsSelector);
+        items.forEach(i=>{i.checked=master.checked});
+        filterData();
+        updateMaster(master, itemsSelector);
+      }
+      if (yearAll) yearAll.addEventListener('change', ()=>toggleAll(yearAll, '#yearCheckboxesRvs .year-item'));
+      if (monthAll) monthAll.addEventListener('change', ()=>toggleAll(monthAll, '#monthCheckboxesRvs .month-item'));
+      document.addEventListener('change', function(e){
+        if (e.target && (e.target.classList.contains('year-item') || e.target.classList.contains('month-item'))){
+          filterData();
+          updateMaster(yearAll, '#yearCheckboxesRvs .year-item');
+          updateMaster(monthAll, '#monthCheckboxesRvs .month-item');
+        }
+      });
+
+      // Initial master sync
+      updateMaster(yearAll, '#yearCheckboxesRvs .year-item');
+      updateMaster(monthAll, '#monthCheckboxesRvs .month-item');
+
+      // Initialize on expand if chart created while collapsed
+      jQuery(document).on('expanded.lte.card', function(e){
+        if(jQuery(e.target).find('#monthlyRvsChart').length && lineRef){ setTimeout(()=> lineRef.resize(), 50); }
+      });
+    }catch(e){ console.error('[RVS] monthly chart error', e); }
+
+    jQuery(document).on('expanded.lte.card', function(e){
+      if(jQuery(e.target).find('#rvsChart').length && barRef){ setTimeout(()=> barRef.resize(), 50); }
+      if(jQuery(e.target).find('#monthlyRvsChart').length && lineRef){ setTimeout(()=> lineRef.resize(), 50); }
+    });
+  })();
+
+  /* ============ DataTables initialisation ============ */
+  (function initDataTable() {
+    if (jQuery.fn.DataTable) {
+      // Vérifier si le tableau contient des données (éviter l'erreur sur tableau vide)
+      const hasData = jQuery('#rvs tbody tr').length > 0 && !jQuery('#rvs tbody tr td[colspan]').length;
+      
+      if (hasData) {
+        jQuery('#rvs').DataTable({
+          responsive: true,
+          paging: false,        // Désactiver la pagination DataTables
+          searching: false,     // Désactiver la recherche
+          info: false,          // Désactiver "Showing X to Y of Z entries"
+          lengthChange: false,  // Désactiver "Show X entries"
+          ordering: false,      // Désactiver le tri (optionnel)
+          autoWidth: false
+        });
+      }
+    }
+  })();
+
+  /* ============ Gestion importation avec SweetAlert ============ */
+  (function(){
+    const form = document.getElementById('importRvsForm');
+    if(!form) return;
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const fileInput = document.getElementById('rvs_excel_file');
+      const societeSelect = document.getElementById('rvs_societe');
+      
+      // Validation
+      if(!fileInput.files.length) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Fichier requis',
+          text: 'Veuillez sélectionner un fichier Excel.'
+        });
+        return;
+      }
+      
+      if(!societeSelect.value) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Filiale requise',
+          text: 'Veuillez sélectionner une filiale.'
+        });
+        return;
+      }
+      
+      // Afficher le loading
+      Swal.fire({
+        title: 'Importation en cours...',
+        html: 'Veuillez patienter pendant le traitement du fichier Excel.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+      
+      // Soumettre le formulaire
+      form.submit();
+    });
+  })();
+</script>
+
+{% endblock %}
