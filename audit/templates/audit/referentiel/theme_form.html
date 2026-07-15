@@ -442,6 +442,7 @@ DualListbox.prototype.bindUI = function(container) {
       if (_chapd) { CHAPITRES = JSON.parse(_chapd.textContent || '[]'); }
     } catch (e) { console.debug('theme_form: failed to parse chapitres-data', e); CHAPITRES = []; }
 
+    var dlbCriteres = null;
     var prev = document.querySelector('.js-wizard-prev');
     prev && prev.addEventListener('click', function(){
       showStep(1); window.scrollTo({top:0, behavior:'smooth'});
