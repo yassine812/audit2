@@ -23,6 +23,7 @@
 {% url 'audit:bareme-list' as url_a_bar %}
 {% url 'audit:niveaux-list' as url_a_niv %}
 {% url 'audit:preuve-list' as url_a_prev %}
+{% url 'audit:preuve-type-list' as url_a_prev_type %}
 {% url 'at:at_dashboard' as url_t_dash %}
 {% url 'at:at_create_quick' as url_t_new %}
 {% url 'at:questionnaire_list' as url_t_quest %}
@@ -313,7 +314,7 @@
           </a>
         </li>
         {% if request.user.is_superuser or request.user.is_auditeur %}
-        <li class="nav-item {% if ns == 'audit' %}{% if un == 'norme-list' or un == 'chapitre-list' or un == 'theme-list' or un == 'critere-list' or un == 'bareme-list' or un == 'niveaux-list' or un == 'preuve-list' %}menu-open{% endif %}{% endif %}">
+        <li class="nav-item {% if ns == 'audit' %}{% if un == 'norme-list' or un == 'chapitre-list' or un == 'theme-list' or un == 'critere-list' or un == 'bareme-list' or un == 'niveaux-list' or un == 'preuve-list' or un == 'preuve-type-list' %}menu-open{% endif %}{% endif %}">
           <a href="#" class="nav-link">
             <i class="nav-icon fas fa-book"></i>
             <p>Référentiel<i class="right fas fa-angle-left"></i></p>
@@ -352,6 +353,11 @@
             <li class="nav-item">
               <a href="{{ url_a_prev }}" class="nav-link {% if ns == 'audit' and un == 'preuve-list' %}active{% endif %}">
                 <i class="nav-icon fas fa-paperclip"></i><p>Preuves attendues</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ url_a_prev_type }}" class="nav-link {% if ns == 'audit' and un == 'preuve-type-list' %}active{% endif %}">
+                <i class="nav-icon fas fa-tags"></i><p>Types de preuve</p>
               </a>
             </li>
           </ul>
