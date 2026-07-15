@@ -685,15 +685,16 @@ DualListbox.prototype.bindUI = function(container) {
       row.id = 'row_' + uid;
       // Build preuves options
       var preuveOpts = PREUVES.map(function(p){
-        var v = String(p.id||p||''), t = String(p.libelle||p||'');
-        var sel = (prefill && prefill.preuveIds && prefill.preuveIds.indexOf(v) !== -1) ? ' selected' : '';
+        var v = String(p.id||''), t = String(p.libelle||'');
+        var sel = (prefill && prefill.preuveIds && prefill.preuveIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
         return '<option value="'+v.replace(/"/g,'&quot;')+'" title="'+t.replace(/"/g,'&quot;')+'"'+sel+'>'+t+'</option>';
       }).join('');
       var chapitreOpts = CHAPITRES.map(function(ch){
         var label = (ch.reference||'') + ' — ' + (ch.intitule||'');
         if (ch['norme__nom']) { label += ' (' + ch['norme__nom'] + (ch.num_page ? ' p.' + ch.num_page : '') + ')'; }
-        var sel = (prefill && prefill.chapitreIds && prefill.chapitreIds.indexOf(Number(ch.id)) !== -1) ? ' selected' : '';
-        return '<option value="'+ch.id+'"'+sel+'>'+label.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
+        var v = String(ch.id||'');
+        var sel = (prefill && prefill.chapitreIds && prefill.chapitreIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
+        return '<option value="'+v+'"'+sel+'>'+label.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
       }).join('');
       row.innerHTML =
         '<div class="card-label"><strong>Nouveau critère</strong>'
@@ -798,7 +799,11 @@ DualListbox.prototype.bindUI = function(container) {
         var t = (c || '').trim();
         var vals = [];
         if (preuves_selects[idx]) {
-          vals = Array.from(preuves_selects[idx].selectedOptions).map(function(o){ return o.value; });
+          if (window.jQuery) {
+            vals = jQuery(preuves_selects[idx]).val() || [];
+          } else {
+            vals = Array.from(preuves_selects[idx].selectedOptions).map(function(o){ return o.value; });
+          }
         }
         var extra = (preuves_news[idx] || '').split(';').map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){ return '__new__:' + x; });
         var merged = vals.concat(extra);
@@ -810,7 +815,14 @@ DualListbox.prototype.bindUI = function(container) {
         }
         post.append('new_criteres[]', t);
         post.append('new_criteres_preuves[]', merged.join(';'));
-        var chapVals = chapitres_selects[idx] ? Array.from(chapitres_selects[idx].selectedOptions).map(function(o){ return o.value; }) : [];
+        var chapVals = [];
+        if (chapitres_selects[idx]) {
+          if (window.jQuery) {
+            chapVals = jQuery(chapitres_selects[idx]).val() || [];
+          } else {
+            chapVals = Array.from(chapitres_selects[idx].selectedOptions).map(function(o){ return o.value; });
+          }
+        }
         post.append('new_criteres_chapitres[]', chapVals.join(','));
       });
       if (step2Err) {
