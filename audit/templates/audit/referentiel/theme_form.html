@@ -52,14 +52,14 @@
         </p>
 
         <div class="card card-body bg-light mb-3">
-          <label><strong>Associer un crit&egrave;re existant</strong></label>
-          <p class="text-muted small mb-2">Choisissez un critère existant pour le rattacher directement à ce thème.</p>
+          <label><strong>Copier un crit&egrave;re existant</strong></label>
+          <p class="text-muted small mb-2">Choisissez un critère pour le copier avec ses attributs (chapitres, preuves) pré-remplis.</p>
           <div class="input-group">
             <select id="js-copy-critere-select" class="form-control" style="flex:1">
-              <option value="">— Choisir un critère à associer —</option>
+              <option value="">— Choisir un critère à copier —</option>
             </select>
             <div class="input-group-append">
-              <button type="button" id="js-copy-critere-btn" class="btn btn-outline-primary">&#128279; Associer</button>
+              <button type="button" id="js-copy-critere-btn" class="btn btn-outline-primary">&#128203; Copier</button>
             </div>
           </div>
         </div>
@@ -620,26 +620,34 @@
         showStep(1); window.scrollTo({ top: 0, behavior: 'smooth' });
       });
 
-      /* ─── Populate "Associer un critère existant" select ─────────────────────── */
+      /* ─── Populate "Copier un critère existant" select ─────────────────────── */
       (function () {
         var copySel = document.getElementById('js-copy-critere-select');
         if (!copySel) return;
+        CRITERES_CATALOGUE.forEach(function (c) {
+          // Block copying criteria with no proofs
+          if (!c.preuve_ids || c.preuve_ids.length === 0) return;
+          var opt = document.createElement('option');
+          opt.value = c.id;
+          var label = (c.texte || '').substring(0, 80) + (c.texte && c.texte.length > 80 ? '…' : '');
+          opt.textContent = label;
+          copySel.appendChild(opt);
+        });
         try {
           if (window.jQuery && jQuery.fn.select2) {
-            jQuery(copySel).select2({ placeholder: '— Choisir un critère à associer —', allowClear: true, width: '100%' });
+            jQuery(copySel).select2({ placeholder: '— Choisir un critère à copier —', allowClear: true, width: '100%' });
           }
         } catch (e) { }
-        
-        try {
-          buildExistingCritereOptions();
-        } catch (e) { }
 
-        function performAssociate() {
+        function performCopy() {
           var val = copySel.value;
           if (!val) return;
           var found = CRITERES_CATALOGUE.find(function (c) { return String(c.id) === String(val); });
           if (!found) return;
-          addExistingCritereRow(found.id, found.texte);
+          addCritereRow(found.texte, {
+            chapitreIds: (found.chapitre_ids || []).map(Number),
+            preuveIds: (found.preuve_ids || []).map(String)
+          }, true); // isHidden = true
           copySel.value = '';
           try {
             if (window.jQuery && jQuery.fn.select2) {
@@ -648,17 +656,17 @@
           } catch (e) { }
         }
 
-        // Automatically associate when selection changes
-        copySel.addEventListener('change', performAssociate);
+        // Automatically copy when selection changes
+        copySel.addEventListener('change', performCopy);
         if (window.jQuery) {
-          jQuery(copySel).on('change', performAssociate);
+          jQuery(copySel).on('change', performCopy);
         }
 
         var copyBtn = document.getElementById('js-copy-critere-btn');
         copyBtn && copyBtn.addEventListener('click', function () {
           var val = copySel.value;
-          if (!val) { showAlert('', 'Veuillez choisir un critère à associer.', 'info'); return; }
-          performAssociate();
+          if (!val) { showAlert('', 'Veuillez choisir un critère à copier.', 'info'); return; }
+          performCopy();
         });
       })();
 
@@ -814,88 +822,18 @@
 
       // criteria dynamic list: target the new #js-new-criteres-list container
       function buildExistingCritereOptions() {
-        var copySel = document.getElementById('js-copy-critere-select');
-        if (!copySel) return;
-
-        // Save selected value
-        var currentVal = copySel.value;
-
-        // Clear existing options except placeholder
-        while (copySel.options.length > 1) {
-          copySel.remove(1);
-        }
-
-        // Get lists of attached/disaffected criteria
-        var attachedIds = Array.from(document.querySelectorAll('.existing-critere[data-critere-id]')).map(function (r) { 
-          return String(r.dataset.critereId || ''); 
-        });
-        var disaffectIds = Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).map(function (h) { 
-          return String(h.value || ''); 
-        });
-
-        // Filter and populate
+        if (!dlbCriteres) return;
+        var attachedIds = Array.from(document.querySelectorAll('.existing-critere[data-critere-id]')).map(function (r) { return String(r.dataset.critereId || ''); });
+        var disaffectIds = Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).map(function (h) { return String(h.value || ''); });
+        var items = [];
         CRITERES_CATALOGUE.forEach(function (c) {
           var cid = String(c.id);
-          // Hide if currently attached (and not marked for disassociation) or newly associated
-          var isAttachedNow = attachedIds.indexOf(cid) !== -1 && disaffectIds.indexOf(cid) === -1;
-          if (isAttachedNow) return;
-
-          var opt = document.createElement('option');
-          opt.value = cid;
-          var label = (c.texte || '').substring(0, 80) + (c.texte && c.texte.length > 80 ? '…' : '');
-          opt.textContent = label;
-          if (cid === String(currentVal)) {
-            opt.selected = true;
-          }
-          copySel.appendChild(opt);
+          if (attachedIds.indexOf(cid) !== -1 && disaffectIds.indexOf(cid) === -1) return;
+          var txt = c.texte || ('Critère #' + cid);
+          var owner = c.theme__texte ? ' — [Thème: ' + c.theme__texte + ']' : ' — [Sans thème]';
+          items.push({ value: cid, text: txt + owner });
         });
-
-        try {
-          if (window.jQuery && jQuery.fn.select2) {
-            jQuery(copySel).trigger('change.select2');
-          }
-        } catch (e) { }
-      }
-
-      function addExistingCritereRow(id, text) {
-        var list = document.getElementById('js-criteres-list');
-        if (!list) return;
-
-        // Remove empty placeholder message if it exists
-        var emptyMsg = list.querySelector('.text-muted.small');
-        if (emptyMsg) emptyMsg.remove();
-
-        // Check if already in the list to avoid duplicates
-        if (list.querySelector('[data-critere-id="' + id + '"]')) return;
-
-        var row = document.createElement('div');
-        row.className = 'input-group mb-2 existing-critere new-association';
-        row.dataset.critereId = id;
-
-        row.innerHTML =
-          '<input type="text" class="form-control" value="' + text.replace(/"/g, '&quot;') + '" readonly title="' + text.replace(/"/g, '&quot;') + '">' +
-          '<div class="input-group-append">' +
-          '<button type="button" class="btn btn-outline-danger btn-sm js-remove-assoc-critere">Retirer</button>' +
-          '</div>';
-
-        list.appendChild(row);
-
-        // Bind the remove button
-        row.querySelector('.js-remove-assoc-critere').addEventListener('click', function() {
-          row.remove();
-          // Show placeholder again if empty
-          if (list.children.length === 0) {
-            var p = document.createElement('p');
-            p.className = 'text-muted small';
-            p.textContent = 'Aucun critère affecté.';
-            list.appendChild(p);
-          }
-          // rebuild options
-          buildExistingCritereOptions();
-        });
-
-        // rebuild options (so it gets removed from the dropdown list of options)
-        buildExistingCritereOptions();
+        dlbCriteres.load(items, []);
       }
 
       function bindDisaffectButtons() {
@@ -929,13 +867,16 @@
         });
       }
 
-      function addCritereRow(val, prefill) {
+      function addCritereRow(val, prefill, isHidden) {
         var newCriteresList = document.getElementById('js-new-criteres-list');
         if (!newCriteresList) return;
         var uid = 'cr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         var row = document.createElement('div');
         row.className = 'new-critere-card';
         row.id = 'row_' + uid;
+        if (isHidden) {
+          row.style.display = 'none';
+        }
         // Build preuves options
         var preuveOpts = PREUVES.map(function (p) {
           var v = String(p.id || ''), t = String(p.libelle || '');
@@ -1007,6 +948,42 @@
           try { if (window.jQuery) jQuery('#sel_preuves_' + uid).select2('destroy'); } catch (e) { }
           row.remove();
         });
+
+        // If it is hidden (copied from catalog), show it as a simple read-only item in the criteria list
+        if (isHidden) {
+          var list = document.getElementById('js-criteres-list');
+          if (list) {
+            var emptyMsg = list.querySelector('.text-muted.small');
+            if (emptyMsg) emptyMsg.remove();
+
+            var visibleRow = document.createElement('div');
+            visibleRow.className = 'input-group mb-2 existing-critere copied-association';
+            visibleRow.dataset.critereUid = uid;
+
+            visibleRow.innerHTML =
+              '<input type="text" class="form-control bg-light" value="' + val.replace(/"/g, '&quot;') + '" readonly title="' + val.replace(/"/g, '&quot;') + '">' +
+              '<div class="input-group-append">' +
+              '<span class="input-group-text bg-info text-white text-xs px-2" style="display:flex; align-items:center;">Copié</span>' +
+              '<button type="button" class="btn btn-outline-danger btn-sm js-remove-copied-critere">Retirer</button>' +
+              '</div>';
+
+            list.appendChild(visibleRow);
+
+            visibleRow.querySelector('.js-remove-copied-critere').addEventListener('click', function() {
+              visibleRow.remove();
+              try { if (window.jQuery) jQuery('#sel_chap_' + uid).select2('destroy'); } catch (e) { }
+              try { if (window.jQuery) jQuery('#sel_preuves_' + uid).select2('destroy'); } catch (e) { }
+              row.remove();
+
+              if (list.children.length === 0) {
+                var p = document.createElement('p');
+                p.className = 'text-muted small';
+                p.textContent = 'Aucun critère affecté.';
+                list.appendChild(p);
+              }
+            });
+          }
+        }
       }
       document.querySelectorAll('.js-add-critere').forEach(function (btn) { btn.addEventListener('click', function () { addCritereRow(''); }); });
 
@@ -1029,13 +1006,16 @@
         }
         e.preventDefault();
 
-        // Safety: if they chose a criterion to associate but forgot to click "Associer", associate it now
+        // Safety: if they chose a criterion to copy but forgot to click "Copier", copy it now
         var copySel = document.getElementById('js-copy-critere-select');
         if (copySel && copySel.value) {
           var val = copySel.value;
           var found = CRITERES_CATALOGUE.find(function (c) { return String(c.id) === String(val); });
           if (found) {
-            addExistingCritereRow(found.id, found.texte);
+            addCritereRow(found.texte, {
+              chapitreIds: (found.chapitre_ids || []).map(Number),
+              preuveIds: (found.preuve_ids || []).map(String)
+            }, true);
             copySel.value = '';
             try {
               if (window.jQuery && jQuery.fn.select2) {
@@ -1053,10 +1033,6 @@
         var post = new URLSearchParams();
         post.append('theme_id', themeId);
 
-        // attach new associations of existing criteria
-        Array.from(document.querySelectorAll('.existing-critere.new-association[data-critere-id]')).forEach(function (r) {
-          post.append('existing_criteres_add_ids[]', r.dataset.critereId);
-        });
         // disaffect marked existing criteria
         Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).forEach(function (h) {
           post.append('disaffect_criteres_ids[]', h.value);
