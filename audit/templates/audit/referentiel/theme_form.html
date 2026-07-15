@@ -3,10 +3,13 @@
 {% block title %}Création / édition de thème{% endblock %}
 {% block content %}
 <div class="card card-outline card-primary">
-  <div class="card-header"><h3 class="card-title">Thème</h3></div>
+  <div class="card-header">
+    <h3 class="card-title">Thème</h3>
+  </div>
   <div class="card-body">
     <form method="post">{% csrf_token %}
-      <input type="hidden" name="existing_theme_id" id="existing_theme_id" value="{% if object %}{{ object.pk }}{% endif %}">
+      <input type="hidden" name="existing_theme_id" id="existing_theme_id"
+        value="{% if object %}{{ object.pk }}{% endif %}">
       <input type="hidden" name="created_theme_id" id="created_theme_id" value="">
 
       <div class="wizard-steps mb-3">
@@ -16,7 +19,8 @@
 
       <div class="wizard-pane" data-step="1">
         <h5>Étape 1 — Créer le thème</h5>
-        <p class="text-muted">Saisissez le texte du thème et rattachez-le à un ou plusieurs chapitres. Vous pouvez créer un nouveau chapitre si nécessaire.</p>
+        <p class="text-muted">Saisissez le texte du thème et rattachez-le à un ou plusieurs chapitres. Vous pouvez créer
+          un nouveau chapitre si nécessaire.</p>
         {{ form.non_field_errors }}
         <link rel="stylesheet" href="{% static 'admin/css/widgets.css' %}">
         <script src="{% static 'admin/js/vendor/jquery/jquery.min.js' %}"></script>
@@ -34,25 +38,28 @@
         <hr>
 
         <div class="wizard-footer">
-          <button type="button" id="js-btn-create" class="btn btn-primary"{% if object %} style="display:none"{% endif %} disabled>Créer le thème</button>
-          <button type="button" id="js-btn-next" class="btn btn-secondary"{% if not object %} style="display:none"{% endif %}>Suivant →</button>
-          <button type="button" id="js-save-theme" class="btn btn-warning" style="display:none">Enregistrer les modifications</button>
+          <button type="button" id="js-btn-create" class="btn btn-primary" {% if object %} style="display:none" {% endif %} disabled>Créer le thème</button>
+          <button type="button" id="js-btn-next" class="btn btn-secondary" {% if not object %} style="display:none" {% endif %}>Suivant →</button>
+          <button type="button" id="js-save-theme" class="btn btn-warning" style="display:none">Enregistrer les
+            modifications</button>
         </div>
       </div>
 
       <div class="wizard-pane" data-step="2" style="display:none;">
-        <h5>Étape 2 — Gérer les critères d'évaluation <span class="badge badge-info" style="font-size:0.75em">optionnel</span></h5>
-        <p class="text-muted">Sélectionnez des critères existants ou créez-en de nouveaux pour les rattacher à ce thème.</p>
+        <h5>Étape 2 — Gérer les critères d'évaluation <span class="badge badge-info"
+            style="font-size:0.75em">optionnel</span></h5>
+        <p class="text-muted">Sélectionnez des critères existants ou créez-en de nouveaux pour les rattacher à ce thème.
+        </p>
 
         <div class="card card-body bg-light mb-3">
-          <label><strong>Copier un crit&egrave;re existant</strong></label>
-          <p class="text-muted small mb-2">Choisissez un critère pour le copier avec ses attributs (chapitres, preuves) pré-remplis. Vous pouvez modifier les valeurs avant d'enregistrer.</p>
+          <label><strong>Associer un crit&egrave;re existant</strong></label>
+          <p class="text-muted small mb-2">Choisissez un critère existant pour le rattacher directement à ce thème.</p>
           <div class="input-group">
             <select id="js-copy-critere-select" class="form-control" style="flex:1">
-              <option value="">— Choisir un critère à copier —</option>
+              <option value="">— Choisir un critère à associer —</option>
             </select>
             <div class="input-group-append">
-              <button type="button" id="js-copy-critere-btn" class="btn btn-outline-primary">&#128203; Copier</button>
+              <button type="button" id="js-copy-critere-btn" class="btn btn-outline-primary">&#128279; Associer</button>
             </div>
           </div>
         </div>
@@ -61,15 +68,15 @@
         <h6 class="mt-3">Critères déjà affectés à ce thème</h6>
         <div id="js-criteres-list" class="mb-3">
           {% for c in object.criteres.all %}
-            <div class="input-group mb-2 existing-critere" data-critere-id="{{ c.pk }}">
-              <input type="text" class="form-control" value="{{ c.texte|escape }}" readonly title="{{ c.texte|escape }}">
-              <div class="input-group-append">
-                <button type="button" class="btn btn-outline-danger btn-sm js-desaffect-critere">Désaffecter</button>
-                <a class="btn btn-outline-secondary btn-sm" href="{% url 'audit:critere-edit' c.pk %}">Éditer</a>
-              </div>
+          <div class="input-group mb-2 existing-critere" data-critere-id="{{ c.pk }}">
+            <input type="text" class="form-control" value="{{ c.texte|escape }}" readonly title="{{ c.texte|escape }}">
+            <div class="input-group-append">
+              <button type="button" class="btn btn-outline-danger btn-sm js-desaffect-critere">Désaffecter</button>
+              <a class="btn btn-outline-secondary btn-sm" href="{% url 'audit:critere-edit' c.pk %}">Éditer</a>
             </div>
+          </div>
           {% empty %}
-            <p class="text-muted small">Aucun critère affecté.</p>
+          <p class="text-muted small">Aucun critère affecté.</p>
           {% endfor %}
         </div>
         {% else %}
@@ -80,7 +87,8 @@
         <h6 class="mt-3">Créer de nouveaux critères</h6>
         <div id="js-new-criteres-list"></div>
         <div class="form-group mt-2">
-          <button type="button" class="btn btn-sm btn-outline-primary js-add-critere">+ Ajouter un nouveau critère</button>
+          <button type="button" class="btn btn-sm btn-outline-primary js-add-critere">+ Ajouter un nouveau
+            critère</button>
         </div>
 
         <div class="d-flex justify-content-between mt-4">
@@ -91,177 +99,325 @@
 
     </form>
   </div>
-  </div>
-  {% endblock %}
+</div>
+{% endblock %}
 
-  {% block extra_css %}
+{% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 <style>
-/* Wizard steps */
-.wizard-steps { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
-.wizard-steps .step { padding:8px 14px; border-radius:6px; background:#f6f7fb; color:#555; font-weight:600; font-size:0.95rem; box-shadow:0 1px 2px rgba(0,0,0,.06); }
-.wizard-steps .step.active { background:#007bff; color:#fff; box-shadow:0 4px 14px rgba(0,123,255,.18); }
+  /* Wizard steps */
+  .wizard-steps {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
 
-/* Required marker */
-.required-marker::after { content: ' *'; color: #dc3545; }
+  .wizard-steps .step {
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: #f6f7fb;
+    color: #555;
+    font-weight: 600;
+    font-size: 0.95rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .06);
+  }
 
-/* Wizard footer */
-.wizard-footer { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; padding-top:12px; border-top:1px solid #e9ecef; }
-.wizard-footer .btn { min-width:140px; }
+  .wizard-steps .step.active {
+    background: #007bff;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 123, 255, .18);
+  }
 
-/* Existing critere rows */
-.existing-critere { border:1px solid #dee2e6; padding:8px 10px; border-radius:6px; background:#fff; margin-bottom:6px; }
-.existing-critere.marked-disaffect { background:#fff3cd; border-color:#ffc107; opacity:.8; }
+  /* Required marker */
+  .required-marker::after {
+    content: ' *';
+    color: #dc3545;
+  }
 
-/* New critere row cards */
-.new-critere-card { border:1px solid #c8e6c9; border-radius:8px; padding:14px; margin-bottom:14px; background:#f9fff9; }
-.new-critere-card .card-label { font-weight:600; color:#155724; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
+  /* Wizard footer */
+  .wizard-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+  }
 
-/* Select2: for preuves inside critere cards */
-.select2-container { width:100% !important; }
-.select2-container--default .select2-selection--multiple { min-height:38px; padding:2px 4px; }
-.select2-container--default .select2-selection--multiple .select2-selection__choice {
-  max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  display:inline-flex; align-items:center; background:#e8f0fe; border-color:#b3c6f7;
-  color:#1a47a3; border-radius:3px; font-size:0.85rem; padding:1px 6px;
-}
-.select2-container--default .select2-results__option { white-space:normal; font-size:0.9rem; padding:6px 10px; line-height:1.4; }
-.select2-dropdown { z-index:9999; }
-.select2-container--default .select2-selection--multiple .select2-selection__choice__remove { color:#1a47a3; margin-right:4px; font-weight:bold; }
+  .wizard-footer .btn {
+    min-width: 140px;
+  }
 
-/* hide prototype */
-#preuves-proto { display:none !important; }
+  /* Existing critere rows */
+  .existing-critere {
+    border: 1px solid #dee2e6;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fff;
+    margin-bottom: 6px;
+  }
 
-/* ── Dual-listbox ─────────────────────────────────────────────────────────── */
-.dual-listbox {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
-  padding: 10px;
-  background: #f8f9fa;
-}
-.dlb-col {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.dlb-header {
-  font-size: 0.82rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: #495057;
-  padding: 4px 2px 2px;
-  border-bottom: 2px solid #dee2e6;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.dlb-count {
-  display: inline-block;
-  background: #007bff;
-  color: #fff;
-  border-radius: 10px;
-  padding: 0 7px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  min-width: 20px;
-  text-align: center;
-  line-height: 1.6;
-}
-.dlb-search {
-  border: 1px solid #ced4da;
-  border-radius: 5px;
-  padding: 4px 8px;
-  font-size: 0.85rem;
-  outline: none;
-  width: 100%;
-  box-sizing: border-box;
-  transition: border-color .15s;
-}
-.dlb-search:focus { border-color: #80bdff; box-shadow: 0 0 0 2px rgba(0,123,255,.15); }
-.dlb-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  border: 1px solid #ced4da;
-  border-radius: 5px;
-  background: #fff;
-  overflow-y: auto;
-  min-height: 160px;
-  max-height: 220px;
-  flex: 1;
-}
-.dlb-list li {
-  padding: 6px 10px;
-  font-size: 0.875rem;
-  cursor: pointer;
-  border-bottom: 1px solid #f1f3f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background .1s;
-  user-select: none;
-}
-.dlb-list li:last-child { border-bottom: none; }
-.dlb-list li:hover { background: #e9f0ff; }
-.dlb-list li.dlb-selected-item { background: #cfe2ff; color: #0a3d91; font-weight: 600; }
-.dlb-list li.dlb-hidden { display: none; }
-.dlb-actions {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  padding: 0 4px;
-  flex-shrink: 0;
-}
-.dlb-btn {
-  background: #fff;
-  border: 1px solid #adb5bd;
-  border-radius: 5px;
-  width: 34px;
-  height: 30px;
-  font-size: 0.75rem;
-  cursor: pointer;
-  color: #343a40;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .15s, border-color .15s;
-  padding: 0;
-}
-.dlb-btn:hover { background: #007bff; border-color: #007bff; color: #fff; }
-.dlb-btn:active { background: #0056b3; }
-/* disabled state when DLB is locked */
-.dual-listbox.dlb-disabled {
-  opacity: 0.55;
-  pointer-events: none;
-}
+  .existing-critere.marked-disaffect {
+    background: #fff3cd;
+    border-color: #ffc107;
+    opacity: .8;
+  }
 
-@media (max-width:600px) {
-  .dual-listbox { flex-direction: column; }
-  .dlb-actions { flex-direction: row; }
-  .dlb-btn { width: 30px; height: 30px; }
-  .dlb-list { min-height: 110px; max-height: 150px; }
-  .wizard-steps .step { font-size:.85rem; padding:5px 9px; }
-  .wizard-footer { flex-direction:column-reverse; }
-  .wizard-footer .btn { width:100%; }
-}
+  /* New critere row cards */
+  .new-critere-card {
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 14px;
+    background: #f9fff9;
+  }
+
+  .new-critere-card .card-label {
+    font-weight: 600;
+    color: #155724;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Select2: for preuves inside critere cards */
+  .select2-container {
+    width: 100% !important;
+  }
+
+  .select2-container--default .select2-selection--multiple {
+    min-height: 38px;
+    padding: 2px 4px;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-selection__choice {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    background: #e8f0fe;
+    border-color: #b3c6f7;
+    color: #1a47a3;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    padding: 1px 6px;
+  }
+
+  .select2-container--default .select2-results__option {
+    white-space: normal;
+    font-size: 0.9rem;
+    padding: 6px 10px;
+    line-height: 1.4;
+  }
+
+  .select2-dropdown {
+    z-index: 9999;
+  }
+
+  .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+    color: #1a47a3;
+    margin-right: 4px;
+    font-weight: bold;
+  }
+
+  /* hide prototype */
+  #preuves-proto {
+    display: none !important;
+  }
+
+  /* ── Dual-listbox ─────────────────────────────────────────────────────────── */
+  .dual-listbox {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8f9fa;
+  }
+
+  .dlb-col {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .dlb-header {
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #495057;
+    padding: 4px 2px 2px;
+    border-bottom: 2px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dlb-count {
+    display: inline-block;
+    background: #007bff;
+    color: #fff;
+    border-radius: 10px;
+    padding: 0 7px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    min-width: 20px;
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .dlb-search {
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color .15s;
+  }
+
+  .dlb-search:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, .15);
+  }
+
+  .dlb-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #ced4da;
+    border-radius: 5px;
+    background: #fff;
+    overflow-y: auto;
+    min-height: 160px;
+    max-height: 220px;
+    flex: 1;
+  }
+
+  .dlb-list li {
+    padding: 6px 10px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f3f5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background .1s;
+    user-select: none;
+  }
+
+  .dlb-list li:last-child {
+    border-bottom: none;
+  }
+
+  .dlb-list li:hover {
+    background: #e9f0ff;
+  }
+
+  .dlb-list li.dlb-selected-item {
+    background: #cfe2ff;
+    color: #0a3d91;
+    font-weight: 600;
+  }
+
+  .dlb-list li.dlb-hidden {
+    display: none;
+  }
+
+  .dlb-actions {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+
+  .dlb-btn {
+    background: #fff;
+    border: 1px solid #adb5bd;
+    border-radius: 5px;
+    width: 34px;
+    height: 30px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    color: #343a40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, border-color .15s;
+    padding: 0;
+  }
+
+  .dlb-btn:hover {
+    background: #007bff;
+    border-color: #007bff;
+    color: #fff;
+  }
+
+  .dlb-btn:active {
+    background: #0056b3;
+  }
+
+  /* disabled state when DLB is locked */
+  .dual-listbox.dlb-disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  @media (max-width:600px) {
+    .dual-listbox {
+      flex-direction: column;
+    }
+
+    .dlb-actions {
+      flex-direction: row;
+    }
+
+    .dlb-btn {
+      width: 30px;
+      height: 30px;
+    }
+
+    .dlb-list {
+      min-height: 110px;
+      max-height: 150px;
+    }
+
+    .wizard-steps .step {
+      font-size: .85rem;
+      padding: 5px 9px;
+    }
+
+    .wizard-footer {
+      flex-direction: column-reverse;
+    }
+
+    .wizard-footer .btn {
+      width: 100%;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block extra_js %}
-  {{ preuves|json_script:"preuves-data" }}
-  {{ chapitres_json|json_script:"chapitres-data" }}
-  {{ criteres_catalogue|json_script:"criteres-catalogue-data" }}
+{{ preuves|json_script:"preuves-data" }}
+{{ chapitres_json|json_script:"chapitres-data" }}
+{{ criteres_catalogue|json_script:"criteres-catalogue-data" }}
 
-  <!-- server-rendered prototype for admin FilteredSelectMultiple widget -->
-  <div id="preuves-proto" style="display:none;">{{ preuves_proto|safe }}</div>
+<!-- server-rendered prototype for admin FilteredSelectMultiple widget -->
+<div id="preuves-proto" style="display:none;">{{ preuves_proto|safe }}</div>
 
 <!-- include admin widgets assets so FilteredSelectMultiple works outside admin -->
 <script src="{% url 'admin:jsi18n' %}"></script>
@@ -272,581 +428,695 @@
 <!-- Select2 JS (CDN) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.full.min.js"></script>
 <script>
-/* ─── DualListbox class ───────────────────────────────────────────────────── */
-function DualListbox(opts) {
-  /* opts: { availableUl, selectedUl, countEl, selectEl, onchange } */
-  this.avail   = opts.availableUl;
-  this.sel     = opts.selectedUl;
-  this.countEl = opts.countEl || null;
-  this.selectEl= opts.selectEl;      // hidden <select multiple>
-  this.onchange= opts.onchange || function(){};
-  this._items  = [];                  // [{value, text, selected}]
-}
-DualListbox.prototype._li = function(item) {
-  var li = document.createElement('li');
-  li.textContent = item.text;
-  li.title       = item.text;
-  li.dataset.value = item.value;
-  return li;
-};
-DualListbox.prototype.load = function(items, selectedValues) {
-  /* items: [{value, text}], selectedValues: array of strings */
-  var sv = (selectedValues || []).map(String);
-  this._items = items.map(function(it){
-    return { value: String(it.value), text: it.text, selected: sv.indexOf(String(it.value)) !== -1 };
-  });
-  this._render();
-};
-DualListbox.prototype._render = function() {
-  var self = this;
-  self.avail.innerHTML = '';
-  self.sel.innerHTML   = '';
-  self._items.forEach(function(item){
-    var li = self._li(item);
-    li.addEventListener('click', function(){ self._toggle(item); });
-    if (item.selected) {
-      self.sel.appendChild(li);
-    } else {
-      self.avail.appendChild(li);
-    }
-  });
-  self._syncSelect();
-  self._updateCount();
-};
-DualListbox.prototype._toggle = function(item) {
-  item.selected = !item.selected;
-  this._render();
-  this.onchange();
-};
-DualListbox.prototype.addAll = function() {
-  this._items.forEach(function(i){ i.selected = true; });
-  this._render(); this.onchange();
-};
-DualListbox.prototype.removeAll = function() {
-  this._items.forEach(function(i){ i.selected = false; });
-  this._render(); this.onchange();
-};
-DualListbox.prototype.addVisible = function() {
-  /* add only visible (non-hidden) items from available list */
-  var self = this;
-  Array.from(self.avail.children).forEach(function(li){
-    if (!li.classList.contains('dlb-hidden')) {
-      var item = self._items.find(function(i){ return i.value === li.dataset.value; });
-      if (item) item.selected = true;
-    }
-  });
-  this._render(); this.onchange();
-};
-DualListbox.prototype.removeVisible = function() {
-  var self = this;
-  Array.from(self.sel.children).forEach(function(li){
-    if (!li.classList.contains('dlb-hidden')) {
-      var item = self._items.find(function(i){ return i.value === li.dataset.value; });
-      if (item) item.selected = false;
-    }
-  });
-  this._render(); this.onchange();
-};
-DualListbox.prototype._syncSelect = function() {
-  var self = this;
-  if (!self.selectEl) return;
-  /* sync options in hidden select */
-  Array.from(self.selectEl.options).forEach(function(o){
-    var found = self._items.find(function(i){ return i.value === String(o.value); });
-    o.selected = found ? found.selected : false;
-  });
-  /* add missing options */
-  self._items.forEach(function(item){
-    if (!self.selectEl.querySelector('option[value="'+item.value.replace(/"/g,'&quot;')+'"]')) {
-      var opt = document.createElement('option');
-      opt.value = item.value; opt.textContent = item.text;
-      opt.selected = item.selected;
-      self.selectEl.appendChild(opt);
-    }
-  });
-};
-DualListbox.prototype._updateCount = function() {
-  if (this.countEl) this.countEl.textContent = this._items.filter(function(i){ return i.selected; }).length;
-};
-DualListbox.prototype.getSelectedValues = function() {
-  return this._items.filter(function(i){ return i.selected; }).map(function(i){ return i.value; });
-};
-DualListbox.prototype.filterAvail = function(q) {
-  q = q.toLowerCase().trim();
-  Array.from(this.avail.children).forEach(function(li){
-    li.classList.toggle('dlb-hidden', q !== '' && li.textContent.toLowerCase().indexOf(q) === -1);
-  });
-};
-DualListbox.prototype.filterSel = function(q) {
-  q = q.toLowerCase().trim();
-  Array.from(this.sel.children).forEach(function(li){
-    li.classList.toggle('dlb-hidden', q !== '' && li.textContent.toLowerCase().indexOf(q) === -1);
-  });
-};
-DualListbox.prototype.setDisabled = function(disabled) {
-  var wrapper = this.avail.closest('.dual-listbox');
-  if (wrapper) wrapper.classList.toggle('dlb-disabled', !!disabled);
-};
-/* bind search + buttons for a dual-listbox container */
-DualListbox.prototype.bindUI = function(container) {
-  var self  = this;
-  var searches = container.querySelectorAll('.dlb-search');
-  if (searches[0]) searches[0].addEventListener('input', function(){ self.filterAvail(this.value); });
-  if (searches[1]) searches[1].addEventListener('input', function(){ self.filterSel(this.value); });
-  var addAll = container.querySelector('.dlb-add-all');
-  var addSel = container.querySelector('.dlb-add-sel');
-  var remSel = container.querySelector('.dlb-rem-sel');
-  var remAll = container.querySelector('.dlb-rem-all');
-  if (addAll) addAll.addEventListener('click', function(){ self.addVisible(); });
-  if (addSel) addSel.addEventListener('click', function(){ self.addVisible(); });
-  if (remSel) remSel.addEventListener('click', function(){ self.removeVisible(); });
-  if (remAll) remAll.addEventListener('click', function(){ self.removeAll(); });
-};
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-(function(){
-  function showStep(n){
-    document.querySelectorAll('.wizard-pane').forEach(function(p){ p.style.display = p.getAttribute('data-step')==n? 'block' : 'none'; });
-    document.querySelectorAll('.wizard-steps .step').forEach(function(s,i){ s.classList.toggle('active', (i+1)==n); });
+  /* ─── DualListbox class ───────────────────────────────────────────────────── */
+  function DualListbox(opts) {
+    /* opts: { availableUl, selectedUl, countEl, selectEl, onchange } */
+    this.avail = opts.availableUl;
+    this.sel = opts.selectedUl;
+    this.countEl = opts.countEl || null;
+    this.selectEl = opts.selectEl;      // hidden <select multiple>
+    this.onchange = opts.onchange || function () { };
+    this._items = [];                  // [{value, text, selected}]
   }
-  document.addEventListener('DOMContentLoaded', function(){
-    // helper: use SweetAlert2 toast if available, fallback to console (avoid blocking native alert)
-    function showAlert(titleOrMsg, text, icon) {
-      if (window.Swal && typeof Swal.fire === 'function') {
-        var opts = { toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true, icon: icon || 'info' };
-        if (typeof text === 'undefined') { opts.title = String(titleOrMsg); }
-        else { opts.title = String(titleOrMsg); opts.text = String(text || ''); }
-        return window.Swal.fire(opts);
-      }
-      // fallback: log instead of blocking alert
-      try {
-        if (icon === 'error') { console.error(titleOrMsg, text || ''); }
-        else { console.log(titleOrMsg, text || ''); }
-      } catch (e) { /* ignore */ }
-      return null;
-    }
-    // existing preuves options from context (loaded from DOM script element)
-    var PREUVES = [];
-    try {
-      var _pd = document.getElementById('preuves-data');
-      if (_pd) { PREUVES = JSON.parse(_pd.textContent || '[]'); }
-    } catch (e) { console.debug('theme_form: failed to parse preuves-data', e); PREUVES = []; }
-    var CRITERES_CATALOGUE = [];
-    try {
-      var _cd = document.getElementById('criteres-catalogue-data');
-      if (_cd) { CRITERES_CATALOGUE = JSON.parse(_cd.textContent || '[]'); }
-    } catch (e) { console.debug('theme_form: failed to parse criteres-catalogue-data', e); CRITERES_CATALOGUE = []; }
-    var CHAPITRES = [];
-    try {
-      var _chapd = document.getElementById('chapitres-data');
-      if (_chapd) { CHAPITRES = JSON.parse(_chapd.textContent || '[]'); }
-    } catch (e) { console.debug('theme_form: failed to parse chapitres-data', e); CHAPITRES = []; }
-
-    var dlbCriteres = null;
-    var prev = document.querySelector('.js-wizard-prev');
-    prev && prev.addEventListener('click', function(){
-      showStep(1); window.scrollTo({top:0, behavior:'smooth'});
+  DualListbox.prototype._li = function (item) {
+    var li = document.createElement('li');
+    li.textContent = item.text;
+    li.title = item.text;
+    li.dataset.value = item.value;
+    return li;
+  };
+  DualListbox.prototype.load = function (items, selectedValues) {
+    /* items: [{value, text}], selectedValues: array of strings */
+    var sv = (selectedValues || []).map(String);
+    this._items = items.map(function (it) {
+      return { value: String(it.value), text: it.text, selected: sv.indexOf(String(it.value)) !== -1 };
     });
-
-    /* ─── Populate "Copier un critère existant" select ─────────────────────── */
-    (function(){
-      var copySel = document.getElementById('js-copy-critere-select');
-      if (!copySel) return;
-      CRITERES_CATALOGUE.forEach(function(c){
-        var opt = document.createElement('option');
-        opt.value = c.id;
-        var label = (c.texte || '').substring(0, 80) + (c.texte && c.texte.length > 80 ? '…' : '');
-        opt.textContent = label;
-        copySel.appendChild(opt);
-      });
-      try {
-        if (window.jQuery && jQuery.fn.select2) {
-          jQuery(copySel).select2({ placeholder: '— Choisir un critère à copier —', allowClear: true, width: '100%' });
-        }
-      } catch(e){}
-      var copyBtn = document.getElementById('js-copy-critere-btn');
-      copyBtn && copyBtn.addEventListener('click', function(){
-        var val = copySel.value;
-        if (!val) { showAlert('', 'Veuillez choisir un critère à copier.', 'info'); return; }
-        var found = CRITERES_CATALOGUE.find(function(c){ return String(c.id) === String(val); });
-        if (!found) return;
-        addCritereRow(found.texte, {
-          chapitreIds: (found.chapitre_ids || []).map(Number),
-          preuveIds:   (found.preuve_ids  || []).map(String)
-        });
-        copySel.value = '';
-        try { if(window.jQuery && jQuery.fn.select2) jQuery(copySel).val(null).trigger('change'); } catch(e){}
-      });
-    })();
-
-    // ─── Build step-1 FormData helper ─────────────────────────────────────────
-    function buildStep1FormData(themeId) {
-      var fd = new FormData();
-      fd.append('csrfmiddlewaretoken', document.querySelector('input[name=csrfmiddlewaretoken]').value);
-      if (themeId) fd.append('theme_id', themeId);
-      fd.append('texte', (document.querySelector('[name="texte"]')||{value:''}).value);
-      return fd;
-    }
-
-    // ─── Button references ────────────────────────────────────────────────────
-    var createBtnEl = document.getElementById('js-btn-create');
-    var nextBtnEl   = document.getElementById('js-btn-next');
-
-    // Créer le thème: validate step1, AJAX create, then go to step 2
-    createBtnEl && createBtnEl.addEventListener('click', function() {
-      clearFormErrors();
-      var _cErrs = buildStep1Errors();
-      if (Object.keys(_cErrs).length) { showFormErrors(_cErrs); return; }
-      var fd = buildStep1FormData(null);
-      createBtnEl.disabled = true; createBtnEl.textContent = 'Création...';
-      fetch('{% url "audit:theme-ajax-create" %}', { method:'POST', headers:{'X-Requested-With':'XMLHttpRequest'}, body:fd })
-      .then(function(r){ return r.json(); }).then(function(data) {
-        createBtnEl.disabled = false; createBtnEl.textContent = 'Créer le thème';
-        if (!data.ok) {
-          if (data.errors) showFormErrors(data.errors);
-          else showAlert('Erreur', data.error || 'Erreur création thème', 'error');
-          return;
-        }
-        if (createdThemeInput) createdThemeInput.value = data.id;
-        dirty = false; updateButtonsState();
-        showStep(2); window.scrollTo({top:0, behavior:'smooth'});
-      }).catch(function(err) {
-        console.error(err); createBtnEl.disabled = false; createBtnEl.textContent = 'Créer le thème';
-        showAlert('Erreur', 'Erreur communication serveur', 'error');
-      });
-    });
-
-    // Suivant: theme already exists, just navigate to step 2
-    nextBtnEl && nextBtnEl.addEventListener('click', function() {
-      showStep(2); window.scrollTo({top:0, behavior:'smooth'});
-    });
-
-    // ─── Shared state ─────────────────────────────────────────────────────────
-    var saveBtn = document.getElementById('js-save-theme');
-    var existingThemeInput = document.getElementById('existing_theme_id');
-    var createdThemeInput  = document.getElementById('created_theme_id');
-    var dirty = false;
-    function getThemeId() { return (createdThemeInput&&createdThemeInput.value)||(existingThemeInput&&existingThemeInput.value)||''; }
-
-    function isStep1Valid() {
-      try {
-        var texteVal = (document.querySelector('[name="texte"]')||{value:''}).value.trim();
-        return !!texteVal;
-      } catch(e) { return false; }
-    }
-
-    function buildStep1Errors() {
-      var errors = {};
-      var texteVal = (document.querySelector('[name="texte"]')||{value:''}).value.trim();
-      if (!texteVal) { errors['texte'] = ['Ce champ est obligatoire.']; }
-      return errors;
-    }
-
-    function updateButtonsState() {
-      var hasTheme = !!getThemeId();
-      if (!hasTheme) {
-        // Pure creation mode: show Créer (disabled when step1 invalid), hide others
-        if (createBtnEl) { createBtnEl.style.display = ''; createBtnEl.disabled = !isStep1Valid(); }
-        if (nextBtnEl)   nextBtnEl.style.display   = 'none';
-        if (saveBtn)     saveBtn.style.display     = 'none';
+    this._render();
+  };
+  DualListbox.prototype._render = function () {
+    var self = this;
+    self.avail.innerHTML = '';
+    self.sel.innerHTML = '';
+    self._items.forEach(function (item) {
+      var li = self._li(item);
+      li.addEventListener('click', function () { self._toggle(item); });
+      if (item.selected) {
+        self.sel.appendChild(li);
       } else {
-        // Theme exists (edit mode or just created)
-        if (createBtnEl) createBtnEl.style.display = 'none';
-        if (dirty) {
-          // Modifications not saved: show Enregistrer, hide Suivant
-          if (saveBtn)   saveBtn.style.display   = '';
+        self.avail.appendChild(li);
+      }
+    });
+    self._syncSelect();
+    self._updateCount();
+  };
+  DualListbox.prototype._toggle = function (item) {
+    item.selected = !item.selected;
+    this._render();
+    this.onchange();
+  };
+  DualListbox.prototype.addAll = function () {
+    this._items.forEach(function (i) { i.selected = true; });
+    this._render(); this.onchange();
+  };
+  DualListbox.prototype.removeAll = function () {
+    this._items.forEach(function (i) { i.selected = false; });
+    this._render(); this.onchange();
+  };
+  DualListbox.prototype.addVisible = function () {
+    /* add only visible (non-hidden) items from available list */
+    var self = this;
+    Array.from(self.avail.children).forEach(function (li) {
+      if (!li.classList.contains('dlb-hidden')) {
+        var item = self._items.find(function (i) { return i.value === li.dataset.value; });
+        if (item) item.selected = true;
+      }
+    });
+    this._render(); this.onchange();
+  };
+  DualListbox.prototype.removeVisible = function () {
+    var self = this;
+    Array.from(self.sel.children).forEach(function (li) {
+      if (!li.classList.contains('dlb-hidden')) {
+        var item = self._items.find(function (i) { return i.value === li.dataset.value; });
+        if (item) item.selected = false;
+      }
+    });
+    this._render(); this.onchange();
+  };
+  DualListbox.prototype._syncSelect = function () {
+    var self = this;
+    if (!self.selectEl) return;
+    /* sync options in hidden select */
+    Array.from(self.selectEl.options).forEach(function (o) {
+      var found = self._items.find(function (i) { return i.value === String(o.value); });
+      o.selected = found ? found.selected : false;
+    });
+    /* add missing options */
+    self._items.forEach(function (item) {
+      if (!self.selectEl.querySelector('option[value="' + item.value.replace(/"/g, '&quot;') + '"]')) {
+        var opt = document.createElement('option');
+        opt.value = item.value; opt.textContent = item.text;
+        opt.selected = item.selected;
+        self.selectEl.appendChild(opt);
+      }
+    });
+  };
+  DualListbox.prototype._updateCount = function () {
+    if (this.countEl) this.countEl.textContent = this._items.filter(function (i) { return i.selected; }).length;
+  };
+  DualListbox.prototype.getSelectedValues = function () {
+    return this._items.filter(function (i) { return i.selected; }).map(function (i) { return i.value; });
+  };
+  DualListbox.prototype.filterAvail = function (q) {
+    q = q.toLowerCase().trim();
+    Array.from(this.avail.children).forEach(function (li) {
+      li.classList.toggle('dlb-hidden', q !== '' && li.textContent.toLowerCase().indexOf(q) === -1);
+    });
+  };
+  DualListbox.prototype.filterSel = function (q) {
+    q = q.toLowerCase().trim();
+    Array.from(this.sel.children).forEach(function (li) {
+      li.classList.toggle('dlb-hidden', q !== '' && li.textContent.toLowerCase().indexOf(q) === -1);
+    });
+  };
+  DualListbox.prototype.setDisabled = function (disabled) {
+    var wrapper = this.avail.closest('.dual-listbox');
+    if (wrapper) wrapper.classList.toggle('dlb-disabled', !!disabled);
+  };
+  /* bind search + buttons for a dual-listbox container */
+  DualListbox.prototype.bindUI = function (container) {
+    var self = this;
+    var searches = container.querySelectorAll('.dlb-search');
+    if (searches[0]) searches[0].addEventListener('input', function () { self.filterAvail(this.value); });
+    if (searches[1]) searches[1].addEventListener('input', function () { self.filterSel(this.value); });
+    var addAll = container.querySelector('.dlb-add-all');
+    var addSel = container.querySelector('.dlb-add-sel');
+    var remSel = container.querySelector('.dlb-rem-sel');
+    var remAll = container.querySelector('.dlb-rem-all');
+    if (addAll) addAll.addEventListener('click', function () { self.addVisible(); });
+    if (addSel) addSel.addEventListener('click', function () { self.addVisible(); });
+    if (remSel) remSel.addEventListener('click', function () { self.removeVisible(); });
+    if (remAll) remAll.addEventListener('click', function () { self.removeAll(); });
+  };
+  /* ─────────────────────────────────────────────────────────────────────────── */
+
+  (function () {
+    function showStep(n) {
+      document.querySelectorAll('.wizard-pane').forEach(function (p) { p.style.display = p.getAttribute('data-step') == n ? 'block' : 'none'; });
+      document.querySelectorAll('.wizard-steps .step').forEach(function (s, i) { s.classList.toggle('active', (i + 1) == n); });
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      // helper: use SweetAlert2 toast if available, fallback to console (avoid blocking native alert)
+      function showAlert(titleOrMsg, text, icon, isToast) {
+        if (typeof isToast === 'undefined') { isToast = true; }
+        if (window.Swal && typeof Swal.fire === 'function') {
+          var opts = { icon: icon || 'info' };
+          if (typeof text === 'undefined') {
+            opts.title = String(titleOrMsg);
+          } else {
+            opts.title = String(titleOrMsg);
+            opts.text = String(text || '');
+          }
+          if (isToast) {
+            opts.toast = true;
+            opts.position = 'top-end';
+            opts.showConfirmButton = false;
+            opts.timer = 3000;
+            opts.timerProgressBar = true;
+          } else {
+            opts.toast = false;
+            opts.showConfirmButton = true;
+            opts.confirmButtonText = 'OK';
+          }
+          return window.Swal.fire(opts);
+        }
+        // fallback: log instead of blocking alert
+        try {
+          if (icon === 'error') { console.error(titleOrMsg, text || ''); }
+          else { console.log(titleOrMsg, text || ''); }
+        } catch (e) { /* ignore */ }
+        return null;
+      }
+      // existing preuves options from context (loaded from DOM script element)
+      var PREUVES = [];
+      try {
+        var _pd = document.getElementById('preuves-data');
+        if (_pd) { PREUVES = JSON.parse(_pd.textContent || '[]'); }
+      } catch (e) { console.debug('theme_form: failed to parse preuves-data', e); PREUVES = []; }
+      var CRITERES_CATALOGUE = [];
+      try {
+        var _cd = document.getElementById('criteres-catalogue-data');
+        if (_cd) { CRITERES_CATALOGUE = JSON.parse(_cd.textContent || '[]'); }
+      } catch (e) { console.debug('theme_form: failed to parse criteres-catalogue-data', e); CRITERES_CATALOGUE = []; }
+      var CHAPITRES = [];
+      try {
+        var _chapd = document.getElementById('chapitres-data');
+        if (_chapd) { CHAPITRES = JSON.parse(_chapd.textContent || '[]'); }
+      } catch (e) { console.debug('theme_form: failed to parse chapitres-data', e); CHAPITRES = []; }
+
+      var dlbCriteres = null;
+      var prev = document.querySelector('.js-wizard-prev');
+      prev && prev.addEventListener('click', function () {
+        showStep(1); window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      /* ─── Populate "Associer un critère existant" select ─────────────────────── */
+      (function () {
+        var copySel = document.getElementById('js-copy-critere-select');
+        if (!copySel) return;
+        try {
+          if (window.jQuery && jQuery.fn.select2) {
+            jQuery(copySel).select2({ placeholder: '— Choisir un critère à associer —', allowClear: true, width: '100%' });
+          }
+        } catch (e) { }
+        
+        try {
+          buildExistingCritereOptions();
+        } catch (e) { }
+
+        function performAssociate() {
+          var val = copySel.value;
+          if (!val) return;
+          var found = CRITERES_CATALOGUE.find(function (c) { return String(c.id) === String(val); });
+          if (!found) return;
+          addExistingCritereRow(found.id, found.texte);
+          copySel.value = '';
+          try {
+            if (window.jQuery && jQuery.fn.select2) {
+              jQuery(copySel).val(null).trigger('change.select2');
+            }
+          } catch (e) { }
+        }
+
+        // Automatically associate when selection changes
+        copySel.addEventListener('change', performAssociate);
+        if (window.jQuery) {
+          jQuery(copySel).on('change', performAssociate);
+        }
+
+        var copyBtn = document.getElementById('js-copy-critere-btn');
+        copyBtn && copyBtn.addEventListener('click', function () {
+          var val = copySel.value;
+          if (!val) { showAlert('', 'Veuillez choisir un critère à associer.', 'info'); return; }
+          performAssociate();
+        });
+      })();
+
+      // ─── Build step-1 FormData helper ─────────────────────────────────────────
+      function buildStep1FormData(themeId) {
+        var fd = new FormData();
+        fd.append('csrfmiddlewaretoken', document.querySelector('input[name=csrfmiddlewaretoken]').value);
+        if (themeId) fd.append('theme_id', themeId);
+        fd.append('texte', (document.querySelector('[name="texte"]') || { value: '' }).value);
+        return fd;
+      }
+
+      // ─── Button references ────────────────────────────────────────────────────
+      var createBtnEl = document.getElementById('js-btn-create');
+      var nextBtnEl = document.getElementById('js-btn-next');
+
+      // Créer le thème: validate step1, AJAX create, then go to step 2
+      createBtnEl && createBtnEl.addEventListener('click', function () {
+        clearFormErrors();
+        var _cErrs = buildStep1Errors();
+        if (Object.keys(_cErrs).length) { showFormErrors(_cErrs); return; }
+        var fd = buildStep1FormData(null);
+        createBtnEl.disabled = true; createBtnEl.textContent = 'Création...';
+        fetch('{% url "audit:theme-ajax-create" %}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
+          .then(function (r) { return r.json(); }).then(function (data) {
+            createBtnEl.disabled = false; createBtnEl.textContent = 'Créer le thème';
+            if (!data.ok) {
+              if (data.errors) showFormErrors(data.errors);
+              else showAlert('Erreur', data.error || 'Erreur création thème', 'error');
+              return;
+            }
+            if (createdThemeInput) createdThemeInput.value = data.id;
+            dirty = false; updateButtonsState();
+            showStep(2); window.scrollTo({ top: 0, behavior: 'smooth' });
+          }).catch(function (err) {
+            console.error(err); createBtnEl.disabled = false; createBtnEl.textContent = 'Créer le thème';
+            showAlert('Erreur', 'Erreur communication serveur', 'error');
+          });
+      });
+
+      // Suivant: theme already exists, just navigate to step 2
+      nextBtnEl && nextBtnEl.addEventListener('click', function () {
+        showStep(2); window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // ─── Shared state ─────────────────────────────────────────────────────────
+      var saveBtn = document.getElementById('js-save-theme');
+      var existingThemeInput = document.getElementById('existing_theme_id');
+      var createdThemeInput = document.getElementById('created_theme_id');
+      var dirty = false;
+      function getThemeId() { return (createdThemeInput && createdThemeInput.value) || (existingThemeInput && existingThemeInput.value) || ''; }
+
+      function isStep1Valid() {
+        try {
+          var texteVal = (document.querySelector('[name="texte"]') || { value: '' }).value.trim();
+          return !!texteVal;
+        } catch (e) { return false; }
+      }
+
+      function buildStep1Errors() {
+        var errors = {};
+        var texteVal = (document.querySelector('[name="texte"]') || { value: '' }).value.trim();
+        if (!texteVal) { errors['texte'] = ['Ce champ est obligatoire.']; }
+        return errors;
+      }
+
+      function updateButtonsState() {
+        var hasTheme = !!getThemeId();
+        if (!hasTheme) {
+          // Pure creation mode: show Créer (disabled when step1 invalid), hide others
+          if (createBtnEl) { createBtnEl.style.display = ''; createBtnEl.disabled = !isStep1Valid(); }
           if (nextBtnEl) nextBtnEl.style.display = 'none';
+          if (saveBtn) saveBtn.style.display = 'none';
         } else {
-          // No pending changes: show Suivant, hide Enregistrer
-          if (saveBtn)   saveBtn.style.display   = 'none';
-          if (nextBtnEl) nextBtnEl.style.display = '';
+          // Theme exists (edit mode or just created)
+          if (createBtnEl) createBtnEl.style.display = 'none';
+          if (dirty) {
+            // Modifications not saved: show Enregistrer, hide Suivant
+            if (saveBtn) saveBtn.style.display = '';
+            if (nextBtnEl) nextBtnEl.style.display = 'none';
+          } else {
+            // No pending changes: show Suivant, hide Enregistrer
+            if (saveBtn) saveBtn.style.display = 'none';
+            if (nextBtnEl) nextBtnEl.style.display = '';
+          }
         }
       }
-    }
 
-    // wire change detection for relevant inputs (DLB.onchange handles chapitre_norme dirty tracking)
-    try {
-      var watchedInputs = [];
-      var t = document.querySelector('[name="texte"]'); if (t) watchedInputs.push(t);
-      var newRefs = document.querySelectorAll('#js-new-chapitre-fields input, #js-new-chapitre-fields select');
-      if (newRefs && newRefs.length) newRefs.forEach(function(i){ watchedInputs.push(i); });
-      // js-create-chapitre-checkbox removed; new chapitre is created via AJAX button
-      watchedInputs.forEach(function(inp){
-        var ev = inp.tagName && inp.tagName.toLowerCase()==='select' ? 'change' : 'input';
-        inp.addEventListener(ev, function(){ dirty = true; updateButtonsState(); });
-      });
-    } catch (e) { console.debug('theme_form: setup watched inputs failed', e); }
+      // wire change detection for relevant inputs (DLB.onchange handles chapitre_norme dirty tracking)
+      try {
+        var watchedInputs = [];
+        var t = document.querySelector('[name="texte"]'); if (t) watchedInputs.push(t);
+        var newRefs = document.querySelectorAll('#js-new-chapitre-fields input, #js-new-chapitre-fields select');
+        if (newRefs && newRefs.length) newRefs.forEach(function (i) { watchedInputs.push(i); });
+        // js-create-chapitre-checkbox removed; new chapitre is created via AJAX button
+        watchedInputs.forEach(function (inp) {
+          var ev = inp.tagName && inp.tagName.toLowerCase() === 'select' ? 'change' : 'input';
+          inp.addEventListener(ev, function () { dirty = true; updateButtonsState(); });
+        });
+      } catch (e) { console.debug('theme_form: setup watched inputs failed', e); }
 
-    if (saveBtn) {
-      saveBtn.addEventListener('click', function(e){
+      if (saveBtn) {
+        saveBtn.addEventListener('click', function (e) {
+          clearFormErrors();
+          var _sErrs = buildStep1Errors();
+          if (Object.keys(_sErrs).length) { showFormErrors(_sErrs); return; }
+          var themeId = getThemeId();
+          if (!themeId) { showAlert('Erreur', 'Aucun thème à mettre à jour.', 'error'); return; }
+          var formData = buildStep1FormData(themeId);
+          saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement...';
+          fetch('{% url "audit:theme-ajax-create" %}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
+            .then(function (r) { return r.json(); }).then(function (data) {
+              saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer les modifications';
+              if (!data.ok) {
+                if (data.errors) { showFormErrors(data.errors); }
+                else { showAlert('', data.error || 'Erreur sauvegarde', 'error'); }
+                return;
+              }
+              if (existingThemeInput) existingThemeInput.value = data.id;
+              if (createdThemeInput) createdThemeInput.value = data.id;
+              dirty = false;
+              updateButtonsState();
+              showAlert('Succès', 'Thème mis à jour avec succès.', 'success');
+            }).catch(function (err) { console.error(err); saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer les modifications'; showAlert('Erreur', 'Erreur communication serveur', 'error'); });
+        });
+      }
+
+
+
+      function clearFormErrors() {
+        document.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+        document.querySelectorAll('.invalid-feedback.dyn').forEach(function (el) { el.remove(); });
+      }
+
+      function showFormErrors(errors) {
         clearFormErrors();
-        var _sErrs = buildStep1Errors();
-        if (Object.keys(_sErrs).length) { showFormErrors(_sErrs); return; }
-        var themeId = getThemeId();
-        if (!themeId) { showAlert('Erreur', 'Aucun thème à mettre à jour.', 'error'); return; }
-        var formData = buildStep1FormData(themeId);
-        saveBtn.disabled = true; saveBtn.textContent = 'Enregistrement...';
-        fetch('{% url "audit:theme-ajax-create" %}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: formData })
-        .then(function(r){ return r.json(); }).then(function(data){
-          saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer les modifications';
-          if (!data.ok) {
-            if (data.errors) { showFormErrors(data.errors); }
-            else { showAlert('', data.error || 'Erreur sauvegarde', 'error'); }
-            return;
-          }
-          if (existingThemeInput) existingThemeInput.value = data.id;
-          if (createdThemeInput)  createdThemeInput.value  = data.id;
-          dirty = false;
-          updateButtonsState();
-          showAlert('Succès', 'Thème mis à jour avec succès.', 'success');
-        }).catch(function(err){ console.error(err); saveBtn.disabled = false; saveBtn.textContent = 'Enregistrer les modifications'; showAlert('Erreur', 'Erreur communication serveur', 'error'); });
-      });
-    }
-
-
-
-    function clearFormErrors(){
-      document.querySelectorAll('.is-invalid').forEach(function(el){ el.classList.remove('is-invalid'); });
-      document.querySelectorAll('.invalid-feedback.dyn').forEach(function(el){ el.remove(); });
-    }
-
-    function showFormErrors(errors){
-      clearFormErrors();
-      Object.keys(errors).forEach(function(field){
-        var msgs = errors[field];
-        var msg = Array.isArray(msgs) ? msgs.join(' ') : String(msgs);
-        var el = document.querySelector('[name="'+field+'"]') || document.querySelector('[name="'+field+'[]"]');
-        // also check static feedback divs
-        var staticFb = document.getElementById(field+'_feedback') || document.getElementById('id_'+field+'_feedback');
-        if (el) el.classList.add('is-invalid');
-        if (staticFb) { staticFb.textContent = msg; staticFb.style.display = 'block'; }
-        else if (el) {
-          var fb = document.createElement('div'); fb.className = 'invalid-feedback dyn'; fb.innerText = msg;
-          if (el.parentNode) el.parentNode.appendChild(fb);
-        } else {
-          showAlert('Erreur', msg, 'error');
-        }
-      });
-    }
-
-    // criteria dynamic list: target the new #js-new-criteres-list container
-    function buildExistingCritereOptions() {
-      if (!dlbCriteres) return;
-      var attachedIds  = Array.from(document.querySelectorAll('.existing-critere[data-critere-id]')).map(function(r){ return String(r.dataset.critereId||''); });
-      var disaffectIds = Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).map(function(h){ return String(h.value||''); });
-      var items = [];
-      CRITERES_CATALOGUE.forEach(function(c){
-        var cid = String(c.id);
-        if (attachedIds.indexOf(cid) !== -1 && disaffectIds.indexOf(cid) === -1) return;
-        var txt   = c.texte || ('Critère #' + cid);
-        var owner = c.theme__texte ? ' — [Thème: ' + c.theme__texte + ']' : ' — [Sans thème]';
-        items.push({ value: cid, text: txt + owner });
-      });
-      dlbCriteres.load(items, []);
-    }
-
-    function bindDisaffectButtons() {
-      document.querySelectorAll('.js-desaffect-critere').forEach(function(btn){
-        if (btn.dataset.bound === '1') return;
-        btn.dataset.bound = '1';
-        btn.addEventListener('click', function(){
-          var row = btn.closest('.existing-critere');
-          if (!row) return;
-          var cid = row.getAttribute('data-critere-id');
-          if (!cid) return;
-          var form = document.querySelector('form');
-          var existingHidden = form.querySelector('input[type="hidden"][name="disaffect_criteres_ids[]"][value="'+cid+'"]');
-          if (existingHidden) {
-            existingHidden.remove();
-            row.classList.remove('marked-disaffect');
-            btn.textContent = 'Désaffecter';
-            btn.classList.remove('btn-warning');
-            btn.classList.add('btn-outline-danger');
+        Object.keys(errors).forEach(function (field) {
+          var msgs = errors[field];
+          var msg = Array.isArray(msgs) ? msgs.join(' ') : String(msgs);
+          var el = document.querySelector('[name="' + field + '"]') || document.querySelector('[name="' + field + '[]"]');
+          // also check static feedback divs
+          var staticFb = document.getElementById(field + '_feedback') || document.getElementById('id_' + field + '_feedback');
+          if (el) el.classList.add('is-invalid');
+          if (staticFb) { staticFb.textContent = msg; staticFb.style.display = 'block'; }
+          else if (el) {
+            var fb = document.createElement('div'); fb.className = 'invalid-feedback dyn'; fb.innerText = msg;
+            if (el.parentNode) el.parentNode.appendChild(fb);
           } else {
-            var h = document.createElement('input');
-            h.type = 'hidden'; h.name = 'disaffect_criteres_ids[]'; h.value = cid;
-            form.appendChild(h);
-            row.classList.add('marked-disaffect');
-            btn.textContent = 'Annuler';
-            btn.classList.remove('btn-outline-danger');
-            btn.classList.add('btn-warning');
+            showAlert('Erreur', msg, 'error');
           }
+        });
+      }
+
+      // criteria dynamic list: target the new #js-new-criteres-list container
+      function buildExistingCritereOptions() {
+        var copySel = document.getElementById('js-copy-critere-select');
+        if (!copySel) return;
+
+        // Save selected value
+        var currentVal = copySel.value;
+
+        // Clear existing options except placeholder
+        while (copySel.options.length > 1) {
+          copySel.remove(1);
+        }
+
+        // Get lists of attached/disaffected criteria
+        var attachedIds = Array.from(document.querySelectorAll('.existing-critere[data-critere-id]')).map(function (r) { 
+          return String(r.dataset.critereId || ''); 
+        });
+        var disaffectIds = Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).map(function (h) { 
+          return String(h.value || ''); 
+        });
+
+        // Filter and populate
+        CRITERES_CATALOGUE.forEach(function (c) {
+          var cid = String(c.id);
+          // Hide if currently attached (and not marked for disassociation) or newly associated
+          var isAttachedNow = attachedIds.indexOf(cid) !== -1 && disaffectIds.indexOf(cid) === -1;
+          if (isAttachedNow) return;
+
+          var opt = document.createElement('option');
+          opt.value = cid;
+          var label = (c.texte || '').substring(0, 80) + (c.texte && c.texte.length > 80 ? '…' : '');
+          opt.textContent = label;
+          if (cid === String(currentVal)) {
+            opt.selected = true;
+          }
+          copySel.appendChild(opt);
+        });
+
+        try {
+          if (window.jQuery && jQuery.fn.select2) {
+            jQuery(copySel).trigger('change.select2');
+          }
+        } catch (e) { }
+      }
+
+      function addExistingCritereRow(id, text) {
+        var list = document.getElementById('js-criteres-list');
+        if (!list) return;
+
+        // Remove empty placeholder message if it exists
+        var emptyMsg = list.querySelector('.text-muted.small');
+        if (emptyMsg) emptyMsg.remove();
+
+        // Check if already in the list to avoid duplicates
+        if (list.querySelector('[data-critere-id="' + id + '"]')) return;
+
+        var row = document.createElement('div');
+        row.className = 'input-group mb-2 existing-critere new-association';
+        row.dataset.critereId = id;
+
+        row.innerHTML =
+          '<input type="text" class="form-control" value="' + text.replace(/"/g, '&quot;') + '" readonly title="' + text.replace(/"/g, '&quot;') + '">' +
+          '<div class="input-group-append">' +
+          '<button type="button" class="btn btn-outline-danger btn-sm js-remove-assoc-critere">Retirer</button>' +
+          '</div>';
+
+        list.appendChild(row);
+
+        // Bind the remove button
+        row.querySelector('.js-remove-assoc-critere').addEventListener('click', function() {
+          row.remove();
+          // Show placeholder again if empty
+          if (list.children.length === 0) {
+            var p = document.createElement('p');
+            p.className = 'text-muted small';
+            p.textContent = 'Aucun critère affecté.';
+            list.appendChild(p);
+          }
+          // rebuild options
           buildExistingCritereOptions();
         });
-      });
-    }
 
-    function addCritereRow(val, prefill){
-      var newCriteresList = document.getElementById('js-new-criteres-list');
-      if (!newCriteresList) return;
-      var uid = 'cr_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
-      var row = document.createElement('div');
-      row.className = 'new-critere-card';
-      row.id = 'row_' + uid;
-      // Build preuves options
-      var preuveOpts = PREUVES.map(function(p){
-        var v = String(p.id||''), t = String(p.libelle||'');
-        var sel = (prefill && prefill.preuveIds && prefill.preuveIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
-        return '<option value="'+v.replace(/"/g,'&quot;')+'" title="'+t.replace(/"/g,'&quot;')+'"'+sel+'>'+t+'</option>';
-      }).join('');
-      var chapitreOpts = CHAPITRES.map(function(ch){
-        var label = (ch.reference||'') + ' — ' + (ch.intitule||'');
-        if (ch['norme__nom']) { label += ' (' + ch['norme__nom'] + (ch.num_page ? ' p.' + ch.num_page : '') + ')'; }
-        var v = String(ch.id||'');
-        var sel = (prefill && prefill.chapitreIds && prefill.chapitreIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
-        return '<option value="'+v+'"'+sel+'>'+label.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
-      }).join('');
-      row.innerHTML =
-        '<div class="card-label"><strong>Nouveau critère</strong>'
-        +'<button type="button" class="btn btn-sm btn-outline-danger js-remove-critere">✕ Supprimer</button></div>'
-        +'<div class="form-group">'
-        +'<label class="required-marker">Texte du critère</label>'
-        +'<input type="text" name="new_criteres[]" class="form-control" placeholder="Saisissez le texte du critère..." value="'+(val||'')+'">'
-        +'</div>'
-        +'<div class="form-group">'
-        +'<label>Chapitres de norme <small class="text-muted font-weight-normal">(sélection multiple)</small></label>'
-        +'<select name="new_criteres_chapitres[]" id="sel_chap_'+uid+'" class="form-control" multiple style="width:100%">'+chapitreOpts+'</select>'
-        +'</div>'
-        +'<div class="form-group">'
-        +'<label class="required-marker">Preuves attendues <small class="text-muted font-weight-normal">(sélection multiple)</small></label>'
-        +'<select name="new_criteres_preuves[]" id="sel_preuves_'+uid+'" class="form-control" multiple style="width:100%">'+preuveOpts+'</select>'
-        +'<small class="text-muted">Sélectionnez des preuves existantes. Au moins une requise.</small>'
-        +'</div>'
-        +'<div class="form-group">'
-        +'<label>Nouvelles preuves à créer <small class="text-muted font-weight-normal">(séparées par ;)</small></label>'
-        +'<input type="text" name="new_criteres_preuves_new[]" class="form-control" placeholder="Ex: Rapport mensuel; Attestation formation">'
-        +'</div>';
-      newCriteresList.appendChild(row);
-      // Init Select2 on chapitres select
-      try {
-        if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
-          jQuery('#sel_chap_'+uid).select2({
-            width: '100%',
-            placeholder: 'Rechercher et sélectionner des chapitres...',
-            closeOnSelect: false,
-            allowClear: true,
-            dropdownParent: jQuery('#row_'+uid)
-          });
-        }
-      } catch(e){ console.debug('theme_form: select2 chapitres failed', e); }
-      // Init Select2 on preuves select
-      try {
-        if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
-          jQuery('#sel_preuves_'+uid).select2({
-            width: '100%',
-            placeholder: 'Rechercher et sélectionner des preuves...',
-            closeOnSelect: false,
-            allowClear: true,
-            dropdownParent: jQuery('#row_'+uid),
-            templateResult: function(s) {
-              if (!s.id) return s.text;
-              return jQuery('<span title="'+(s.text||'').replace(/"/g,'&quot;')+'">'+(s.text||'')+'</span>');
-            },
-            templateSelection: function(s) {
-              var t=s.text||''; var sh=t.length>40?t.substring(0,37)+'…':t;
-              return jQuery('<span title="'+t.replace(/"/g,'&quot;')+'">'+sh+'</span>');
+        // rebuild options (so it gets removed from the dropdown list of options)
+        buildExistingCritereOptions();
+      }
+
+      function bindDisaffectButtons() {
+        document.querySelectorAll('.js-desaffect-critere').forEach(function (btn) {
+          if (btn.dataset.bound === '1') return;
+          btn.dataset.bound = '1';
+          btn.addEventListener('click', function () {
+            var row = btn.closest('.existing-critere');
+            if (!row) return;
+            var cid = row.getAttribute('data-critere-id');
+            if (!cid) return;
+            var form = document.querySelector('form');
+            var existingHidden = form.querySelector('input[type="hidden"][name="disaffect_criteres_ids[]"][value="' + cid + '"]');
+            if (existingHidden) {
+              existingHidden.remove();
+              row.classList.remove('marked-disaffect');
+              btn.textContent = 'Désaffecter';
+              btn.classList.remove('btn-warning');
+              btn.classList.add('btn-outline-danger');
+            } else {
+              var h = document.createElement('input');
+              h.type = 'hidden'; h.name = 'disaffect_criteres_ids[]'; h.value = cid;
+              form.appendChild(h);
+              row.classList.add('marked-disaffect');
+              btn.textContent = 'Annuler';
+              btn.classList.remove('btn-outline-danger');
+              btn.classList.add('btn-warning');
             }
+            buildExistingCritereOptions();
           });
+        });
+      }
+
+      function addCritereRow(val, prefill) {
+        var newCriteresList = document.getElementById('js-new-criteres-list');
+        if (!newCriteresList) return;
+        var uid = 'cr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        var row = document.createElement('div');
+        row.className = 'new-critere-card';
+        row.id = 'row_' + uid;
+        // Build preuves options
+        var preuveOpts = PREUVES.map(function (p) {
+          var v = String(p.id || ''), t = String(p.libelle || '');
+          var sel = (prefill && prefill.preuveIds && prefill.preuveIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
+          return '<option value="' + v.replace(/"/g, '&quot;') + '" title="' + t.replace(/"/g, '&quot;') + '"' + sel + '>' + t + '</option>';
+        }).join('');
+        var chapitreOpts = CHAPITRES.map(function (ch) {
+          var label = (ch.reference || '') + ' — ' + (ch.intitule || '');
+          if (ch['norme__nom']) { label += ' (' + ch['norme__nom'] + (ch.num_page ? ' p.' + ch.num_page : '') + ')'; }
+          var v = String(ch.id || '');
+          var sel = (prefill && prefill.chapitreIds && prefill.chapitreIds.map(String).indexOf(v) !== -1) ? ' selected' : '';
+          return '<option value="' + v + '"' + sel + '>' + label.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>';
+        }).join('');
+        row.innerHTML =
+          '<div class="card-label"><strong>Nouveau critère</strong>'
+          + '<button type="button" class="btn btn-sm btn-outline-danger js-remove-critere">✕ Supprimer</button></div>'
+          + '<div class="form-group">'
+          + '<label class="required-marker">Texte du critère</label>'
+          + '<input type="text" name="new_criteres[]" class="form-control" placeholder="Saisissez le texte du critère..." value="' + (val || '') + '">'
+          + '</div>'
+          + '<div class="form-group">'
+          + '<label>Chapitres de norme <small class="text-muted font-weight-normal">(sélection multiple)</small></label>'
+          + '<select name="new_criteres_chapitres[]" id="sel_chap_' + uid + '" class="form-control" multiple style="width:100%">' + chapitreOpts + '</select>'
+          + '</div>'
+          + '<div class="form-group">'
+          + '<label class="required-marker">Preuves attendues <small class="text-muted font-weight-normal">(sélection multiple)</small></label>'
+          + '<select name="new_criteres_preuves[]" id="sel_preuves_' + uid + '" class="form-control" multiple style="width:100%">' + preuveOpts + '</select>'
+          + '<small class="text-muted">Sélectionnez des preuves existantes. Au moins une requise.</small>'
+          + '</div>'
+          + '<div class="form-group">'
+          + '<label>Nouvelles preuves à créer <small class="text-muted font-weight-normal">(séparées par ;)</small></label>'
+          + '<input type="text" name="new_criteres_preuves_new[]" class="form-control" placeholder="Ex: Rapport mensuel; Attestation formation">'
+          + '</div>';
+        newCriteresList.appendChild(row);
+        // Init Select2 on chapitres select
+        try {
+          if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
+            jQuery('#sel_chap_' + uid).select2({
+              width: '100%',
+              placeholder: 'Rechercher et sélectionner des chapitres...',
+              closeOnSelect: false,
+              allowClear: true,
+              dropdownParent: jQuery('#row_' + uid)
+            });
+          }
+        } catch (e) { console.debug('theme_form: select2 chapitres failed', e); }
+        // Init Select2 on preuves select
+        try {
+          if (window.jQuery && jQuery.fn && jQuery.fn.select2) {
+            jQuery('#sel_preuves_' + uid).select2({
+              width: '100%',
+              placeholder: 'Rechercher et sélectionner des preuves...',
+              closeOnSelect: false,
+              allowClear: true,
+              dropdownParent: jQuery('#row_' + uid),
+              templateResult: function (s) {
+                if (!s.id) return s.text;
+                return jQuery('<span title="' + (s.text || '').replace(/"/g, '&quot;') + '">' + (s.text || '') + '</span>');
+              },
+              templateSelection: function (s) {
+                var t = s.text || ''; var sh = t.length > 40 ? t.substring(0, 37) + '…' : t;
+                return jQuery('<span title="' + t.replace(/"/g, '&quot;') + '">' + sh + '</span>');
+              }
+            });
+          }
+        } catch (e) { console.debug('theme_form: select2 preuves failed', e); }
+        row.querySelector('.js-remove-critere').addEventListener('click', function () {
+          try { if (window.jQuery) jQuery('#sel_chap_' + uid).select2('destroy'); } catch (e) { }
+          try { if (window.jQuery) jQuery('#sel_preuves_' + uid).select2('destroy'); } catch (e) { }
+          row.remove();
+        });
+      }
+      document.querySelectorAll('.js-add-critere').forEach(function (btn) { btn.addEventListener('click', function () { addCritereRow(''); }); });
+
+      // Initialize (no empty critere row by default)
+      bindDisaffectButtons();
+      buildExistingCritereOptions();
+
+      // Final button state init
+      try { dirty = false; updateButtonsState(); } catch (e) { }
+
+      // ─── Final form submit (step 2) ───────────────────────────────────────────
+      var form = document.querySelector('form');
+      form && form.addEventListener('submit', function (e) {
+        var themeId = getThemeId();
+        if (!themeId) {
+          e.preventDefault();
+          showAlert('Erreur', 'Le thème doit être créé (Créer le thème) avant d\'enregistrer les critères.', 'error', false);
+          showStep(1);
+          return;
         }
-      } catch(e){ console.debug('theme_form: select2 preuves failed', e); }
-      row.querySelector('.js-remove-critere').addEventListener('click', function(){
-        try { if(window.jQuery) jQuery('#sel_chap_'+uid).select2('destroy'); } catch(e){}
-        try { if(window.jQuery) jQuery('#sel_preuves_'+uid).select2('destroy'); } catch(e){}
-        row.remove();
-      });
-    }
-    document.querySelectorAll('.js-add-critere').forEach(function(btn){ btn.addEventListener('click', function(){ addCritereRow(''); }); });
-
-    // Initialize (no empty critere row by default)
-    bindDisaffectButtons();
-    buildExistingCritereOptions();
-
-    // Final button state init
-    try { dirty = false; updateButtonsState(); } catch(e){}
-
-    // ─── Final form submit (step 2) ───────────────────────────────────────────
-    var form = document.querySelector('form');
-    form && form.addEventListener('submit', function(e){
-      var themeId = getThemeId();
-      if (!themeId) {
         e.preventDefault();
-        showAlert('Erreur', 'Le thème doit être créé (Créer le thème) avant d\'enregistrer les critères.', 'error');
-        showStep(1);
-        return;
-      }
-      e.preventDefault();
-      var csrf = document.querySelector('input[name=csrfmiddlewaretoken]').value;
-      var criteres = Array.from(document.querySelectorAll('input[name="new_criteres[]"]')).map(function(i){ return i.value; });
-      var preuves_selects = Array.from(document.querySelectorAll('select[name="new_criteres_preuves[]"]'));
-      var chapitres_selects = Array.from(document.querySelectorAll('select[name="new_criteres_chapitres[]"]'));
-      var preuves_news = Array.from(document.querySelectorAll('input[name="new_criteres_preuves_new[]"]')).map(function(i){ return i.value || ''; });
-      var post = new URLSearchParams();
-      post.append('theme_id', themeId);
 
-      // attach existing selected criteria
-      var existingSel = document.getElementById('js-existing-criteres-select');
-      if (existingSel) {
-        Array.from(existingSel.selectedOptions).forEach(function(o){ post.append('existing_criteres_add_ids[]', o.value); });
-      }
-      // disaffect marked existing criteria
-      Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).forEach(function(h){
-        post.append('disaffect_criteres_ids[]', h.value);
-      });
-
-      // append new criteria + preuves (required paire texte+preuves)
-      var step2Err = false;
-      criteres.forEach(function(c, idx){
-        var t = (c || '').trim();
-        var vals = [];
-        if (preuves_selects[idx]) {
-          if (window.jQuery) {
-            vals = jQuery(preuves_selects[idx]).val() || [];
-          } else {
-            vals = Array.from(preuves_selects[idx].selectedOptions).map(function(o){ return o.value; });
+        // Safety: if they chose a criterion to associate but forgot to click "Associer", associate it now
+        var copySel = document.getElementById('js-copy-critere-select');
+        if (copySel && copySel.value) {
+          var val = copySel.value;
+          var found = CRITERES_CATALOGUE.find(function (c) { return String(c.id) === String(val); });
+          if (found) {
+            addExistingCritereRow(found.id, found.texte);
+            copySel.value = '';
+            try {
+              if (window.jQuery && jQuery.fn.select2) {
+                jQuery(copySel).val(null).trigger('change.select2');
+              }
+            } catch (err) { }
           }
         }
-        var extra = (preuves_news[idx] || '').split(';').map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){ return '__new__:' + x; });
-        var merged = vals.concat(extra);
-        // ignore fully empty rows
-        if (!t && merged.length === 0) return;
-        if (!t || merged.length === 0) {
-          step2Err = true;
-          return;
-        }
-        post.append('new_criteres[]', t);
-        post.append('new_criteres_preuves[]', merged.join(';'));
-        var chapVals = [];
-        if (chapitres_selects[idx]) {
-          if (window.jQuery) {
-            chapVals = jQuery(chapitres_selects[idx]).val() || [];
-          } else {
-            chapVals = Array.from(chapitres_selects[idx].selectedOptions).map(function(o){ return o.value; });
-          }
-        }
-        post.append('new_criteres_chapitres[]', chapVals.join(','));
-      });
-      if (step2Err) {
-        showAlert('Erreur', 'Chaque nouveau critère doit avoir un texte et au moins une preuve attendue.', 'error');
-        return;
-      }
 
-      post.append('csrfmiddlewaretoken', csrf);
-      var submitBtn = form.querySelector('button[type=submit]');
-      if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Enregistrement...'; }
-      fetch('{% url "audit:theme-ajax-add-criteres" %}', {
-        method: 'POST', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: post
-      }).then(function(r){ return r.json(); }).then(function(res){
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✔ Terminer et enregistrer'; }
-        if (!res.ok) {
-          var keys = Object.keys(res.errors || {});
-          var msg = keys.length ? ((res.errors[keys[0]]||['Erreur'])[0]) : (res.error || 'Erreur création critères');
-          showAlert('Erreur', msg, 'error');
+        var csrf = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+        var criteres = Array.from(document.querySelectorAll('input[name="new_criteres[]"]')).map(function (i) { return i.value; });
+        var preuves_selects = Array.from(document.querySelectorAll('select[name="new_criteres_preuves[]"]'));
+        var chapitres_selects = Array.from(document.querySelectorAll('select[name="new_criteres_chapitres[]"]'));
+        var preuves_news = Array.from(document.querySelectorAll('input[name="new_criteres_preuves_new[]"]')).map(function (i) { return i.value || ''; });
+        var post = new URLSearchParams();
+        post.append('theme_id', themeId);
+
+        // attach new associations of existing criteria
+        Array.from(document.querySelectorAll('.existing-critere.new-association[data-critere-id]')).forEach(function (r) {
+          post.append('existing_criteres_add_ids[]', r.dataset.critereId);
+        });
+        // disaffect marked existing criteria
+        Array.from(document.querySelectorAll('input[name="disaffect_criteres_ids[]"]')).forEach(function (h) {
+          post.append('disaffect_criteres_ids[]', h.value);
+        });
+
+        // append new criteria + preuves (required paire texte+preuves)
+        var step2Err = false;
+        criteres.forEach(function (c, idx) {
+          var t = (c || '').trim();
+          var vals = [];
+          if (preuves_selects[idx]) {
+            if (window.jQuery) {
+              vals = jQuery(preuves_selects[idx]).val() || [];
+            } else {
+              vals = Array.from(preuves_selects[idx].selectedOptions).map(function (o) { return o.value; });
+            }
+          }
+          var extra = (preuves_news[idx] || '').split(';').map(function (x) { return x.trim(); }).filter(Boolean).map(function (x) { return '__new__:' + x; });
+          var merged = vals.concat(extra);
+          // ignore fully empty rows
+          if (!t && merged.length === 0) return;
+          if (!t || merged.length === 0) {
+            step2Err = true;
+            return;
+          }
+          post.append('new_criteres[]', t);
+          post.append('new_criteres_preuves[]', merged.join(';'));
+          var chapVals = [];
+          if (chapitres_selects[idx]) {
+            if (window.jQuery) {
+              chapVals = jQuery(chapitres_selects[idx]).val() || [];
+            } else {
+              chapVals = Array.from(chapitres_selects[idx].selectedOptions).map(function (o) { return o.value; });
+            }
+          }
+          post.append('new_criteres_chapitres[]', chapVals.join(','));
+        });
+        if (step2Err) {
+          showAlert('Erreur', 'Chaque nouveau critère doit avoir un texte et au moins une preuve attendue.', 'error', false);
           return;
         }
-        window.location = '{% url "audit:theme-list" %}';
-      }).catch(function(err){ console.error(err); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✔ Terminer et enregistrer'; } showAlert('Erreur', 'Erreur communication serveur', 'error'); });
+
+        post.append('csrfmiddlewaretoken', csrf);
+        var submitBtn = form.querySelector('button[type=submit]');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Enregistrement...'; }
+        console.log(Object.fromEntries(post));
+        fetch('{% url "audit:theme-ajax-add-criteres" %}', {
+          method: 'POST', headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: post
+        }).then(function (r) { return r.json(); }).then(function (res) {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✔ Terminer et enregistrer'; }
+          if (!res.ok) {
+            var keys = Object.keys(res.errors || {});
+            var msg = keys.length ? ((res.errors[keys[0]] || ['Erreur'])[0]) : (res.error || 'Erreur création critères');
+            showAlert('Erreur', msg, 'error', false);
+            return;
+          }
+          window.location = '{% url "audit:theme-list" %}';
+        }).catch(function (err) { console.error(err); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '✔ Terminer et enregistrer'; } showAlert('Erreur', 'Erreur communication serveur', 'error', false); });
+      });
     });
-  });
-})();
+  })();
 </script>
 {% endblock %}
