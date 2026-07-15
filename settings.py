@@ -8,6 +8,20 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# Compatibility patch for Django template context copying on Python 3.14+
+# refs: https://code.djangoproject.com/ticket/35844
+import copy
+from django.template import context
+
+def _patched_copy(self):
+    duplicate = context.BaseContext()
+    duplicate.__class__ = self.__class__
+    duplicate.__dict__ = copy.copy(self.__dict__)
+    duplicate.dicts = self.dicts[:]
+    return duplicate
+
+context.BaseContext.__copy__ = _patched_copy
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-key-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if h.strip()]
