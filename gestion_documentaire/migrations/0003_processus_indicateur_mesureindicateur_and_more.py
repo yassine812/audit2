@@ -72,7 +72,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Mesure d’indicateur',
                 'verbose_name_plural': 'Mesures d’indicateurs',
                 'ordering': ['indicateur__code', '-annee', '-mois'],
-                'constraints': [models.CheckConstraint(condition=models.Q(('mois__isnull', True), models.Q(('mois__gte', 1), ('mois__lte', 12)), _connector='OR'), name='check_mesure_indicateur_mois_valid'), models.CheckConstraint(condition=models.Q(('annee__gte', 2000), ('annee__lte', 2100)), name='check_mesure_indicateur_annee_valid'), models.UniqueConstraint(condition=models.Q(('mois__isnull', False)), fields=('indicateur', 'annee', 'mois'), name='unique_mesure_mensuelle_indicateur'), models.UniqueConstraint(condition=models.Q(('mois__isnull', True)), fields=('indicateur', 'annee'), name='unique_mesure_annuelle_indicateur')],
+                'constraints': [models.UniqueConstraint(condition=models.Q(('mois__isnull', False)), fields=('indicateur', 'annee', 'mois'), name='unique_mesure_mensuelle_indicateur'), models.UniqueConstraint(condition=models.Q(('mois__isnull', True)), fields=('indicateur', 'annee'), name='unique_mesure_annuelle_indicateur')],
             },
         ),
         migrations.CreateModel(
@@ -89,7 +89,7 @@ class Migration(migrations.Migration):
                 'verbose_name': 'Objectif d’indicateur',
                 'verbose_name_plural': 'Objectifs d’indicateurs',
                 'ordering': ['-annee', 'indicateur__code'],
-                'constraints': [models.UniqueConstraint(fields=('indicateur', 'annee'), name='unique_objectif_par_indicateur_annee'), models.CheckConstraint(condition=models.Q(('annee__gte', 2000), ('annee__lte', 2100)), name='check_annee_objectif_range')],
+                'constraints': [models.UniqueConstraint(fields=('indicateur', 'annee'), name='unique_objectif_par_indicateur_annee')],
             },
         ),
         migrations.AddConstraint(
