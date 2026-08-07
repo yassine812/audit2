@@ -1200,9 +1200,10 @@
         <p class="mb-0">
           Aucun processus actif n'est associé à votre compte.
           {% if user.is_superuser %}
-          <a href="{% url 'gestion_documentaire:tdb_processus_create' %}" class="btn btn-success btn-sm ms-2">
+          <button type="button" class="btn btn-success btn-sm ms-2 js-open-process-modal" data-toggle="modal"
+            data-bs-toggle="modal" data-target="#processusCreateModal" data-bs-target="#processusCreateModal">
             <i class="fas fa-plus me-1"></i>Créer un processus
-          </a>
+          </button>
           {% endif %}
         </p>
       </div>
