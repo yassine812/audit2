@@ -9,6 +9,7 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 
 
 ROLE_QSE = "qse"
@@ -212,3 +213,163 @@ def role_required(*role_names: str):
 qse_required = role_required(ROLE_QSE)
 pilote_ou_qse_required = role_required(ROLE_QSE, ROLE_PILOTE_PROCESSUS)
 direction_ou_habilite_required = role_required(ROLE_QSE, ROLE_DIRECTION, ROLE_PILOTE_PROCESSUS)
+
+
+# ============================================================
+# MODULE TABLEAU DE BORD SMQS
+# Permissions pour le Tableau de Bord des Indicateurs
+# ============================================================
+
+
+def user_peut_voir_tdb(user, processus) -> bool:
+    """Accès réservé aux RO, RS et CE affectés nominativement au processus ainsi qu'aux superutilisateurs."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return (
+        processus.RO.filter(pk=user.pk).exists()
+        or processus.RS.filter(pk=user.pk).exists()
+        or processus.CE.filter(pk=user.pk).exists()
+    )
+
+
+def user_est_rs_ro_ce(user) -> bool:
+    """Vrai si l'utilisateur possède le rôle RS, RO ou CE (ou est superutilisateur).
+
+    Règle métier partagée : accès au Tableau de Bord SMQS / "Indicateurs SMQS".
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return any(
+        getattr(user, flag, False)
+        for flag in ("is_RS", "is_RO", "is_CE")
+    )
+
+
+def user_a_au_moins_un_processus_smqs(user) -> bool:
+    """Vrai si l'utilisateur est affecté nominativement (RO/RS/CE) à au moins un processus actif."""
+    from .models import Processus
+    return Processus.objects.filter(
+        Q(RO=user) | Q(RS=user) | Q(CE=user),
+        is_active=True,
+    ).exists()
+
+
+def user_peut_utiliser_indicateurs_smqs(user) -> bool:
+    """Règle d'ACCÈS unique au module Indicateurs SMQS.
+
+    superuser / RS / RO / CE, ou (héritage) utilisateur affecté
+    nominativement à au moins un processus actif.
+    """
+    if not getattr(user, "is_authenticated", False):
+        return False
+    return user_est_rs_ro_ce(user) or user_a_au_moins_un_processus_smqs(user)
+
+
+def processus_perimetre_smqs_qs(user):
+    """Queryset du PÉRIMÈTRE de données SMQS de `user`.
+
+    superuser -> tous les processus actifs
+    RS/RO/CE  -> processus actifs de la société principale `user.societe`
+                 (périmètre vide si `user.societe` est None)
+    autres    -> processus actifs auxquels il est affecté nominativement (M2M RO/RS/CE)
+    """
+    from .models import Processus
+    if not getattr(user, "is_authenticated", False):
+        return Processus.objects.none()
+    if getattr(user, "is_superuser", False):
+        return Processus.objects.filter(is_active=True)
+    if user_est_rs_ro_ce(user):
+        if user.societe_id is None:
+            return Processus.objects.none()
+        return Processus.objects.filter(
+            societe_id=user.societe_id,
+            is_active=True,
+        )
+    return Processus.objects.filter(
+        Q(RO=user) | Q(RS=user) | Q(CE=user),
+        is_active=True,
+    ).distinct()
+
+
+def processus_dans_perimetre_smqs(user, processus) -> bool:
+    """Vrai si `processus` appartient au périmètre SMQS de `user`."""
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    if user_est_rs_ro_ce(user):
+        return (
+            getattr(processus, "is_active", False)
+            and user.societe_id is not None
+            and processus.societe_id == user.societe_id
+        )
+    return user_peut_voir_tdb(user, processus)
+
+
+class TdbAccesRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
+    """Mixin contrôlant l'accès au tableau de bord d'un processus."""
+
+    def test_func(self) -> bool:
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+
+        processus_id = self.kwargs.get("processus_id") or self.request.GET.get("processus")
+        if processus_id:
+            from .models import Processus
+            processus = Processus.objects.filter(pk=processus_id).first()
+            if not processus:
+                return False
+            return processus_dans_perimetre_smqs(user, processus)
+
+        # Accès direct au module : règle unique (superuser / RS / RO / CE,
+        # ou affectation nominative à un processus actif en héritage).
+        return user_peut_utiliser_indicateurs_smqs(user)
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            raise PermissionDenied("Accès réservé aux RS, RO et CE.")
+        return super().handle_no_permission()
+
+
+def tdb_acces_required(view_func):
+    """Décorateur contrôlant l'accès aux vues fonctions du tableau de bord.
+
+    Règle unique : `user_peut_utiliser_indicateurs_smqs` (accès), puis vérification
+    du périmètre si une cible processus est fournie (`processus_dans_perimetre_smqs`).
+    """
+    @wraps(view_func)
+    def _wrapped(request, *args, **kwargs):
+        user = request.user
+        if not getattr(user, "is_authenticated", False):
+            from django.contrib.auth.views import redirect_to_login
+            return redirect_to_login(request.get_full_path())
+
+        if not user_peut_utiliser_indicateurs_smqs(user):
+            raise PermissionDenied("Accès réservé aux RS, RO et CE.")
+
+        processus_id = kwargs.get("processus_id")
+        if not processus_id and "indicateur_id" in kwargs:
+            from .models import Indicateur
+            indicateur = Indicateur.objects.filter(pk=kwargs["indicateur_id"]).first()
+            if indicateur:
+                processus_id = indicateur.processus_id
+
+        if processus_id:
+            from django.shortcuts import get_object_or_404
+            from .models import Processus
+            processus = get_object_or_404(Processus, pk=processus_id)
+            if not processus_dans_perimetre_smqs(user, processus):
+                raise PermissionDenied("Accès non autorisé : processus hors de votre périmètre.")
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+

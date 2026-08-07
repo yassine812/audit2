@@ -1,0 +1,349 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}Journal d'Audit des Modèles{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css">
+<style>
+  /* Filter Sidebar Panel on Right */
+  .filter-sidebar-panel {
+    position: fixed;
+    top: 0;
+    right: -380px;
+    width: 350px;
+    height: 100vh;
+    background: #fff;
+    z-index: 1055;
+    overflow-y: auto;
+    transition: right .3s ease;
+    box-shadow: -6px 0 24px rgba(0,0,0,.18);
+    display: flex;
+    flex-direction: column;
+  }
+  .filter-sidebar-panel.open { right: 0; }
+  .filter-sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    z-index: 1050;
+  }
+  .filter-sidebar-backdrop.open { display: block; }
+  
+  /* Floating Toggle Button on Right Edge */
+  .at-filter-btn-fixed {
+    position: fixed;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1060;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #17a2b8;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0,0,0,.3);
+    border: none;
+    cursor: pointer;
+    transition: transform .2s, background .2s;
+  }
+  .at-filter-btn-fixed:hover {
+    transform: translateY(-50%) scale(1.08);
+    background: #138496;
+    color: #fff;
+  }
+  .at-filter-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ffc107;
+    border: 2px solid #fff;
+  }
+
+  /* Select2 z-index inside fixed sidebars */
+  .select2-container--open {
+    z-index: 1065 !important;
+  }
+  .select2-container--bootstrap4 .select2-selection {
+    border-color: #ced4da;
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="row mb-2">
+    <div class="col-sm-6">
+        <h1><i class="fas fa-history mr-2 text-info"></i>Journal d'Audit des Modèles</h1>
+    </div>
+    <div class="col-sm-6">
+        <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+            <li class="breadcrumb-item active">Journal d'audit</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Tableau des Journaux d'Audit -->
+<div class="card card-outline card-info">
+    <div class="card-header">
+        <h3 class="card-title mb-0">
+            <i class="fas fa-list mr-1"></i>
+            Historique des actions ({{ paginator.count }} enregistrement{{ paginator.count|pluralize }})
+        </h3>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 text-nowrap">
+                <thead class="thead-dark">
+                    <tr>
+                        <th style="width: 170px;">Date &amp; Heure</th>
+                        <th style="width: 180px;">Utilisateur</th>
+                        <th style="width: 160px;">Modèle</th>
+                        <th>Objet</th>
+                        <th style="width: 120px;" class="text-center">Action</th>
+                        <th>Message / Modifications</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in page_obj %}
+                    <tr>
+                        <td>
+                            <small class="text-muted">
+                                <i class="far fa-clock mr-1"></i>{{ entry.action_time|date:"d/m/Y H:i:s" }}
+                            </small>
+                        </td>
+                        <td>
+                            {% if entry.user %}
+                                <i class="fas fa-user text-secondary mr-1"></i>
+                                {% if entry.user.get_full_name %}
+                                    {{ entry.user.get_full_name }}
+                                {% else %}
+                                    {{ entry.user.username }}
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted"><i>Système</i></span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-light border">
+                                {{ entry.content_type.app_label|capfirst }}.{{ entry.content_type.model|capfirst }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong class="text-dark">{{ entry.object_repr|default:"—" }}</strong>
+                            {% if entry.object_id %}
+                                <small class="text-muted">(ID: {{ entry.object_id }})</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {{ entry.action_badge_class }} px-2 py-1">
+                                {{ entry.action_label }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-wrap text-break" style="max-width: 400px; display: inline-block;">
+                                {{ entry.change_message|default:"—" }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="fas fa-search-minus fa-3x mb-3 d-block text-secondary"></i>
+                            <h5>Aucun journal d'audit trouvé</h5>
+                            <p class="mb-0">Essayez de modifier ou réinitialiser vos critères de recherche.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="card-footer clearfix">
+        <div class="float-left text-muted align-middle pt-1">
+            Affichage de la page <strong>{{ page_obj.number }}</strong> sur <strong>{{ paginator.num_pages }}</strong>
+        </div>
+        <nav aria-label="Pagination audit logs">
+            <ul class="pagination pagination-sm m-0 float-right">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" title="Première page">
+                        &laquo;&laquo;
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        &laquo; Précédent
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">&laquo;&laquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&laquo; Précédent</span></li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}">
+                        Suivant &raquo;
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if selected_model %}&model={{ selected_model }}{% endif %}{% if selected_user %}&user={{ selected_user }}{% endif %}{% if selected_action %}&action={{ selected_action }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" title="Dernière page">
+                        &raquo;&raquo;
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Suivant &raquo;</span></li>
+                <li class="page-item disabled"><span class="page-link">&raquo;&raquo;</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Sidebar filtre droite -->
+<div class="filter-sidebar-backdrop js-filter-backdrop"></div>
+<div class="filter-sidebar-panel js-filter-sidebar">
+    <div class="card card-info mb-0 h-100 border-0">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title"><i class="fas fa-filter mr-1"></i>Filtres de recherche</h3>
+            <button type="button" class="btn btn-tool js-filter-close" aria-label="Fermer"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <!-- Modèle -->
+                <div class="form-group">
+                    <label for="id_model" class="font-weight-bold">Modèle</label>
+                    <select name="model" id="id_model" class="form-control select2">
+                        <option value="">Tous les modèles</option>
+                        {% for ct in content_types %}
+                        <option value="{{ ct.id }}" {% if selected_model == ct.id %}selected{% endif %}>
+                            {{ ct.app_label|capfirst }} | {{ ct.model|capfirst }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Utilisateur -->
+                <div class="form-group">
+                    <label for="id_user" class="font-weight-bold">Utilisateur</label>
+                    <select name="user" id="id_user" class="form-control select2">
+                        <option value="">Tous les utilisateurs</option>
+                        {% for u in users %}
+                        <option value="{{ u.id }}" {% if selected_user == u.id %}selected{% endif %}>
+                            {% if u.get_full_name %}{{ u.get_full_name }} ({{ u.username }}){% else %}{{ u.username }}{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Type d'Action -->
+                <div class="form-group">
+                    <label for="id_action" class="font-weight-bold">Action</label>
+                    <select name="action" id="id_action" class="form-control">
+                        <option value="">Toutes les actions</option>
+                        {% for val, label in actions %}
+                        <option value="{{ val }}" {% if selected_action == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Date Début -->
+                <div class="form-group">
+                    <label for="id_date_from" class="font-weight-bold">Date Début</label>
+                    <input type="date" name="date_from" id="id_date_from" value="{{ date_from }}" class="form-control">
+                </div>
+
+                <!-- Date Fin -->
+                <div class="form-group">
+                    <label for="id_date_to" class="font-weight-bold">Date Fin</label>
+                    <input type="date" name="date_to" id="id_date_to" value="{{ date_to }}" class="form-control">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block mt-4">
+                    <i class="fas fa-search mr-1"></i>Appliquer les filtres
+                </button>
+                <a href="{% url 'audit_logs:audit_logs' %}" class="btn btn-secondary btn-block mt-2">
+                    <i class="fas fa-undo mr-1"></i>Réinitialiser
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if ($.fn.select2) {
+            $('.select2').select2({
+                theme: 'bootstrap4',
+                width: '100%',
+                placeholder: 'Sélectionner une option',
+                allowClear: true,
+                dropdownParent: $('.js-filter-sidebar')
+            });
+        }
+
+        var sidebar = document.querySelector('.js-filter-sidebar');
+        var backdrop = document.querySelector('.js-filter-backdrop');
+        var closeBtn = document.querySelector('.js-filter-close');
+        var toggleBtns = document.querySelectorAll('.js-filter-toggle');
+
+        function openSidebar() {
+            if (sidebar) sidebar.classList.add('open');
+            if (backdrop) backdrop.classList.add('open');
+        }
+
+        function closeSidebar() {
+            if (sidebar) sidebar.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('open');
+        }
+
+        if (sidebar) {
+            var fixedBtn = document.createElement('button');
+            fixedBtn.className = 'at-filter-btn-fixed';
+            fixedBtn.title = 'Filtres de recherche';
+            fixedBtn.innerHTML = '<i class="fas fa-filter"></i>';
+
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('model') || params.get('user') || params.get('action') || params.get('date_from') || params.get('date_to')) {
+                var badge = document.createElement('span');
+                badge.className = 'at-filter-badge';
+                fixedBtn.appendChild(badge);
+            }
+
+            fixedBtn.addEventListener('click', openSidebar);
+            document.body.appendChild(fixedBtn);
+        }
+
+        toggleBtns.forEach(function(btn) {
+            btn.addEventListener('click', openSidebar);
+        });
+
+        if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    });
+</script>
+{% endblock %}

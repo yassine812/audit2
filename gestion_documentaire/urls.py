@@ -10,18 +10,30 @@ from .views import (
     DocumentListView,
     DocumentUpdateView,
     DossierCreateView,
+    IndicateurCreateView,
+    ProcessusCreateView,
+    TdbDashboardView,
     approuver_document,
     archiver_document,
     exporter_document_pdf,
     fichier_version,
     modifier_dossier,
     renommer_fichier,
+    soumettre_verification,
     supprimer_dossier,
     supprimer_fichier,
+    tdb_export_excel,
+    tdb_indicateur_delete,
+    tdb_indicateur_update,
+    tdb_processus_delete,
+    tdb_processus_detail_json,
+    tdb_processus_update,
+    tdb_saisie_mesures,
+    tdb_saisie_mesures_indicateur,
+    tdb_supprimer_mesure,
     telecharger_fichier_bibliotheque,
     uploader_fichiers,
     visualiser_fichier_bibliotheque,
-    soumettre_verification,
 )
 
 app_name = "gestion_documentaire"
@@ -50,4 +62,30 @@ urlpatterns = [
     path("documents/<int:pk>/export-pdf/", exporter_document_pdf, name="exporter_document_pdf"),
     path("versions/<int:pk>/fichier/<str:nature>/", fichier_version, name="fichier_version"),
     path("dashboard/", DashboardQSEView.as_view(), name="dashboard_qse"),
+    # ============================================================
+    # MODULE TABLEAU DE BORD DES INDICATEURS SMQS
+    # ============================================================
+    path("tableau-de-bord/", TdbDashboardView.as_view(), name="tdb_dashboard"),
+    path("tableau-de-bord/export-excel/", tdb_export_excel, name="tdb_export_excel"),
+    path("tableau-de-bord/processus/nouveau/", ProcessusCreateView.as_view(), name="tdb_processus_create"),
+    path("tableau-de-bord/processus/<int:processus_id>/json/", tdb_processus_detail_json, name="tdb_processus_detail_json"),
+    path("tableau-de-bord/processus/<int:processus_id>/modifier/", tdb_processus_update, name="tdb_processus_update"),
+    path("tableau-de-bord/processus/<int:processus_id>/supprimer/", tdb_processus_delete, name="tdb_processus_delete"),
+    path("tableau-de-bord/indicateur/nouveau/", IndicateurCreateView.as_view(), name="indicateur_create"),
+    path("tableau-de-bord/indicateur/<int:indicateur_id>/modifier/", tdb_indicateur_update, name="tdb_indicateur_update"),
+    path("tableau-de-bord/indicateur/<int:indicateur_id>/supprimer/", tdb_indicateur_delete, name="tdb_indicateur_delete"),
+    path("tableau-de-bord/indicateur/<int:indicateur_id>/saisie/<int:annee>/", tdb_saisie_mesures_indicateur, name="tdb_saisie_mesures_indicateur"),
+    path("tableau-de-bord/processus/<int:processus_id>/", TdbDashboardView.as_view(), name="tdb_dashboard_processus"),
+    path(
+        "tableau-de-bord/processus/<int:processus_id>/saisie/<int:annee>/<int:mois>/",
+        tdb_saisie_mesures,
+        name="tdb_saisie_mesures",
+    ),
+    path(
+        "tableau-de-bord/processus/<int:processus_id>/mesure/<int:mesure_id>/supprimer/",
+        tdb_supprimer_mesure,
+        name="tdb_supprimer_mesure",
+    ),
 ]
+
+

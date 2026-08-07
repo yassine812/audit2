@@ -351,3 +351,73 @@ class VersionDocumentForm(forms.ModelForm):
         if reference and not reference.name.lower().endswith(".pdf"):
             self.add_error("fichier_reference", "Le fichier de référence doit être au format PDF.")
         return cleaned_data
+#
+
+from .models import Processus, Indicateur
+
+class ProcessusForm(forms.ModelForm):
+    """Formulaire de création/modification d'un processus SMQS."""
+
+    class Meta:
+        model = Processus
+        fields = ["code", "nom", "description", "societe", "RO", "RS", "CE", "is_active"]
+        widgets = {
+            "code": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex : CE (auto si vide)"}),
+            "nom": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nom du processus"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Description (optionnelle)"}),
+            "societe": forms.Select(attrs={"class": "form-control"}),
+            "RO": forms.SelectMultiple(attrs={"class": "form-control", "size": "5"}),
+            "RS": forms.SelectMultiple(attrs={"class": "form-control", "size": "5"}),
+            "CE": forms.SelectMultiple(attrs={"class": "form-control", "size": "5"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+        labels = {
+            "code": "Code processus",
+            "nom": "Nom du processus",
+            "description": "Description",
+            "societe": "Société",
+            "RO": "Responsables Opérationnels (RO)",
+            "RS": "Responsables Système (RS)",
+            "CE": "Correspondants Établissement (CE)",
+            "is_active": "Processus actif",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["code"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        code = cleaned_data.get("code")
+        nom = cleaned_data.get("nom")
+        if not code and nom:
+            from .views import generer_code_processus_depuis_nom
+            generated = generer_code_processus_depuis_nom(nom)
+            cleaned_data["code"] = generated
+            self.cleaned_data["code"] = generated
+            if "code" in self._errors:
+                del self._errors["code"]
+        return cleaned_data
+
+
+
+class IndicateurForm(forms.ModelForm):
+    """Formulaire de création/modification d'un indicateur SMQS."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["code"].required = False
+
+    class Meta:
+        model = Indicateur
+        fields = ["processus", "code", "nom", "periodicite", "mode_agregation", "is_active"]
+        widgets = {
+            "processus": forms.Select(attrs={"class": "form-control"}),
+            "code": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex : IND-01 (auto si vide)"}),
+            "nom": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nom de l'indicateur"}),
+            "periodicite": forms.Select(attrs={"class": "form-control"}),
+            "mode_agregation": forms.Select(attrs={"class": "form-control"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+

@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "accident_travail",
     "achats",
     "gestion_documentaire",
+    "audit_logs",
     # ── Gestion des Congés ───────────────────────────────────────────────────
     "conge",
     # ── Prospection commerciale ──────────────────────────────────────────────
@@ -59,6 +60,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "audit_logs.middleware.CurrentUserMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "prospection.middleware.RedirectBackMiddleware",
@@ -173,8 +175,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:19006",
     "http://localhost:8000",
 ]
-CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:8000").split(",")
-
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:8000,https://*.trycloudflare.com"
+).split(",")
 # ─── Session ─────────────────────────────────────────────────────────────────
 SESSION_COOKIE_AGE = 2592000  # 30 jours
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False

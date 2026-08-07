@@ -28,6 +28,8 @@ urlpatterns = [
     path("administration/", include(("accounts.urls", "administration"), namespace="administration")),
     # ── Prospection Commerciale ──────────────────────────────────────────────
     path("prospection/", include(("prospection.urls", "prospection"), namespace="prospection")),
+    # ── Logs d'Audit Centralisés ─────────────────────────────────────────────
+    path("audit-logs/", include(("audit_logs.urls", "audit_logs"), namespace="audit_logs")),
     # Service Worker Firebase (doit être servi depuis la racine)
     path("firebase-messaging-sw.js", serve, {"path": "js/firebase-messaging-sw.js"}),
 ]
@@ -35,3 +37,4 @@ urlpatterns = [
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+

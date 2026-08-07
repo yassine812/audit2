@@ -57,4 +57,6 @@ urlpatterns = [
     # ── Arbre des causes ──────────────────────────────────────────────────────
     path("<int:pk>/arbre-causes/", at_roles_required(views.arbre_causes_view), name="at_arbre_causes"),
     path("<int:pk>/arbre-causes/api/", at_roles_required(views.arbre_causes_api), name="at_arbre_causes_api"),
-] 
+]
+
+ 

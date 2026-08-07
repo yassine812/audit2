@@ -1412,3 +1412,5 @@ def arbre_causes_api(request, pk):
             return JsonResponse({"status": "error", "message": str(e)}, status=400)
     
     return JsonResponse({"status": "error", "message": "Méthode non autorisée"}, status=405)
+
+

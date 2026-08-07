@@ -672,3 +672,237 @@ class ValidationDocument(models.Model):
 
     def __str__(self) -> str:
         return f"{self.document.code_documentaire} - {self.get_type_action_display()} ({self.date_action:%Y-%m-%d %H:%M})"
+
+
+# ============================================================
+# MODULE TABLEAU DE BORD SMQS
+# Modèles pour la gestion des processus et indicateurs
+# ============================================================
+
+
+def validate_formats_chart(value):
+    if not isinstance(value, list):
+        raise ValidationError(
+            "Formats de graphiques invalides : la valeur doit être une liste."
+        )
+
+    allowed = {
+        "bar",
+        "line",
+        "pie",
+        "doughnut",
+        "radar",
+    }
+
+    seen = set()
+
+    for item in value:
+        if not isinstance(item, str):
+            raise ValidationError(
+                f"Élément invalide dans formats_chart_disponibles : "
+                f"'{item}' n'est pas une chaîne."
+            )
+
+        if item in seen:
+            raise ValidationError(
+                f"Format de graphique dupliqué : '{item}'."
+            )
+
+        seen.add(item)
+
+        if item not in allowed:
+            raise ValidationError(
+                f"Format de graphique non autorisé : '{item}'. "
+                f"Formats autorisés : "
+                f"{', '.join(sorted(allowed))}."
+            )
+
+
+class Processus(models.Model):
+    societe = models.ForeignKey(
+        "accounts.Societe",
+        on_delete=models.PROTECT,
+        related_name="processus",
+        verbose_name="Société",
+        null=True,
+        blank=True,
+    )
+    code = models.CharField(max_length=20, unique=True, verbose_name="Code")
+    nom = models.CharField(max_length=180, verbose_name="Nom du processus")
+    description = models.TextField(blank=True, verbose_name="Description")
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    # Affectations: RO / RS / CE (utilisateurs autorisés pour ce processus)
+    RO = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="processus_RO",
+        verbose_name="RO affectés",
+    )
+    RS = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="processus_RS",
+        verbose_name="RS affectés",
+    )
+    CE = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="processus_CE",
+        verbose_name="CE affectés",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Processus"
+        verbose_name_plural = "Processus"
+        ordering = ["code"]
+
+    def __str__(self) -> str:
+        return f"{self.code} – {self.nom}"
+
+
+class Indicateur(models.Model):
+    class Periodicite(models.TextChoices):
+        MENSUEL = "mensuel", "Mensuel"
+        TRIMESTRIEL = "trimestriel", "Trimestriel"
+        SEMESTRIEL = "semestriel", "Semestriel"
+        ANNUEL = "annuel", "Annuel"
+
+    class ModeAgregation(models.TextChoices):
+        SOMME = "somme", "Somme"
+        MOYENNE = "moyenne", "Moyenne"
+        MINIMUM = "minimum", "Minimum"
+        MAXIMUM = "maximum", "Maximum"
+        NOMBRE = "nombre", "Nombre"
+        DERNIERE_VALEUR = "derniere_valeur", "Dernière valeur"
+
+    processus = models.ForeignKey(
+        Processus,
+        on_delete=models.CASCADE,
+        related_name="indicateurs",
+        verbose_name="Processus",
+    )
+    code = models.CharField(max_length=30, verbose_name="Code")
+    nom = models.CharField(max_length=255, verbose_name="Nom de l’indicateur")
+    periodicite = models.CharField(
+        max_length=30,
+        choices=Periodicite.choices,
+        default=Periodicite.MENSUEL,
+        verbose_name="Périodicité",
+    )
+    mode_agregation = models.CharField(
+        max_length=30,
+        choices=ModeAgregation.choices,
+        default=ModeAgregation.SOMME,
+        verbose_name="Mode d’agrégation",
+    )
+    formats_chart_disponibles = models.JSONField(
+        default=list,
+        blank=True,
+        validators=[validate_formats_chart],
+        verbose_name="Formats de graphiques disponibles",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Actif")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Indicateur"
+        verbose_name_plural = "Indicateurs"
+        ordering = ["processus__code", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["processus", "code"],
+                name="unique_code_indicateur_par_processus",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.code} – {self.nom}"
+
+
+class ObjectifIndicateur(models.Model):
+    indicateur = models.ForeignKey(
+        Indicateur,
+        on_delete=models.CASCADE,
+        related_name="objectifs",
+        verbose_name="Indicateur",
+    )
+    annee = models.PositiveIntegerField(verbose_name="Année")
+    valeur_objectif = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        verbose_name="Valeur de l’objectif",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Objectif d’indicateur"
+        verbose_name_plural = "Objectifs d’indicateurs"
+        ordering = ["-annee", "indicateur__code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["indicateur", "annee"],
+                name="unique_objectif_par_indicateur_annee",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.indicateur} - {self.annee} : {self.valeur_objectif}"
+
+
+class MesureIndicateur(models.Model):
+    indicateur = models.ForeignKey(
+        Indicateur,
+        on_delete=models.CASCADE,
+        related_name="mesures",
+        verbose_name="Indicateur",
+    )
+    annee = models.PositiveIntegerField(verbose_name="Année")
+    mois = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Mois",
+    )
+    valeur = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        verbose_name="Valeur mesurée",
+    )
+    saisie_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="mesures_saisies",
+        verbose_name="Saisie par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Mesure d’indicateur"
+        verbose_name_plural = "Mesures d’indicateurs"
+        ordering = ["indicateur__code", "-annee", "-mois"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["indicateur", "annee", "mois"],
+                condition=Q(mois__isnull=False),
+                name="unique_mesure_mensuelle_indicateur",
+            ),
+            models.UniqueConstraint(
+                fields=["indicateur", "annee"],
+                condition=Q(mois__isnull=True),
+                name="unique_mesure_annuelle_indicateur",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        if self.mois is not None:
+            return f"{self.indicateur} - {self.mois}/{self.annee} : {self.valeur}"
+        return f"{self.indicateur} - {self.annee} : {self.valeur}"
+
+
+

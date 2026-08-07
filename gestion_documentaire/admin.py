@@ -8,6 +8,10 @@ from .models import (
     Document,
     DossierDocumentaire,
     FichierBibliotheque,
+    Indicateur,
+    MesureIndicateur,
+    ObjectifIndicateur,
+    Processus,
     ProcessusService,
     ValidationDocument,
     VersionDocument,
@@ -164,3 +168,40 @@ class ValidationDocumentAdmin(admin.ModelAdmin):
         "donnees_action",
         "date_action",
     )
+
+
+# ============================================================
+# MODULE TABLEAU DE BORD SMQS
+# Administration des modèles du Tableau de Bord
+# ============================================================
+
+
+@admin.register(Processus)
+class ProcessusAdmin(admin.ModelAdmin):
+    list_display = ("code", "nom", "societe", "is_active")
+    list_filter = ("societe", "is_active")
+    search_fields = ("code", "nom")
+    filter_horizontal = ("RO", "RS", "CE")
+
+
+@admin.register(Indicateur)
+class IndicateurAdmin(admin.ModelAdmin):
+    list_display = ("code", "nom", "processus", "periodicite", "mode_agregation", "is_active")
+    list_filter = ("processus", "periodicite", "is_active")
+    search_fields = ("code", "nom")
+
+
+@admin.register(ObjectifIndicateur)
+class ObjectifIndicateurAdmin(admin.ModelAdmin):
+    list_display = ("indicateur", "annee", "valeur_objectif")
+    list_filter = ("annee",)
+
+
+@admin.register(MesureIndicateur)
+class MesureIndicateurAdmin(admin.ModelAdmin):
+    list_display = ("indicateur", "annee", "mois", "valeur", "saisie_par")
+    list_filter = ("annee", "mois")
+    search_fields = ("indicateur__code", "indicateur__nom")
+
+
+

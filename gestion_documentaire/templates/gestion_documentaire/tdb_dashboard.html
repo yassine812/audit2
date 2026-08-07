@@ -1,0 +1,3822 @@
+{% extends "gestion_documentaire/base_gestion_documentaire.html" %}
+
+{% block title %}Tableau de Bord SMQS — {{ processus.code }}{% endblock %}
+
+{% block extra_css %}
+{{ block.super }}
+<style>
+  /* Dashboard styling */
+  .tdb-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    transition: all 0.2s ease;
+  }
+
+  .tdb-card:hover {
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    background-color: #ffffff !important;
+    z-index: 2;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  }
+
+  .highlight-pulse {
+    animation: pulseHighlight 2s ease-in-out 2;
+  }
+
+  @keyframes pulseHighlight {
+    0% {
+      background-color: #ffffff;
+    }
+
+    50% {
+      background-color: #e0f2fe;
+      border-color: #0284c7;
+    }
+
+    100% {
+      background-color: #ffffff;
+    }}
+
+  .chart-container-sm {
+    position: relative;
+    height: 220px;
+  }
+
+  .chart-container-md {
+    position: relative;
+    height: 300px;
+  }
+
+  .indicator-chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    min-height: 300px;
+  }
+
+  .indicator-chart-wrapper canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  /* Onglet 3 : tableau comparatif desktop / cartes mobile */
+  .objectives-desktop-view {
+    display: none;
+  }
+
+  .objectives-mobile-view {
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    .objectives-desktop-view {
+      display: block;
+    }
+
+    .objectives-mobile-view {
+      display: none;
+    }
+  }
+
+  /* Redesigned Horizontal Tab Navigation */
+  .tdb-tabs {
+    border-bottom: 2px solid #e2e8f0;
+    gap: 0.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .tdb-tabs .nav-link {
+    color: #64748b;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    background: transparent;
+    border-radius: 0.375rem 0.375rem 0 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .tdb-tabs .nav-link:hover {
+    color: #1e293b;
+    background: #f8fafc;
+    border-bottom-color: #cbd5e1;
+  }
+
+  .tdb-tabs .nav-link.active {
+    color: #2563eb;
+    font-weight: 700;
+    border-bottom: 3px solid #2563eb;
+    background: #ffffff;
+  }
+
+  /* Fixed Dark Filter Sidebar Drawer (Reference Screenshot Design) */
+  .tdb-filter-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.5) !important;
+    z-index: 100500 !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+  }
+
+  .tdb-filter-backdrop.active {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .tdb-filter-drawer {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: 340px !important;
+    max-width: 90vw !important;
+    height: 100vh !important;
+    background: #2d3436 !important;
+    /* Dark Slate Charcoal background */
+    color: #ffffff !important;
+    z-index: 100501 !important;
+    box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    transform: translateX(100%) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    overflow-y: auto !important;
+    padding: 1.25rem !important;
+    visibility: hidden;
+  }
+
+  .tdb-filter-drawer.active {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+  }
+
+  .tdb-filter-drawer__header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+  }
+
+  .tdb-filter-close {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 4px !important;
+    width: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.1rem !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+    margin-bottom: 1rem !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+    transition: background 0.15s ease !important;
+  }
+
+  .tdb-filter-close:hover {
+    background: #e2e8f0 !important;
+  }
+
+  .tdb-filter-drawer__body label {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 0.4rem !important;
+    display: block;
+  }
+
+  .tdb-filter-drawer__body .form-control,
+  .tdb-filter-drawer__body .form-select {
+    background-color: #ffffff !important;
+    color: #212529 !important;
+    border: 1px solid #ced4da !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem !important;
+    padding: 0.45rem 0.75rem !important;
+  }
+
+  /* Floating Filter Button on Right Edge */
+  .btn-floating-filter {
+    position: fixed !important;
+    top: 50% !important;
+    right: 0 !important;
+    transform: translateY(-50%) !important;
+    z-index: 100400 !important;
+    border-radius: 8px 0 0 8px !important;
+    padding: 0.75rem 1.1rem !important;
+    background-color: #007bff !important;
+    color: #ffffff !important;
+    box-shadow: -3px 0 14px rgba(0, 123, 255, 0.45) !important;
+    border: none !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .btn-floating-filter:hover {
+    background-color: #0056b3 !important;
+    padding-right: 1.35rem !important;
+    box-shadow: -5px 0 18px rgba(0, 123, 255, 0.6) !important;
+  }
+
+  @media (max-width: 576px) {
+    .tdb-filter-drawer {
+      width: 100vw !important;
+      max-width: 100vw !important;
+    }}
+  .print-only {
+    display: none !important;
+  }
+
+  /* Print Styling (Optimisé A4 SMQS - 4 Parties Séparées, Mois Compacts & Graphiques Intacts) */
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+
+    .screen-only {
+      display: none !important;
+    }
+
+    .print-only {
+      display: inline !important;
+    }
+
+    th.month-column,
+    td.month-column {
+      white-space: nowrap !important;
+      text-align: center !important;
+      padding: 2px 2px !important;
+    }
+
+    /* 1. Éléments masqués à l'impression */
+    .no-print,
+    header,
+    nav,
+    .btn,
+    form,
+    select,
+    .gd-toolbar,
+    .main-sidebar,
+    .main-header,
+    .breadcrumb,
+    .tdb-filter-drawer,
+    .tdb-filter-backdrop,
+    .btn-floating-filter,
+    .tdb-tabs,
+    .nav-tabs,
+    .modal,
+    .modal-backdrop,
+    .tdb-process-actions,
+    .tdb-row-actions,
+    .objectives-mobile-view,
+    .js-chart-type-selector,
+    .chart-type-select {
+      display: none !important;
+    }
+
+    /* 2. Affichage desktop de la synthèse d'objectifs */
+    .objectives-desktop-view {
+      display: block !important;
+      width: 100% !important;
+    }
+
+    /* 3. Re-définir tous les conteneurs parents en bloc 100% de large sans hauteur fixe ni zoom */
+    html,
+    body,
+    main,
+    .content-wrapper,
+    .gd-shell,
+    .tdb-page,
+    .dashboard,
+    .dashboard-container,
+    .dashboard-content,
+    .container-fluid,
+    .section,
+    .tab-content,
+    #tdbTabsContent > .tab-pane,
+    .tab-pane,
+    .dashboard-section,
+    .indicators-section,
+    .charts-section,
+    .objectives-section,
+    .audit-section,
+    .tdb-card,
+    .card,
+    .table-responsive {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      position: static !important;
+      float: none !important;
+      transform: none !important;
+      zoom: 1 !important;
+      flex: none !important;
+      flex-grow: 0 !important;
+      box-shadow: none !important;
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    .tdb-page {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
+    /* Séparation stricte des 4 grandes parties du PDF : chaque partie commence sur une nouvelle page */
+    .print-part {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 100% !important;
+      margin-bottom: 1.5rem !important;
+      clear: both !important;
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    .print-part:not(:last-child) {
+      break-after: page !important;
+      page-break-after: always !important;
+    }
+
+    /* Titres des 4 grandes sections : Centrés horizontalement */
+    .print-section-title {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
+      gap: 6px !important;
+      width: 100% !important;
+      font-size: 1.25rem !important;
+      font-weight: 700 !important;
+      color: #0f172a !important;
+      border-bottom: 2px solid #2563eb !important;
+      padding-bottom: 0.4rem !important;
+      margin: 0 0 14px 0 !important;
+      clear: both !important;
+    }
+
+    /* Convertir les lignes et colonnes de la grille Bootstrap en blocs 100% de large */
+    .row {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      clear: both !important;
+      position: static !important;
+    }
+
+    .col,
+    .col-12,
+    .col-sm-6,
+    .col-md-3,
+    .col-md-6,
+    .col-lg-4,
+    .col-lg-5,
+    .col-lg-6,
+    .col-lg-7,
+    .col-lg-8,
+    .col-xl-3,
+    [class*="col-"] {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+      float: none !important;
+      clear: both !important;
+      margin-bottom: 0.75rem !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+      position: static !important;
+    }
+
+    /* Grille d'impression horizontale 4-colonnes pour les cartes KPI de synthèse */
+    .summary-cards-container {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 8px !important;
+      width: 100% !important;
+      align-items: stretch !important;
+      margin-bottom: 1rem !important;
+    }
+
+    .summary-cards-container > [class*="col-"] {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 1 1 auto !important;
+      margin-bottom: 0 !important;
+      padding: 0 !important;
+    }
+
+    .summary-card {
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 85px !important;
+      min-height: 85px !important;
+      margin: 0 !important;
+      padding: 8px 10px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      box-sizing: border-box !important;
+      border: 1px solid #e2e8f0 !important;
+      background: #ffffff !important;
+    }
+
+    .summary-card .small {
+      font-size: 0.65rem !important;
+      line-height: 1.1 !important;
+    }
+
+    .summary-card .h3 {
+      font-size: 1.5rem !important;
+      line-height: 1.2 !important;
+    }
+
+    /* 4. Protéger UNIQUEMENT les composants atomiques individuels */
+    .indicator-card-item,
+    .kpi-card,
+    .indicator-card-compact,
+    .chart-card {
+      display: block !important;
+      width: 100% !important;
+      position: static !important;
+      float: none !important;
+      transform: none !important;
+      clear: both !important;
+      margin-bottom: 0.75rem !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      border: 1px solid #e2e8f0 !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+
+    /* Grille d'impression horizontale 4-colonnes pour les cartes d'Audit */
+    .audit-cards-container {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 8px !important;
+      width: 100% !important;
+      align-items: stretch !important;
+      margin-bottom: 1rem !important;
+    }
+
+    .audit-cards-container > [class*="col-"] {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 1 1 auto !important;
+      margin-bottom: 0 !important;
+      padding: 0 !important;
+    }
+
+    .audit-summary-card {
+      display: flex !important;
+      width: 100% !important;
+      min-width: 0 !important;
+      height: 85px !important;
+      min-height: 85px !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 1px solid #e2e8f0 !important;
+      background: #ffffff !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      box-sizing: border-box !important;
+    }
+
+    .audit-summary-card .card-body {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      flex-direction: row !important;
+      padding: 8px 10px !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .audit-summary-card .summary-icon {
+      position: static !important;
+      inset: auto !important;
+      transform: none !important;
+      margin: 0 !important;
+      flex-shrink: 0 !important;
+      width: 36px !important;
+      height: 36px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    /* Unité d'impression indivisible : 2 cartes indicateurs + graphiques par page A4 */
+    .indicator-print-block,
+    [id^="indicator-card-"] {
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      margin: 0 0 10px 0 !important;
+      padding: 0 !important;
+      position: static !important;
+      transform: none !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      break-after: auto !important;
+      page-break-after: auto !important;
+    }
+
+    .indicator-print-block .tdb-card,
+    .indicator-print-block .indicator-card {
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+      padding: 8px 10px !important;
+      border: 1px solid #e2e8f0 !important;
+      background: #ffffff !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .indicator-print-block .row.text-center {
+      margin-top: 4px !important;
+      margin-bottom: 4px !important;
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+    }
+
+    .indicator-print-block .indicator-chart-wrapper {
+      display: block !important;
+      width: 100% !important;
+      height: 200px !important;
+      min-height: 200px !important;
+      max-height: 200px !important;
+      margin: 4px 0 6px 0 !important;
+      position: relative !important;
+      overflow: hidden !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .indicator-print-block canvas,
+    .indicator-print-block .print-chart-image {
+      width: 100% !important;
+      height: 100% !important;
+      max-width: 100% !important;
+      max-height: 195px !important;
+      object-fit: contain !important;
+    }
+
+    /* 5. Hauteur et protection absolue contre la coupure des graphiques */
+    .chart-card,
+    .chart-wrapper,
+    .graph-container,
+    .chart-container-md,
+    .indicator-chart-wrapper {
+      display: block !important;
+      width: 100% !important;
+      height: 240px !important;
+      max-height: 240px !important;
+      overflow: hidden !important;
+      margin-bottom: 12px !important;
+      position: relative !important;
+      clear: both !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .tdb-card::after,
+    .card::after,
+    .chart-container-md::after,
+    .indicator-chart-wrapper::after {
+      content: "" !important;
+      display: block !important;
+      clear: both !important;
+    }
+
+    canvas.chart-has-print-image {
+      display: none !important;
+    }
+
+    canvas,
+    .print-chart-image {
+      position: static !important;
+      float: none !important;
+      transform: none !important;
+    }
+
+    .print-chart-image {
+      display: block !important;
+      max-width: 100% !important;
+      max-height: 220px !important;
+      height: auto !important;
+      margin: 0 auto !important;
+      object-fit: contain !important;
+    }
+
+    /* Graphiques circulaires (Doughnut / Pie) : Maintien strict du ratio circulaire */
+    .doughnut-chart-container,
+    .pie-chart-container {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      height: 240px !important;
+      max-height: 240px !important;
+      margin: 0 auto 12px auto !important;
+      position: relative !important;
+      clear: both !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    .print-chart-image-pie {
+      max-width: 280px !important;
+      max-height: 210px !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain !important;
+      margin: 0 auto !important;
+      display: block !important;
+    }
+
+    /* 6. Tableau SMQS : Largeur 100% intégrale de la page A4, lisibilité optimale */
+    .table-responsive {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 100% !important;
+      overflow: visible !important;
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    table,
+    #synthese-table,
+    #objectives-comparative-table {
+      display: table !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 100% !important;
+      table-layout: auto !important;
+      border-collapse: collapse !important;
+      margin-bottom: 0.5rem !important;
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    tbody {
+      display: table-row-group !important;
+      width: 100% !important;
+      break-inside: auto !important;
+      page-break-inside: auto !important;
+    }
+
+    thead {
+      display: table-header-group !important;
+    }
+
+    tfoot {
+      display: table-footer-group !important;
+    }
+
+    tr {
+      display: table-row !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+
+    td,
+    th {
+      display: table-cell !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      padding: 3px 3px !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+      word-break: break-word !important;
+      font-size: 7.5pt !important;
+    }
+
+    #synthese-table th:first-child,
+    #synthese-table td:first-child {
+      min-width: 125px !important;
+      width: 22% !important;
+    }
+
+    tr.synthese-group-row {
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+
+    /* 7. Protection des couleurs et bordures */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+
+    .badge {
+      border: 1px solid rgba(0, 0, 0, 0.15) !important;
+      padding: 0.2rem 0.4rem !important;
+    }
+  }  /* ── Responsive ── */
+
+  /* Mobile: tabs scroll horizontally */
+  @media (max-width: 767px) {
+    .tdb-tabs {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      gap: 0;
+      margin-bottom: 1rem;
+    }
+
+    .tdb-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tdb-tabs .nav-item {
+      flex-shrink: 0;
+    }
+
+    .tdb-tabs .nav-link {
+      font-size: 0.78rem;
+      padding: 0.55rem 0.75rem;
+      white-space: nowrap;
+    }
+
+    .tdb-tabs .nav-link i {
+      margin-right: 0.3rem;
+    }}
+
+  /* Mobile: hide icon label text in tabs on very small screens */
+  @media (max-width: 420px) {
+    .tdb-tabs .nav-link .tab-label {
+      display: none;
+    }
+
+    .tdb-tabs .nav-link i {
+      font-size: 1rem;
+      margin-right: 0;
+    }
+
+    .tdb-tabs .nav-link {
+      padding: 0.55rem 0.9rem;
+    }}
+
+  /* Mobile: page title scales down */
+  @media (max-width: 767px) {
+    .tdb-page-title {
+      font-size: 1.15rem !important;
+    }
+
+    .container-fluid.py-3 {
+      padding-top: 0.75rem !important;
+      padding-bottom: 0.75rem !important;
+    }}
+
+  /* Mobile: disable sticky first column (causes layout issues on narrow screens) */
+  @media (max-width: 575px) {
+    .sticky-col {
+      position: static !important;
+      box-shadow: none !important;
+    }}
+
+  /* Mobile: KPI cards smaller padding */
+  @media (max-width: 575px) {
+    .kpi-card {
+      padding: 0.6rem 0.5rem !important;
+    }
+
+    .kpi-card .h3 {
+      font-size: 1.4rem !important;
+    }
+
+    .kpi-card .small {
+      font-size: 0.65rem !important;
+    }}
+
+  /* Mobile: filter button — hide text label, keep icon */
+  @media (max-width: 575px) {
+    .btn-floating-filter .filter-btn-label {
+      display: none;
+    }
+
+    .btn-floating-filter i {
+      margin-right: 0 !important;
+    }
+
+    .btn-floating-filter {
+      padding: 0.75rem 0.85rem !important;
+    }}
+
+  /* Mobile: header action buttons stack */
+  @media (max-width: 575px) {
+    .tdb-header-actions {
+      width: 100%;
+      justify-content: flex-start !important;
+    }
+
+    .tdb-header-actions .btn {
+      flex: 1 1 auto;
+      text-align: center;
+      font-size: 0.78rem;
+    }}
+
+  /* Tablet & Mobile: compact layout without forcing horizontal overflow */
+  @media (max-width: 991px) {
+
+    #synthese-table th,
+    #synthese-table td {
+      padding: 0.25rem 0.15rem !important;
+    }}
+
+  /* Mobile: graph cards full width */
+  @media (max-width: 767px) {
+    .chart-container-md {
+      height: 220px;
+    }}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Bouton Flottant Filtres au Milieu du Bord Droit (Right-Middle Floating Button) -->
+<button type="button" class="btn-floating-filter no-print" id="btnOpenTdbFilterDrawer" aria-controls="tdbFilterDrawer"
+  aria-expanded="false" onclick="openTdbFilterDrawer()" title="Ouvrir les filtres">
+  <i class="fas fa-filter me-2"></i>
+  <span class="filter-btn-label">Filtres</span>
+</button>
+
+<div class="tdb-page container-fluid py-3">
+  <!-- En-tête Global du Tableau de Bord SMQS -->
+  <div
+    class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 pb-3 border-bottom no-print gap-3">
+    <div>
+      <div class="d-flex align-items-center mb-1 flex-wrap" style="gap: 0.75rem;">
+        <h1 class="h2 font-weight-bold text-dark m-0 tdb-page-title"><i
+            class="fas fa-chart-bar text-primary me-2"></i>Tableau de bord des indicateurs SMQS</h1>
+      </div>
+
+    </div>
+    <div class="tdb-header-actions">
+      {% if user.is_superuser %}
+      <button type="button" class="btn tdb-header-btn tdb-header-btn--create js-open-process-modal" data-toggle="modal"
+        data-bs-toggle="modal" data-target="#processusCreateModal" data-bs-target="#processusCreateModal"
+        title="Créer un nouveau processus">
+        <i class="fas fa-plus" aria-hidden="true"></i>
+        <span>Nouveau processus</span>
+      </button>
+      {% endif %}
+
+      <button type="button" class="btn tdb-header-btn tdb-header-btn--print" onclick="printDashboard()">
+        <i class="fas fa-print" aria-hidden="true"></i>
+        <span>Imprimer</span>
+      </button>
+
+      <button type="button" class="btn tdb-header-btn tdb-header-btn--excel ms-2" id="exportExcelBtn" title="Exporter le tableau de bord au format Excel (.xlsx)">
+        <i class="fas fa-file-excel text-success me-1" aria-hidden="true"></i>
+        <span>Exporter Excel</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Barre d'Onglets Horizontaux (Directement sous l'en-tête) -->
+  <ul class="nav nav-tabs tdb-tabs no-print" id="tdbTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'synthese' %}active{% endif %}" id="tab-synthese-btn"
+        data-toggle="tab" data-target="#tab-synthese" data-bs-toggle="tab" data-bs-target="#tab-synthese" type="button"
+        role="tab" onclick="switchTab('synthese')">
+        <i class="fas fa-table me-1"></i><span class="tab-label">Synthèse des indicateurs</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'graphiques' %}active{% endif %}" id="tab-graphiques-btn"
+        data-toggle="tab" data-target="#tab-graphiques" data-bs-toggle="tab" data-bs-target="#tab-graphiques"
+        type="button" role="tab" onclick="switchTab('graphiques')">
+        <i class="fas fa-chart-line me-1"></i><span class="tab-label">Vue graphique</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'objectifs' %}active{% endif %}" id="tab-objectifs-btn"
+        data-toggle="tab" data-target="#tab-objectifs" data-bs-toggle="tab" data-bs-target="#tab-objectifs"
+        type="button" role="tab" onclick="switchTab('objectifs')">
+        <i class="fas fa-bullseye me-1"></i><span class="tab-label">Objectifs annuels</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link {% if active_tab == 'audits' %}active{% endif %}" id="tab-audits-btn" data-toggle="tab"
+        data-target="#tab-audits" data-bs-toggle="tab" data-bs-target="#tab-audits" type="button" role="tab"
+        onclick="switchTab('audits')">
+        <i class="fas fa-clipboard-check me-1"></i><span class="tab-label">Audits et conformité</span>
+      </button>
+    </li>
+  </ul>
+
+  <!-- Contenu des 4 Onglets -->
+  <div class="tab-content" id="tdbTabsContent">
+
+    <!-- ============================================================ -->
+    <!-- ONGLET 1 : SYNTHÈSE DES INDICATEURS -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade {% if active_tab == 'synthese' %}show active{% endif %} print-part print-part-1" id="tab-synthese"
+      role="tabpanel">
+      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-list-alt me-2"></i>Synthèse des indicateurs</h4>
+      <!-- Cartes KPI Globale -->
+      <div class="row g-3 mb-4 summary-cards-container">
+        <div class="col-6 col-md-3">
+          <div class="p-3 bg-white border rounded text-center shadow-sm kpi-card summary-card">
+            <div class="text-uppercase text-muted font-weight-bold small">Indicateurs Totaux</div>
+            <div class="h3 font-weight-bold text-dark m-0">{{ kpi_stats.total_indicateurs }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 bg-white border rounded text-center shadow-sm kpi-card summary-card">
+            <div class="text-uppercase text-muted font-weight-bold small">Objectifs Atteints</div>
+            <div class="h3 font-weight-bold text-success m-0">{{ kpi_stats.objectifs_atteints }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 bg-white border rounded text-center shadow-sm kpi-card summary-card">
+            <div class="text-uppercase text-muted font-weight-bold small">À Surveiller</div>
+            <div class="h3 font-weight-bold text-warning m-0">{{ kpi_stats.a_surveiller }}</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="p-3 bg-white border rounded text-center shadow-sm kpi-card summary-card">
+            <div class="text-uppercase text-muted font-weight-bold small">Non Conformes</div>
+            <div class="h3 font-weight-bold text-danger m-0">{{ kpi_stats.non_conformes }}</div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Tableau consolidé processus-first (style référence Excel) -->
+      {% if processus_groups %}
+      <div class="card border-0 shadow-sm mb-4">
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle mb-0 text-xs" id="synthese-table"
+            style="width: 100%; table-layout: auto;">
+            <thead class="text-center" style="background: #f8f9fa; color: #343a40;">
+              <tr>
+                <th class="text-start sticky-col"
+                  style="width: 18%; min-width: 120px; background: #f8f9fa; color: #343a40;">Code &amp; Indicateur</th>
+                <th style="width: 5.5%; min-width: 50px;">Fréq.</th>
+                <th style="width: 5%; min-width: 45px;">Obj.</th>
+                <th style="width: 6.5%; min-width: 55px;">Cumul / Moy.</th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Jan</span><span class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Fév</span><span class="print-only">F</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mar</span><span class="print-only">M</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Avr</span><span class="print-only">A</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mai</span><span class="print-only">M</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juin</span><span class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juil</span><span class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Août</span><span class="print-only">A</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Sept</span><span class="print-only">S</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Oct</span><span class="print-only">O</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Nov</span><span class="print-only">N</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Déc</span><span class="print-only">D</span></th>
+                <th style="width: 4%; min-width: 35px;">Ann.</th>
+                <th style="width: 7.5%; min-width: 55px;">Statut</th>
+                <th class="no-print" style="width: 8.5%; min-width: 105px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for group in processus_groups %}
+              {# ── Ligne de groupe : Processus ── #}
+              <tr class="synthese-group-row"
+                style="background: #e9ecef; color: #212529; cursor: pointer; border-top: 2px solid #dee2e6;"
+                data-group-id="{{ group.processus.pk }}" onclick="toggleGroup({{ group.processus.pk }})">
+                <td colspan="19" class="font-weight-bold py-1.5 px-2"
+                  style="font-size: 0.85rem; letter-spacing: 0.02em;">
+                  <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                      <i class="fas fa-chevron-down me-1 toggle-icon" id="icon-{{ group.processus.pk }}"
+                        style="font-size: 0.68rem; transition: transform 0.2s; color: #6c757d;"></i>
+                      <span class="badge me-1" style="background: #495057; color: #fff; font-size: 0.74rem;">{{ group.processus.code }}</span>
+                      {{ group.processus.nom }}
+                    </div>
+                    {% if group.can_add_indicator or user.is_superuser %}
+                    <div class="tdb-process-actions no-print d-flex align-items-center gap-1">
+                      <button type="button" class="btn btn-sm btn-outline-primary tdb-action-btn js-edit-process"
+                        data-process-id="{{ group.processus.pk }}" data-process-code="{{ group.processus.code }}"
+                        data-process-nom="{{ group.processus.nom }}"
+                        data-process-description="{{ group.processus.description|default:'' }}"
+                        data-process-societe="{{ group.processus.societe.pk|default:'' }}"
+                        data-process-active="{{ group.processus.is_active|yesno:'true,false' }}"
+                        title="Modifier le processus" aria-label="Modifier {{ group.processus.nom }}">
+                        <i class="fas fa-edit" aria-hidden="true"></i>
+                      </button>
+
+                      <button type="button" class="btn btn-sm btn-outline-danger tdb-action-btn js-delete-process"
+                        data-process-id="{{ group.processus.pk }}" data-process-code="{{ group.processus.code }}"
+                        data-process-name="{{ group.processus.nom }}" title="Supprimer le processus"
+                        aria-label="Supprimer {{ group.processus.nom }}">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                      </button>
+                    </div>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+
+              {# ── Lignes enfants : Indicateurs ── #}
+              {% if group.indicateurs_data %}
+              {% for item in group.indicateurs_data %}
+              <tr class="synthese-child-row group-{{ group.processus.pk }}" style="background: #fff;">
+                <td class="sticky-col ps-2 py-1" style="border-left: 3px solid #4299e1;">
+                  <strong class="text-primary" style="font-size: 0.75rem;">{{ item.indicateur.code }}</strong><br>
+                  <span class="text-dark" style="font-size: 0.78rem; font-weight: 600;">{{ item.indicateur.nom }}</span>
+                </td>
+                <td class="text-center px-1">
+                  <span class="badge badge-light border text-dark"
+                    style="font-size: 0.68rem; padding: 0.15rem 0.25rem;">{{ item.indicateur.get_periodicite_display }}</span>
+                </td>
+                <td class="text-center font-weight-bold text-dark px-1" style="font-size: 0.75rem;">
+                  {% if item.objectif_formate != "—" %}{{ item.objectif_formate }}{% else %}<span
+                    class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-center font-weight-bold text-primary px-1" style="font-size: 0.75rem;">
+                  {% if item.agregat_formate != "—" %}{{ item.agregat_formate }}{% else %}<span
+                    class="text-muted">—</span>{% endif %}
+                </td>
+                {% for m_val in item.mois_formates %}
+                <td class="text-center px-0.5 month-column" style="font-size: 0.73rem;">
+                  {% if m_val != "—" %}{{ m_val }}{% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                {% endfor %}
+                <td class="text-center bg-light px-1" style="font-size: 0.73rem;">
+                  {% if item.valeur_annuelle_formatee != "—" %}{{ item.valeur_annuelle_formatee }}{% else %}<span
+                    class="text-muted">—</span>{% endif %}
+                </td>
+                <td class="text-center px-1">
+                  <span class="badge {{ item.statut.badge_class }} p-1"
+                    style="font-size: 0.68rem; padding: 0.15rem 0.25rem !important;">
+                    <i class="{{ item.statut.icon }}"></i>
+                    {{ item.statut_taux_formate }}
+                  </span>
+                </td>
+                <td class="no-print text-center px-1">
+                  <div class="tdb-row-actions">
+                    {% if item.can_edit_measurements %}
+                    <button type="button" class="btn btn-sm btn-primary js-open-measure-modal"
+                      data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}"
+                      data-indicator-name="{{ item.indicateur.nom }}" data-process-id="{{ group.processus.pk }}"
+                      data-process-code="{{ group.processus.code }}" data-process-name="{{ group.processus.nom }}"
+                      data-year="{{ annee }}"
+                      data-objective="{% if item.objectif_formate != '—' %}{{ item.objectif_formate }}{% endif %}"
+                      data-mesures="{{ item.mesures_dict_json|escape }}" title="Saisir les mesures et l’objectif"
+                      aria-label="Saisir les mesures de {{ item.indicateur.nom }}">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    {% endif %}
+
+                    <button type="button" class="btn btn-sm btn-outline-info js-open-indicator-chart"
+                      data-indicator-id="{{ item.indicateur.pk }}" data-process-id="{{ group.processus.pk }}"
+                      title="Voir le graphique" aria-label="Voir le graphique de {{ item.indicateur.nom }}"
+                      onclick="switchTab('graphiques')">
+                      <i class="fas fa-chart-line"></i>
+                    </button>
+
+                    <button type="button" class="btn btn-sm btn-outline-secondary js-open-indicator-objective"
+                      data-indicator-id="{{ item.indicateur.pk }}" data-process-id="{{ group.processus.pk }}"
+                      title="Voir les objectifs annuels" aria-label="Voir les objectifs de {{ item.indicateur.nom }}"
+                      onclick="navigateToCard('objectifs', 'objective-card-{{ item.indicateur.id }}')">
+                      <i class="fas fa-bullseye"></i>
+                    </button>
+
+                    {% if group.can_add_indicator or user.is_superuser %}
+                    <button type="button" class="btn btn-sm btn-outline-warning js-edit-indicator"
+                      data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}"
+                      data-indicator-nom="{{ item.indicateur.nom }}"
+                      data-indicator-periodicite="{{ item.indicateur.periodicite }}"
+                      data-indicator-agregation="{{ item.indicateur.mode_agregation }}"
+                      data-indicator-objective="{{ item.objectif_valeur_raw }}"
+                      data-indicator-active="{{ item.indicateur.is_active|yesno:'true,false' }}"
+                      data-process-code="{{ group.processus.code }}" data-process-name="{{ group.processus.nom }}"
+                      title="Modifier la configuration de l'indicateur" aria-label="Modifier {{ item.indicateur.nom }}">
+                      <i class="fas fa-cog"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger js-delete-indicator"
+                      data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}"
+                      data-indicator-name="{{ item.indicateur.nom }}" title="Supprimer l'indicateur"
+                      aria-label="Supprimer {{ item.indicateur.nom }}">
+                      <i class="fas fa-trash-alt"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+
+              {# ── Ligne d'ajout d'indicateur supplémentaire après les indicateurs existants ── #}
+              {% if group.can_add_indicator %}
+              <tr class="synthese-child-row group-{{ group.processus.pk }} tdb-add-indicator-row"
+                style="background: #f8fafc;">
+                <td colspan="19" class="py-1.5 ps-3">
+                  <div class="tdb-add-indicator-row__content">
+                    <button type="button" class="btn btn-outline-success btn-sm js-open-indicator-modal py-0.5 px-2"
+                      style="font-size: 0.78rem; font-weight: 600;" data-process-id="{{ group.processus.pk }}"
+                      data-process-code="{{ group.processus.code }}" data-process-name="{{ group.processus.nom }}"
+                      title="Ajouter un indicateur à {{ group.processus.nom }}">
+                      <i class="fas fa-plus me-1"></i>Ajouter un indicateur
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+
+              {% else %}
+              <tr class="synthese-child-row group-{{ group.processus.pk }} tdb-process-empty-row">
+                <td colspan="19">
+                  <div class="tdb-empty-indicator-action text-center py-3">
+                    <p class="mb-2 text-muted" style="font-size: 0.88rem;">
+                      Aucun indicateur actif n’est rattaché à ce processus.
+                    </p>
+
+                    {% if group.can_add_indicator %}
+                    <button type="button" class="btn btn-success btn-sm js-open-indicator-modal"
+                      data-process-id="{{ group.processus.pk }}" data-process-code="{{ group.processus.code }}"
+                      data-process-name="{{ group.processus.nom }}"
+                      title="Ajouter un indicateur à {{ group.processus.nom }}">
+                      <i class="fas fa-plus me-1"></i>
+                      Ajouter le premier indicateur
+                    </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="card border-0 shadow-sm p-5 text-center text-muted">
+        <i class="fas fa-project-diagram fa-3x mb-3 text-secondary"></i>
+        <h5 class="font-weight-bold text-dark">Aucun processus autorisé</h5>
+        <p class="mb-0">
+          Aucun processus actif n'est associé à votre compte.
+          {% if user.is_superuser %}
+          <a href="{% url 'gestion_documentaire:tdb_processus_create' %}" class="btn btn-success btn-sm ms-2">
+            <i class="fas fa-plus me-1"></i>Créer un processus
+          </a>
+          {% endif %}
+        </p>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ONGLET 2 : VUE GRAPHIQUE -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade {% if active_tab == 'graphiques' %}show active{% endif %} print-part print-part-2" id="tab-graphiques"
+      role="tabpanel">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <h4 class="d-none d-print-block print-section-title m-0"><i class="fas fa-chart-line me-2"></i>Vue graphique</h4>
+        <div class="chart-global-controls no-print d-flex align-items-center gap-2 ms-auto">
+          <label for="globalChartTypeSelector" class="form-label mb-0 text-xs font-weight-bold text-muted text-nowrap">Type pour tous :</label>
+          <select id="globalChartTypeSelector" class="form-select form-select-sm" style="width: auto;">
+            <option value="line">Courbe</option>
+            <option value="area">Courbe en aires</option>
+            <option value="bar">Barres</option>
+          </select>
+          <button type="button" id="btnApplyGlobalChartType" class="btn btn-sm btn-primary text-nowrap">
+            <i class="fas fa-check-double me-1"></i>Appliquer à tous
+          </button>
+        </div>
+      </div>
+      <div class="row g-4">
+        {% for item in indicateurs_data %}
+        <div class="col-12 col-lg-6 mb-4 indicator-print-block" id="indicator-card-{{ item.indicateur.pk }}">
+          <div class="tdb-card p-3 h-100 d-flex flex-column justify-content-between indicator-card">
+            <div>
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <span class="badge badge-secondary mb-1">{{ item.indicateur.code }}</span>
+                  <h5 class="font-weight-bold mb-1 text-dark">{{ item.indicateur.nom }}</h5>
+                  <div class="text-muted text-xs">
+                    Périodicité : {{ item.indicateur.get_periodicite_display }} | Agrégation : {{ item.indicateur.get_mode_agregation_display }}
+                  </div>
+                </div>
+                <div class="no-print">
+                  <select class="form-select form-select-sm js-chart-type-selector chart-type-select"
+                    data-indicator-id="{{ item.indicateur.pk }}"
+                    data-indicator-code="{{ item.indicateur.code }}">
+                    <option value="line">Courbe</option>
+                    <option value="area">Courbe en aires</option>
+                    <option value="bar">Barres</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row text-center my-3 py-2 bg-light rounded g-2">
+                <div class="col-4 border-right">
+                  <div class="text-uppercase text-xs text-muted font-weight-bold">Objectif</div>
+                  <div class="h6 font-weight-bold text-dark m-0">{% if item.objectif != None %}{{ item.objectif }}{% else %}—{% endif %}</div>
+                </div>
+                <div class="col-4 border-right">
+                  <div class="text-uppercase text-xs text-muted font-weight-bold">Valeur Agrégée</div>
+                  <div class="h6 font-weight-bold text-primary m-0">{% if item.cumul != None %}{{ item.cumul }}{% else %}—{% endif %}</div>
+                </div>
+                <div class="col-4">
+                  <div class="text-uppercase text-xs text-muted font-weight-bold">Écart / Statut</div>
+                  <div>
+                    <span class="badge {{ item.statut.badge_class }} p-1 text-xs">
+                      {% if item.statut.taux_atteinte != None %}{{ item.statut.taux_atteinte }}%{% else %}{{ item.statut.label }}{% endif %}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="indicator-chart-wrapper">
+                <canvas id="indicator-chart-{{ item.indicateur.pk }}"
+                  data-indicator-id="{{ item.indicateur.pk }}"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ONGLET 3 : OBJECTIFS ANNUELS -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade {% if active_tab == 'objectifs' %}show active{% endif %} print-part print-part-3" id="tab-objectifs"
+      role="tabpanel">
+      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-bullseye me-2"></i>Objectifs annuels</h4>
+      <!-- Comparatif Graphique Global N vs N-1 -->
+      <div class="row mb-4">
+        <div class="col-12 col-lg-8 mb-3">
+          <div class="tdb-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="font-weight-bold text-dark m-0"><i class="fas fa-balance-scale me-2 text-primary"></i>Évolution
+                des Objectifs Clés ({{ annee }} vs {{ annee|add:"-1" }})</h6>
+              <div class="no-print">
+                <select class="form-select form-select-sm chart-type-select" data-chart-id="chart-obj-global">
+                  <option value="bar" selected>Barres</option>
+                  <option value="line">Courbe</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-container-md">
+              <canvas id="chart-obj-global"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-4 mb-3">
+          <div class="tdb-card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="font-weight-bold text-dark m-0"><i class="fas fa-chart-pie me-2 text-primary"></i>Répartition
+                des Statuts</h6>
+              <div class="no-print">
+                <select class="form-select form-select-sm chart-type-select" data-chart-id="chart-statut-pie">
+                  <option value="doughnut" selected>Anneau</option>
+                  <option value="pie">Camembert</option>
+                  <option value="bar">Barres</option>
+                </select>
+              </div>
+            </div>
+            <div class="chart-container-md doughnut-chart-container">
+              <canvas id="chart-statut-pie"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vue desktop : tableau comparatif des objectifs annuels -->
+      <div class="objectives-desktop-view">
+        <div class="tdb-card p-3">
+          {% if objectifs_data %}
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0 text-xs" id="objectives-comparative-table"
+              style="width: 100%; table-layout: auto;">
+              <thead class="text-center" style="background: #f8f9fa; color: #343a40;">
+                <tr>
+                  <th class="text-start" style="min-width: 220px;">Code &amp; Indicateur</th>
+                  <th style="min-width: 80px;">Objectif {{ annee }}</th>
+                  <th style="min-width: 80px;">Objectif {{ annee|add:"-1" }}</th>
+                  <th style="min-width: 90px;">Réalisé {{ annee }}</th>
+                  <th style="min-width: 150px;">Statut</th>
+                  <th class="text-start" style="min-width: 130px;">Mise à jour</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for obj in objectifs_data %}
+                <tr data-objective-id="{{ obj.indicateur.id }}">
+                  <td class="text-start">
+                    <span class="badge badge-secondary mr-1">{{ obj.indicateur.code }}</span>
+                    <span class="text-dark">{{ obj.indicateur.nom }}</span>
+                  </td>
+                  <td class="text-center font-weight-bold text-dark">{% if obj.objectif_n != None %}{{ obj.objectif_n }}{% else %}—{% endif %}</td>
+                  <td class="text-center text-secondary">{% if obj.objectif_n_1 != None %}{{ obj.objectif_n_1 }}{% else %}—{% endif %}</td>
+                  <td class="text-center">
+                    {% if obj.realise_n != None %}<span class="text-primary font-weight-bold">{{ obj.realise_n }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge {{ obj.statut.badge_class }} p-1 text-xs">{{ obj.statut.label }}</span>
+                  </td>
+                  <td class="text-start text-muted">{% if obj.updated_at %}{{ obj.updated_at|date:"d/m/Y H:i" }}{% else %}Non renseignée{% endif %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="text-center text-muted py-4">Aucun objectif à afficher pour ce périmètre.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Vue mobile : cartes d'objectifs conservées -->
+      <div class="objectives-mobile-view">
+        <div class="row g-4">
+          {% for obj in objectifs_data %}
+          <div class="col-12 col-md-6 col-lg-4 mb-4" id="objective-card-{{ obj.indicateur.id }}">
+            <div class="tdb-card p-3 h-100">
+              <span class="badge badge-secondary mb-1">{{ obj.indicateur.code }}</span>
+              <h6 class="font-weight-bold text-dark mb-3">{{ obj.indicateur.nom }}</h6>
+
+              <div class="row text-center bg-light rounded py-2 g-1 mb-2">
+                <div class="col-6 border-right">
+                  <div class="text-xs text-muted">Obj. {{ annee }}</div>
+                  <div class="font-weight-bold text-dark">{% if obj.objectif_n != None %}{{ obj.objectif_n }}{% else %}—{% endif %}</div>
+                </div>
+                <div class="col-6">
+                  <div class="text-xs text-muted">Obj. {{ annee|add:"-1" }}</div>
+                  <div class="font-weight-bold text-secondary">{% if obj.objectif_n_1 != None %}{{ obj.objectif_n_1 }}{% else %}—{% endif %}</div>
+                </div>
+              </div>
+
+              <div class="small mb-1">
+                <strong>Réalisé {{ annee }} :</strong>
+                {% if obj.realise_n != None %}<span class="text-primary font-weight-bold">{{ obj.realise_n }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+              </div>
+              <div class="small mb-2">
+                <strong>Statut :</strong>
+                <span class="badge {{ obj.statut.badge_class }} p-1 text-xs">{{ obj.statut.label }}</span>
+              </div>
+              <div class="text-xs text-muted border-top pt-2">
+                Mise à jour : {% if obj.updated_at %}{{ obj.updated_at|date:"d/m/Y H:i" }}{% else %}Non renseignée{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- ONGLET 4 : AUDITS ET CONFORMITÉ -->
+    <!-- ============================================================ -->
+    <div class="tab-pane fade {% if active_tab == 'audits' %}show active{% endif %} print-part print-part-4" id="tab-audits" role="tabpanel">
+      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-clipboard-check me-2"></i>Audits et conformité</h4>
+
+      <!-- Cartes synthétiques des statuts d'audit -->
+      <div class="row g-3 mb-4 audit-cards-container">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border-0 shadow-sm border-start border-4 border-success h-100 audit-summary-card">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Conformes / Atteints</span>
+                <h3 class="mb-0 font-weight-bold text-success">{{ audits_summary.counts.conforme }}</h3>
+              </div>
+              <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+                style="width: 44px; height: 44px; flex-shrink: 0;">
+                <i class="fas fa-check-circle fa-lg"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border-0 shadow-sm border-start border-4 border-warning h-100 audit-summary-card">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Défauts isolés / À
+                  surveiller</span>
+                <h3 class="mb-0 font-weight-bold text-warning">{{ audits_summary.counts.defauts_isoles }}</h3>
+              </div>
+              <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center summary-icon"
+                style="width: 44px; height: 44px; flex-shrink: 0;">
+                <i class="fas fa-exclamation-circle fa-lg"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border-0 shadow-sm border-start border-4 border-danger h-100 audit-summary-card">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Non conformes</span>
+                <h3 class="mb-0 font-weight-bold text-danger">{{ audits_summary.counts.non_conforme }}</h3>
+              </div>
+              <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+                style="width: 44px; height: 44px; flex-shrink: 0;">
+                <i class="fas fa-times-circle fa-lg"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="card border-0 shadow-sm border-start border-4 border-secondary h-100 audit-summary-card">
+            <div class="card-body p-3 d-flex align-items-center justify-content-between">
+              <div>
+                <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Non audités / Absents</span>
+                <h3 class="mb-0 font-weight-bold text-secondary">{{ audits_summary.counts.non_audite }}</h3>
+              </div>
+              <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+                style="width: 44px; height: 44px; flex-shrink: 0;">
+                <i class="fas fa-minus-circle fa-lg"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <!-- Graphique Répartition -->
+        <div class="col-12 col-lg-5 mb-3">
+          <div class="tdb-card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="font-weight-bold text-dark m-0">
+                <i class="fas fa-chart-pie text-primary me-2"></i>Répartition Globale des Audits
+              </h6>
+            </div>
+            <div class="chart-container-md doughnut-chart-container" style="position: relative; height: 260px;">
+              <canvas id="chart-audit-pie"></canvas>
+            </div>
+            <div class="text-center mt-3 pt-2 border-top">
+              <span class="text-muted small font-weight-bold">Taux de conformité global :</span>
+              <span class="badge bg-success font-weight-bold ms-1" style="font-size: 0.9rem;">{{ audits_summary.taux_conformite_global }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tableau Synthétique de Conformité par Processus -->
+        <div class="col-12 col-lg-7 mb-3">
+          <div class="tdb-card p-3 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <h6 class="font-weight-bold text-dark m-0">
+                <i class="fas fa-list-check text-primary me-2"></i>Synthèse de Conformité d'Audit par Processus
+              </h6>
+              <span class="badge bg-light text-dark border">{{ audits_processus_list|length }} processus</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                <thead class="bg-light text-muted">
+                  <tr>
+                    <th class="py-2">Processus</th>
+                    <th class="py-2 text-center">Société</th>
+                    <th class="py-2 text-center" title="Conforme"><i class="fas fa-check-circle text-success"></i></th>
+                    <th class="py-2 text-center" title="Défauts isolés"><i
+                        class="fas fa-exclamation-circle text-warning"></i></th>
+                    <th class="py-2 text-center" title="Non conforme"><i class="fas fa-times-circle text-danger"></i>
+                    </th>
+                    <th class="py-2 text-center" title="Non audité"><i class="fas fa-minus-circle text-secondary"></i>
+                    </th>
+                    <th class="py-2 text-center">Taux</th>
+                    <th class="py-2 text-end">Statut d'Audit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in audits_processus_list %}
+                  <tr>
+                    <td class="font-weight-bold py-2">
+                      <span class="badge bg-dark me-1" style="font-size: 0.72rem;">{{ item.processus.code }}</span>
+                      {{ item.processus.nom }}
+                    </td>
+                    <td class="text-center text-muted small py-2">{{ item.processus.societe|default:"—" }}</td>
+                    <td class="text-center font-weight-bold text-success py-2">{{ item.conforme }}</td>
+                    <td class="text-center font-weight-bold text-warning py-2">{{ item.defauts_isoles }}</td>
+                    <td class="text-center font-weight-bold text-danger py-2">{{ item.non_conforme }}</td>
+                    <td class="text-center font-weight-bold text-secondary py-2">{{ item.non_audite }}</td>
+                    <td class="text-center font-weight-bold py-2">{{ item.taux_conformite }}</td>
+                    <td class="text-end py-2">
+                      <span class="badge {{ item.statut_global.badge_class }} px-2 py-1" style="font-size: 0.78rem;">
+                        {{ item.statut_global.label }}
+                      </span>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                      <i class="fas fa-folder-open me-2"></i>Aucun processus trouvé pour ce périmètre.
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Panneau Latéral Offcanvas de Filtres (Référence visuelle exacte) -->
+<div id="tdbFilterBackdrop" class="tdb-filter-backdrop no-print" onclick="closeTdbFilterDrawer()"></div>
+
+<aside id="tdbFilterDrawer" class="tdb-filter-drawer no-print" role="dialog" aria-modal="true" aria-hidden="true"
+  aria-labelledby="tdbFilterDrawerTitle">
+
+  <div class="tdb-filter-drawer__header">
+    <button type="button" id="tdbFilterClose" class="tdb-filter-close" aria-label="Fermer les filtres"
+      onclick="closeTdbFilterDrawer()">
+      <i class="fas fa-times"></i>
+    </button>
+    <h2 id="tdbFilterDrawerTitle" class="h5 font-weight-bold text-white mb-0" style="display:none;">Filtres</h2>
+  </div>
+
+  <div class="tdb-filter-drawer__body">
+    <form method="get" id="tdbFilterForm">
+      <input type="hidden" name="tab" id="hiddenTabInput" value="{{ active_tab }}">
+
+      <!-- 1. Société / périmètre -->
+      <div class="form-group mb-3">
+        <label for="societe_sb">Société / Périmètre</label>
+        <select name="societe" id="societe_sb" class="form-control form-control-sm font-weight-bold">
+          <option value="" {% if not selected_societe %}selected{% endif %}>Toutes les sociétés</option>
+          {% for s in societes_disponibles %}
+          <option value="{{ s.id }}" {% if selected_societe and selected_societe.id == s.id %}selected{% endif %}>{{ s.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 2. Processus -->
+      {% if tous_processus %}
+      <div class="form-group mb-3">
+        <label for="processus_select_sb">Processus</label>
+        <select name="processus" id="processus_select_sb" class="form-control form-control-sm font-weight-bold">
+          <option value="" {% if not processus %}selected{% endif %}>Tous les processus</option>
+          {% for proc in tous_processus %}
+          <option value="{{ proc.id }}" {% if processus and proc.id == processus.id %}selected{% endif %}>{{ proc.code }}
+            — {{ proc.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <!-- 3. Année -->
+      <div class="form-group mb-3">
+        <label for="annee_sb">Année</label>
+        <select name="annee" id="annee_sb" class="form-control form-control-sm font-weight-bold">
+          {% for a in annees_disponibles %}
+          <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 4. Type de période -->
+      <div class="form-group mb-3">
+        <label for="type_periode_sb">Type de période</label>
+        <select name="type_periode" id="type_periode_sb" class="form-control form-control-sm font-weight-bold mb-2"
+          onchange="togglePeriodeSelect(this.value)">
+          <option value="annee_complete" {% if type_periode == 'annee_complete' %}selected{% endif %}>Année complète
+          </option>
+          <option value="trimestre" {% if type_periode == 'trimestre' %}selected{% endif %}>Trimestre</option>
+          <option value="semestre" {% if type_periode == 'semestre' %}selected{% endif %}>Semestre</option>
+          <option value="mois" {% if type_periode == 'mois' %}selected{% endif %}>Mois</option>
+        </select>
+      </div>
+
+      <!-- 5. Période -->
+      <div class="form-group mb-3" id="periodeSelectContainer"
+        style="{% if type_periode == 'annee_complete' %}display: none;{% endif %}">
+        <label for="periode_sb">Période</label>
+        <select name="periode" id="periode_sb" class="form-control form-control-sm font-weight-bold">
+          {% if type_periode == 'trimestre' %}
+          <option value="1" {% if periode == 1 %}selected{% endif %}>T1</option>
+          <option value="2" {% if periode == 2 %}selected{% endif %}>T2</option>
+          <option value="3" {% if periode == 3 %}selected{% endif %}>T3</option>
+          <option value="4" {% if periode == 4 %}selected{% endif %}>T4</option>
+          {% elif type_periode == 'semestre' %}
+          <option value="1" {% if periode == 1 %}selected{% endif %}>S1</option>
+          <option value="2" {% if periode == 2 %}selected{% endif %}>S2</option>
+          {% elif type_periode == 'mois' %}
+          <option value="1" {% if periode == 1 %}selected{% endif %}>Janvier</option>
+          <option value="2" {% if periode == 2 %}selected{% endif %}>Février</option>
+          <option value="3" {% if periode == 3 %}selected{% endif %}>Mars</option>
+          <option value="4" {% if periode == 4 %}selected{% endif %}>Avril</option>
+          <option value="5" {% if periode == 5 %}selected{% endif %}>Mai</option>
+          <option value="6" {% if periode == 6 %}selected{% endif %}>Juin</option>
+          <option value="7" {% if periode == 7 %}selected{% endif %}>Juillet</option>
+          <option value="8" {% if periode == 8 %}selected{% endif %}>Août</option>
+          <option value="9" {% if periode == 9 %}selected{% endif %}>Septembre</option>
+          <option value="10" {% if periode == 10 %}selected{% endif %}>Octobre</option>
+          <option value="11" {% if periode == 11 %}selected{% endif %}>Novembre</option>
+          <option value="12" {% if periode == 12 %}selected{% endif %}>Décembre</option>
+          {% endif %}
+        </select>
+      </div>
+
+      <!-- 6. Fréquence / périodicité -->
+      <div class="form-group mb-3">
+        <label for="periodicite_sb">Fréquence</label>
+        <select name="periodicite" id="periodicite_sb" class="form-control form-control-sm font-weight-bold">
+          <option value="" {% if not periodicite_filtre %}selected{% endif %}>Toutes les fréquences</option>
+          {% for code, label in periodicite_choices %}
+          <option value="{{ code }}" {% if periodicite_filtre == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 7. Statut -->
+      <div class="form-group mb-3">
+        <label for="statut_sb">Statut</label>
+        <select name="statut" id="statut_sb" class="form-control form-control-sm font-weight-bold">
+          <option value="" {% if not statut_filtre %}selected{% endif %}>Tous les statuts</option>
+          {% for code, label in statut_choices %}
+          <option value="{{ code }}" {% if statut_filtre == code %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 8. Recherche -->
+      <div class="form-group mb-4">
+        <label for="recherche_sb">Recherche</label>
+        <input type="text" id="recherche_sb" name="recherche" class="form-control form-control-sm"
+          placeholder="Rechercher un processus ou un indicateur..." value="{{ recherche }}">
+      </div>
+
+      <div class="d-flex gap-2 pt-2" style="gap: 0.5rem;">
+        <button type="submit" class="btn btn-primary font-weight-bold flex-fill py-2 me-1">
+          <i class="fas fa-filter me-1"></i>Appliquer
+        </button>
+        <a href="{% url 'gestion_documentaire:tdb_dashboard' %}"
+          class="btn btn-light font-weight-bold flex-fill py-2 text-dark">
+          <i class="fas fa-sync-alt me-1"></i>Réinitialiser
+        </a>
+      </div>
+    </form>
+  </div>
+</aside>
+{% endblock %}
+
+{% block modals %}
+<!-- Modal d'ajout d'un indicateur SMQS -->
+<div class="modal fade" id="indicatorCreateModal" tabindex="-1" aria-labelledby="indicatorCreateModalTitle"
+  aria-hidden="true" style="z-index: 105000;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-3">
+        <div>
+          <h5 class="modal-title font-weight-bold text-white mb-0" id="indicatorCreateModalTitle">
+            <i class="fas fa-plus-circle me-2"></i>Ajouter un indicateur
+          </h5>
+          <div class="text-white-50 small mt-1" id="indicatorModalSubtitle" style="font-size:0.82rem;">
+            <i class="fas fa-sitemap me-1"></i><span id="indicatorModalProcessName"></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post" action="{% url 'gestion_documentaire:indicateur_create' %}" id="formCreateIndicatorModal">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="processus" id="indicatorProcessId">
+
+        <div class="modal-body p-4 text-start">
+
+          <!-- Nom -->
+          <div class="form-group mb-3">
+            <label for="modalIndicateurNom" class="form-label font-weight-bold text-dark mb-1">Nom de
+              l'indicateur</label>
+            <input type="text" name="nom" id="modalIndicateurNom" class="form-control"
+              placeholder="Ex : Taux de satisfaction client" required autofocus>
+          </div>
+
+          <!-- Périodicité + Agrégation -->
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label for="modalIndicateurPeriodicite"
+                class="form-label font-weight-bold text-dark mb-1">Périodicité</label>
+              <select name="periodicite" id="modalIndicateurPeriodicite" class="form-select form-control">
+                <option value="mensuel" selected>Mensuel</option>
+                <option value="trimestriel">Trimestriel</option>
+                <option value="semestriel">Semestriel</option>
+                <option value="annuel">Annuel</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label for="modalIndicateurAgregation"
+                class="form-label font-weight-bold text-dark mb-1">Agrégation</label>
+              <select name="mode_agregation" id="modalIndicateurAgregation" class="form-select form-control" required>
+                <option value="somme" selected>Somme</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="minimum">Minimum</option>
+                <option value="maximum">Maximum</option>
+                <option value="nombre">Nombre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="modalIndicateurActive" value="true"
+              checked>
+            <label class="form-check-label font-weight-bold text-dark" for="modalIndicateurActive">Indicateur
+              actif</label>
+          </div>
+
+          <!-- Objectif initial -->
+          <div class="rounded border p-3" style="background:#fafafa;">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="font-weight-bold text-dark" style="font-size:0.9rem;">
+                <i class="fas fa-bullseye text-warning me-1"></i>Objectif initial
+              </span>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="modalSkipObjective"
+                  onchange="toggleObjectiveFields(this)">
+                <label class="form-check-label small text-muted" for="modalSkipObjective">Définir plus tard</label>
+              </div>
+            </div>
+            <div id="objectiveFieldsWrapper" class="row g-2">
+              <div class="col-5">
+                <label for="initialObjectiveYear" class="form-label small text-muted mb-1">Année</label>
+                <input type="number" name="objectif_annee" id="initialObjectiveYear"
+                  class="form-control form-control-sm text-center" value="{{ annee }}" min="2000" max="2100">
+              </div>
+              <div class="col-7">
+                <label for="initialObjectiveValue" class="form-label small text-muted mb-1">Valeur cible</label>
+                <input type="number" step="any" name="valeur_objectif" id="initialObjectiveValue"
+                  class="form-control form-control-sm" placeholder="Ex : 95">
+              </div>
+            </div>
+            <div id="objectiveSkipNotice" class="small text-muted mt-2" style="display:none;">
+              <i class="fas fa-clock me-1"></i>Vous pourrez définir l'objectif plus tard via le bouton <em>Saisir</em>.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-success btn-sm px-4 font-weight-bold">
+            <i class="fas fa-check me-1"></i>Créer l'indicateur
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if user.is_superuser %}
+<!-- Modal de création d'un nouveau processus (2 onglets) -->
+<div class="modal fade" id="processusCreateModal" tabindex="-1" aria-labelledby="processusCreateModalTitle"
+  aria-hidden="true" style="z-index: 105002;">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-success text-white py-3">
+        <div class="d-flex flex-column">
+          <h5 class="modal-title font-weight-bold text-white mb-0" id="processusCreateModalTitle">
+            <i class="fas fa-sitemap me-2"></i>Nouveau processus
+          </h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post"
+        action="{% url 'gestion_documentaire:tdb_processus_create' %}?next={{ request.get_full_path|urlencode }}"
+        id="formProcessusCreate">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <!-- Navigation interne 2 onglets -->
+        <div class="px-4 pt-3">
+          <ul class="nav nav-tabs" id="processCreateTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a id="process-info-tab" class="nav-link active font-weight-bold" data-toggle="tab" data-bs-toggle="tab"
+                href="#process-info-pane" data-target="#process-info-pane" data-bs-target="#process-info-pane"
+                role="tab" aria-controls="process-info-pane" aria-selected="true">
+                <i class="fas fa-info-circle me-1"></i>Informations
+              </a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a id="process-indicators-tab" class="nav-link font-weight-bold" data-toggle="tab" data-bs-toggle="tab"
+                href="#process-indicators-pane" data-target="#process-indicators-pane"
+                data-bs-target="#process-indicators-pane" role="tab" aria-controls="process-indicators-pane"
+                aria-selected="false">
+                <i class="fas fa-chart-line me-1"></i>Indicateurs
+                <span id="pendingIndicatorCount" class="badge badge-secondary ml-1 ms-1"
+                  style="background:#6c757d; color:#fff; font-size:0.72rem;">0</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="modal-body pt-3 text-start">
+          <div class="tab-content" id="processCreateTabsContent">
+
+            <!-- ── Onglet 1 : Informations du processus ── -->
+            <div class="tab-pane fade show active" id="process-info-pane" role="tabpanel"
+              aria-labelledby="process-info-tab">
+              <div class="row g-3">
+                <div class="col-12 col-md-3">
+                  <label for="id_proc_code" class="form-label font-weight-bold text-dark mb-1">
+                    <i class="fas fa-hashtag text-success me-1"></i>Code
+                  </label>
+                  <input type="text" name="code" id="id_proc_code" class="form-control font-weight-bold"
+                    placeholder="Ex : CE (auto si vide)">
+                </div>
+                <div class="col-12 col-md-9">
+                  <label for="id_proc_nom" class="form-label font-weight-bold text-dark mb-1">
+                    <i class="fas fa-tag text-success me-1"></i>Nom du processus
+                  </label>
+                  <input type="text" name="nom" id="id_proc_nom" class="form-control" placeholder="Nom du processus"
+                    required>
+                </div>
+                <div class="col-12">
+                  <label for="id_proc_description" class="form-label font-weight-bold text-dark mb-1">
+                    <i class="fas fa-align-left text-muted me-1"></i>Description
+                    <span class="text-muted font-weight-normal">(optionnelle)</span>
+                  </label>
+                  <textarea name="description" id="id_proc_description" class="form-control" rows="2"
+                    placeholder="Description du processus..."></textarea>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label for="id_proc_societe" class="form-label font-weight-bold text-dark mb-1">
+                    <i class="fas fa-building text-muted me-1"></i>Société
+                  </label>
+                  <select name="societe" id="id_proc_societe" class="form-control">
+                    <option value="">— Sélectionner —</option>
+                    {% for soc in societes_list %}
+                    <option value="{{ soc.pk }}">{{ soc }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-6 d-flex align-items-end">
+                  <div class="form-check mb-1">
+                    <input type="checkbox" name="is_active" id="id_proc_is_active" class="form-check-input" value="true"
+                      checked>
+                    <label class="form-check-label font-weight-bold text-dark" for="id_proc_is_active">
+                      Processus actif
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Onglet 2 : Indicateurs du processus ── -->
+            <div class="tab-pane fade" id="process-indicators-pane" role="tabpanel"
+              aria-labelledby="process-indicators-tab">
+              <div class="mb-3 d-flex align-items-center justify-content-between">
+                <small class="text-muted">
+                  <i class="fas fa-info-circle me-1"></i>
+                  Les indicateurs seront créés et rattachés automatiquement au processus après enregistrement.
+                </small>
+                <button type="button" class="btn btn-success btn-sm" onclick="addProcessIndicatorRow()"
+                  id="btnAddProcIndicator">
+                  <i class="fas fa-plus me-1"></i>Ajouter un indicateur
+                </button>
+              </div>
+
+              <!-- En-tête du tableau d'indicateurs -->
+              <div id="procIndicatorRows">
+                <div class="row g-1 mb-1 text-muted d-none d-md-flex align-items-center" id="procIndicatorHeader"
+                  style="font-size:0.75rem; font-weight:700;">
+                  <div class="col-auto pe-1" style="min-width:80px;">Code auto</div>
+                  <div class="col col-md-5">Nom</div>
+                  <div class="col-6 col-md-2">Périodicité</div>
+                  <div class="col-6 col-md-2">Agrégation</div>
+                  <div class="col-auto text-end" style="min-width:42px;"></div>
+                </div>
+              </div>
+
+              <!-- État vide -->
+              <div id="procIndicatorEmpty" class="text-center text-muted py-4" style="font-size:0.85rem;">
+                <i class="fas fa-chart-line fa-2x mb-2 d-block opacity-25"></i>
+                Aucun indicateur. Cliquez sur <strong>Ajouter un indicateur</strong> pour commencer.
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-success btn-sm px-4 font-weight-bold">
+            <i class="fas fa-check me-1"></i>Créer le processus
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- Modal de saisie des mesures mensuelles et de l'objectif -->
+<div class="modal fade" id="measureEntryModal" tabindex="-1" aria-labelledby="measureEntryModalTitle" aria-hidden="true"
+  style="z-index: 105001;">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-3">
+        <div class="d-flex flex-column">
+          <h5 class="modal-title font-weight-bold text-white mb-1" id="measureEntryModalTitle">
+            <i class="fas fa-edit me-2"></i>Saisie de l’indicateur
+          </h5>
+          <div class="text-white-50 small" style="font-size: 0.85rem;">
+            <span class="badge bg-light text-dark font-weight-bold me-2" id="modalMeasureIndicatorCode"></span>
+            <strong class="text-white me-2" id="modalMeasureIndicatorName"></strong>
+            <span class="opacity-75">| Processus : <span id="modalMeasureProcessName"></span></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+      <form method="post" action="" id="formMeasureEntryModal">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="modal-body p-4 text-start">
+          <!-- Navigation interne à 2 onglets -->
+          <ul class="nav nav-tabs mb-3" id="indicatorEntryTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <a id="measurements-tab" class="nav-link active font-weight-bold" data-toggle="tab" data-bs-toggle="tab"
+                href="#measurements-pane" data-target="#measurements-pane" data-bs-target="#measurements-pane"
+                role="tab" aria-controls="measurements-pane" aria-selected="true">
+                <i class="fas fa-calendar-alt me-1"></i>
+                Mesures
+              </a>
+            </li>
+            <li class="nav-item" role="presentation">
+              <a id="objective-tab" class="nav-link font-weight-bold" data-toggle="tab" data-bs-toggle="tab"
+                href="#objective-pane" data-target="#objective-pane" data-bs-target="#objective-pane" role="tab"
+                aria-controls="objective-pane" aria-selected="false">
+                <i class="fas fa-bullseye me-1"></i>
+                Objectif annuel
+              </a>
+            </li>
+          </ul>
+
+          <div class="tab-content" id="indicatorEntryTabsContent">
+            <!-- Onglet 1 : Mesures -->
+            <div class="tab-pane fade show active" id="measurements-pane" role="tabpanel"
+              aria-labelledby="measurements-tab">
+              <div class="row g-3">
+                <div class="col-6 col-md-3">
+                  <label for="mois_1" class="form-label small font-weight-bold text-dark mb-1">Janvier</label>
+                  <input type="text" name="mois_1" id="mois_1" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_2" class="form-label small font-weight-bold text-dark mb-1">Février</label>
+                  <input type="text" name="mois_2" id="mois_2" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_3" class="form-label small font-weight-bold text-dark mb-1">Mars</label>
+                  <input type="text" name="mois_3" id="mois_3" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_4" class="form-label small font-weight-bold text-dark mb-1">Avril</label>
+                  <input type="text" name="mois_4" id="mois_4" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_5" class="form-label small font-weight-bold text-dark mb-1">Mai</label>
+                  <input type="text" name="mois_5" id="mois_5" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_6" class="form-label small font-weight-bold text-dark mb-1">Juin</label>
+                  <input type="text" name="mois_6" id="mois_6" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_7" class="form-label small font-weight-bold text-dark mb-1">Juillet</label>
+                  <input type="text" name="mois_7" id="mois_7" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_8" class="form-label small font-weight-bold text-dark mb-1">Août</label>
+                  <input type="text" name="mois_8" id="mois_8" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_9" class="form-label small font-weight-bold text-dark mb-1">Septembre</label>
+                  <input type="text" name="mois_9" id="mois_9" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_10" class="form-label small font-weight-bold text-dark mb-1">Octobre</label>
+                  <input type="text" name="mois_10" id="mois_10" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_11" class="form-label small font-weight-bold text-dark mb-1">Novembre</label>
+                  <input type="text" name="mois_11" id="mois_11" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+                <div class="col-6 col-md-3">
+                  <label for="mois_12" class="form-label small font-weight-bold text-dark mb-1">Décembre</label>
+                  <input type="text" name="mois_12" id="mois_12" class="form-control form-control-sm text-center"
+                    placeholder="—">
+                </div>
+              </div>
+            </div>
+
+            <!-- Onglet 2 : Objectif annuel -->
+            <div class="tab-pane fade" id="objective-pane" role="tabpanel" aria-labelledby="objective-tab">
+              <div class="p-3 bg-light rounded border">
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    <label for="modalObjAnnee" class="form-label font-weight-bold text-dark mb-1">
+                      <i class="fas fa-calendar-alt text-primary me-1"></i>Année
+                    </label>
+                    <input type="text" id="modalObjAnnee"
+                      class="form-control form-control-sm font-weight-bold bg-white text-center" readonly>
+                  </div>
+                  <div class="col-12 col-md-8">
+                    <label for="modalValObj" class="form-label font-weight-bold text-dark mb-1">
+                      <i class="fas fa-bullseye text-primary me-1"></i>Objectif annuel
+                    </label>
+                    <input type="text" name="valeur_objectif" id="modalValObj"
+                      class="form-control form-control-sm font-weight-bold" placeholder="Ex: 95.00">
+                  </div>
+                </div>
+                <div class="form-text text-muted mt-2 small">
+                  Définissez la valeur cible visée pour cet indicateur au cours de l'année sélectionnée.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm px-4 font-weight-bold">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- Modal de modification d'un processus -->
+<div class="modal fade" id="processusEditModal" tabindex="-1" aria-labelledby="processusEditModalTitle"
+  aria-hidden="true" style="z-index: 105003;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-3">
+        <h5 class="modal-title font-weight-bold text-white mb-0" id="processusEditModalTitle">
+          <i class="fas fa-edit me-2"></i>Modifier le processus
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post" action="" id="formProcessusEdit">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="modal-body p-4 text-start">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label for="editProcCode" class="form-label font-weight-bold text-dark mb-1">Code</label>
+              <input type="text" name="code" id="editProcCode" class="form-control font-weight-bold" required>
+            </div>
+            <div class="col-12 col-md-8">
+              <label for="editProcNom" class="form-label font-weight-bold text-dark mb-1">Nom du processus</label>
+              <input type="text" name="nom" id="editProcNom" class="form-control" required>
+            </div>
+            <div class="col-12">
+              <label for="editProcDescription" class="form-label font-weight-bold text-dark mb-1">Description</label>
+              <textarea name="description" id="editProcDescription" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="editProcSociete" class="form-label font-weight-bold text-dark mb-1">Société</label>
+              <select name="societe" id="editProcSociete" class="form-control">
+                <option value="">— Sélectionner —</option>
+                {% for soc in societes_list %}
+                <option value="{{ soc.pk }}">{{ soc }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+              <div class="form-check mb-1">
+                <input type="checkbox" name="is_active" id="editProcIsActive" class="form-check-input" value="true">
+                <label class="form-check-label font-weight-bold text-dark" for="editProcIsActive">
+                  Processus actif
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm px-4 font-weight-bold">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de suppression d'un processus -->
+<div class="modal fade" id="processusDeleteModal" tabindex="-1" aria-labelledby="processusDeleteModalTitle"
+  aria-hidden="true" style="z-index: 105004;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white py-3">
+        <h5 class="modal-title font-weight-bold text-white mb-0" id="processusDeleteModalTitle">
+          <i class="fas fa-exclamation-triangle me-2"></i>Supprimer le processus
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post" action="" id="formProcessusDelete">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="modal-body p-4 text-start">
+          <p class="mb-3">
+            Êtes-vous sûr de vouloir supprimer le processus <strong id="deleteProcessNameDisplay"
+              class="text-danger"></strong> ?
+          </p>
+          <div class="alert alert-warning border-0 small mb-0">
+            <i class="fas fa-exclamation-circle me-1"></i>
+            <strong>Attention :</strong> Cette action est irréversible et supprimera également tous les indicateurs et
+            mesures rattachés à ce processus.
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger btn-sm px-4 font-weight-bold">
+            <i class="fas fa-trash me-1"></i>Confirmer la suppression
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de modification d'un indicateur -->
+<div class="modal fade" id="indicatorEditModal" tabindex="-1" aria-labelledby="indicatorEditModalTitle"
+  aria-hidden="true" style="z-index: 105005;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white py-3">
+        <div>
+          <h5 class="modal-title font-weight-bold text-white mb-0" id="indicatorEditModalTitle">
+            <i class="fas fa-cog me-2"></i>Modifier l'indicateur
+          </h5>
+          <div class="text-white-50 small mt-1" style="font-size:0.82rem;">
+            <i class="fas fa-sitemap me-1"></i><span id="editIndicatorModalProcessName"></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post" action="" id="formIndicatorEdit">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="modal-body p-4 text-start">
+          <div class="form-group mb-3">
+            <label class="form-label font-weight-bold text-dark mb-1">Code indicateur</label>
+            <div>
+              <span class="badge bg-secondary font-monospace px-3 py-2" id="editIndicatorCodeDisplay"
+                style="font-size:0.9rem;"></span>
+            </div>
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="editIndNom" class="form-label font-weight-bold text-dark mb-1">Nom de l'indicateur</label>
+            <input type="text" name="nom" id="editIndNom" class="form-control" required>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label for="editIndPeriodicite" class="form-label font-weight-bold text-dark mb-1">Périodicité</label>
+              <select name="periodicite" id="editIndPeriodicite" class="form-select form-control">
+                <option value="mensuel">Mensuel</option>
+                <option value="trimestriel">Trimestriel</option>
+                <option value="semestriel">Semestriel</option>
+                <option value="annuel">Annuel</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label for="editIndAgregation" class="form-label font-weight-bold text-dark mb-1">Agrégation</label>
+              <select name="mode_agregation" id="editIndAgregation" class="form-select form-control" required>
+                <option value="somme">Somme</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="minimum">Minimum</option>
+                <option value="maximum">Maximum</option>
+                <option value="nombre">Nombre</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_active" id="editIndActive" value="true">
+            <label class="form-check-label font-weight-bold text-dark" for="editIndActive">Indicateur actif</label>
+          </div>
+
+          <!-- Objectif initial / cible -->
+          <div class="rounded border p-3" style="background:#fafafa;">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <span class="font-weight-bold text-dark" style="font-size:0.9rem;">
+                <i class="fas fa-bullseye text-warning me-1"></i>Objectif initial
+              </span>
+            </div>
+            <div id="editObjectiveFieldsWrapper" class="row g-2">
+              <div class="col-5">
+                <label for="editObjectiveYear" class="form-label small text-muted mb-1">Année</label>
+                <input type="number" name="objectif_annee" id="editObjectiveYear"
+                  class="form-control form-control-sm text-center" value="{{ annee }}" min="2000" max="2100">
+              </div>
+              <div class="col-7">
+                <label for="editObjectiveValue" class="form-label small text-muted mb-1">Valeur cible</label>
+                <input type="number" step="any" name="valeur_objectif" id="editObjectiveValue"
+                  class="form-control form-control-sm" placeholder="Ex : 95">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary btn-sm px-4 font-weight-bold">
+            <i class="fas fa-save me-1"></i>Enregistrer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de suppression d'un indicateur -->
+<div class="modal fade" id="indicatorDeleteModal" tabindex="-1" aria-labelledby="indicatorDeleteModalTitle"
+  aria-hidden="true" style="z-index: 105006;">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-danger text-white py-3">
+        <h5 class="modal-title font-weight-bold text-white mb-0" id="indicatorDeleteModalTitle">
+          <i class="fas fa-trash-alt me-2"></i>Supprimer l'indicateur
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal"
+          aria-label="Fermer"></button>
+      </div>
+
+      <form method="post" action="" id="formIndicatorDelete">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+
+        <div class="modal-body p-4 text-start">
+          <p class="mb-3">
+            Êtes-vous sûr de vouloir supprimer l'indicateur <strong id="deleteIndicatorNameDisplay"
+              class="text-danger"></strong> ?
+          </p>
+          <div class="alert alert-warning border-0 small mb-0">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            Cette action supprimera également toutes les mesures mensuelles et les objectifs associés à cet indicateur.
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light py-2">
+          <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal"
+            data-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger btn-sm px-4 font-weight-bold">
+            <i class="fas fa-trash me-1"></i>Confirmer la suppression
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{{ objectives_chart_payload|json_script:"objectives-chart-data" }}
+<script>
+  window.tdbChartData = {
+    {% for item in indicateurs_data %}
+    "{{ item.indicateur.pk }}": {
+      labels: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"],
+      values: {{ item.serie_mensuelle_json|safe }}
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+
+  const _objectivesDataScript = document.getElementById("objectives-chart-data");
+  window.tdbObjectivesChartData = _objectivesDataScript ? JSON.parse(_objectivesDataScript.textContent) : null;
+
+  const chartsMap = {};
+  const labelsMois = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"];
+
+  // Onglet 3 : sur desktop les cartes objectifs sont masquées (tableau affiché).
+  // Résout la cible visible (ligne du tableau) pour le scroll/surlignage.
+  function findVisibleObjectiveTarget(cardId) {
+    let el = document.getElementById(cardId);
+    if (el && String(cardId).indexOf("objective-card-") === 0 && typeof getComputedStyle === "function") {
+      const style = getComputedStyle(el);
+      if (style && style.display === "none") {
+        const objId = String(cardId).split("objective-card-").pop();
+        const row = document.querySelector('.objectives-desktop-view [data-objective-id="' + objId + '"]');
+        if (row) el = row;
+      }
+    }
+    return el;
+  }
+
+  function openTdbFilterDrawer() {
+    const drawer = document.getElementById("tdbFilterDrawer");
+    const backdrop = document.getElementById("tdbFilterBackdrop");
+    const btnOpen = document.getElementById("btnOpenTdbFilterDrawer");
+
+    if (drawer && backdrop) {
+      backdrop.classList.add("active");
+      drawer.classList.add("active");
+      drawer.setAttribute("aria-hidden", "false");
+      if (btnOpen) btnOpen.setAttribute("aria-expanded", "true");
+
+      setTimeout(() => {
+        const firstInput = drawer.querySelector("select, input");
+        if (firstInput) firstInput.focus();
+      }, 100);
+    }}
+
+  function closeTdbFilterDrawer() {
+    const drawer = document.getElementById("tdbFilterDrawer");
+    const backdrop = document.getElementById("tdbFilterBackdrop");
+    const btnOpen = document.getElementById("btnOpenTdbFilterDrawer");
+
+    if (drawer && backdrop) {
+      drawer.classList.remove("active");
+      backdrop.classList.remove("active");
+      drawer.setAttribute("aria-hidden", "true");
+      if (btnOpen) {
+        btnOpen.setAttribute("aria-expanded", "false");
+        btnOpen.focus();
+      }}
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      const drawer = document.getElementById("tdbFilterDrawer");
+      if (drawer && drawer.classList.contains("active")) {
+        closeTdbFilterDrawer();
+      }}
+  });
+
+  function togglePeriodeSelect(val) {
+    const container = document.getElementById("periodeSelectContainer");
+    const select = document.getElementById("periode_sb");
+    if (!container || !select) return;
+
+    if (val === "annee_complete") {
+      container.style.display = "none";
+    } else {
+      container.style.display = "block";
+      let html = "";
+      if (val === "trimestre") {
+        html = '<option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option>';
+      } else if (val === "semestre") {
+        html = '<option value="1">S1</option><option value="2">S2</option>';
+      } else if (val === "mois") {
+        const moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+        html = moisNoms.map((m, idx) => `<option value="${idx + 1}">${m}</option>`).join("");
+      }
+      select.innerHTML = html;
+    }}
+
+  function switchTab(tabName) {
+    const inputMain = document.getElementById("hiddenTabInput");
+    if (inputMain) inputMain.value = tabName;
+    const url = new URL(window.location);
+    url.searchParams.set("tab", tabName);
+    window.history.replaceState({}, "", url);
+  }
+
+  function activateBootstrapTab(tabBtn) {
+    if (!tabBtn) return;
+
+    // 1. jQuery / Bootstrap 4 / AdminLTE 3 (Environnement actif)
+    if (typeof $ !== "undefined" && $.fn && $.fn.tab) {
+      $(tabBtn).tab("show");
+    }
+    // 2. Bootstrap 5 JS API (si disponible)
+    else if (typeof bootstrap !== "undefined" && bootstrap.Tab) {
+      try {
+        const bsTab = bootstrap.Tab.getOrCreateInstance
+          ? bootstrap.Tab.getOrCreateInstance(tabBtn)
+          : new bootstrap.Tab(tabBtn);
+        bsTab.show();
+      } catch (e) {
+        tabBtn.click();
+      }}
+    // 3. Simulation DOM directe
+    else {
+      tabBtn.click();
+    }
+
+    // Basculement DOM direct des classes CSS active/show pour garantie visuelle instantanée
+    const targetSelector = tabBtn.getAttribute("data-target") || tabBtn.getAttribute("data-bs-target");
+    if (targetSelector) {
+      const targetPane = document.querySelector(targetSelector);
+      if (targetPane && targetPane.parentElement) {
+        targetPane.parentElement.querySelectorAll(".tab-pane").forEach(pane => {
+          pane.classList.remove("active", "show");
+        });
+        targetPane.classList.add("active", "show");
+      }}
+
+    const parentNav = tabBtn.closest(".nav");
+    if (parentNav) {
+      parentNav.querySelectorAll(".nav-link").forEach(el => el.classList.remove("active"));
+      tabBtn.classList.add("active");
+    }}
+
+  function navigateToCard(tabName, cardId) {
+    const tabBtn = document.getElementById(`tab-${tabName}-btn`);
+    if (tabBtn) {
+      activateBootstrapTab(tabBtn);
+      switchTab(tabName);
+
+      setTimeout(() => {
+        const cardElem = document.getElementById(cardId);
+        if (cardElem) {
+          cardElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cardElem.classList.add('highlight-pulse');
+          setTimeout(() => cardElem.classList.remove('highlight-pulse'), 4000);
+        }}, 200);
+    }}
+
+  function initDashboardLogic() {
+    // 1. Activation de l'onglet actif via GET param ?tab= ou Hash #
+    const urlParams = new URLSearchParams(window.location.search);
+    const getTab = urlParams.get("tab");
+    const hash = window.location.hash.replace("#", "");
+
+    let targetTab = getTab || "synthese";
+    if (hash && document.getElementById(hash)) {
+      if (hash.startsWith("indicator-card-")) targetTab = "graphiques";
+      else if (hash.startsWith("objective-card-")) targetTab = "objectifs";
+    }
+
+    const initialTabBtn = document.getElementById(`tab-${targetTab}-btn`);
+    if (initialTabBtn) {
+      activateBootstrapTab(initialTabBtn);
+      if (hash && document.getElementById(hash)) {
+        setTimeout(() => {
+          const targetElem = findVisibleObjectiveTarget(hash) || document.getElementById(hash);
+          if (targetElem) {
+            targetElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            targetElem.classList.add('highlight-pulse');
+          }}, 300);
+      }}
+
+  // ── Render unique function for indicator charts ──
+  window.renderIndicatorChart = function (indicatorId, visualType) {
+    const key = String(indicatorId);
+    const canvas = document.getElementById(`indicator-chart-${key}`);
+    const chartData = window.tdbChartData && window.tdbChartData[key];
+
+    if (!canvas) {
+      console.error("Canvas absent", key);
+      return;
+    }
+
+    if (!chartData) {
+      console.error("Données absentes", key, window.tdbChartData);
+      return;
+    }
+
+    const existingChart = typeof Chart !== "undefined" && typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    let chartType = "line";
+    let fill = false;
+
+    if (visualType === "bar") {
+      chartType = "bar";
+    } else if (visualType === "area") {
+      chartType = "line";
+      fill = true;
+    }
+
+    const normalizedValues = (chartData.values || []).map(v => {
+      if (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) {
+        return null;
+      }
+      return Number(v);
+    });
+
+    try {
+      const chart = new Chart(canvas.getContext("2d"), {
+        type: chartType,
+        data: {
+          labels: [...chartData.labels],
+          datasets: [{
+            label: "Réalisé",
+            data: normalizedValues,
+            fill: fill,
+            showLine: true,
+            spanGaps: true,
+            borderColor: "rgb(13, 110, 253)",
+            backgroundColor: visualType === "bar"
+              ? "rgba(13, 110, 253, 0.65)"
+              : (fill ? "rgba(13, 110, 253, 0.20)" : "transparent"),
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            pointBorderColor: "rgb(13, 110, 253)",
+            pointBackgroundColor: "#ffffff",
+            tension: chartType === "line" ? 0.25 : 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+
+      console.log("GRAPH CREATED", {
+        indicatorId: key,
+        requestedType: visualType,
+        actualType: chart.config.type,
+        valueCount: chartData.values.length
+      });
+    } catch (error) {
+      console.error("GRAPH CREATION FAILED", key, error);
+    }
+  };
+
+  window.renderAllVisibleIndicatorCharts = function () {
+    document.querySelectorAll(".js-chart-type-selector").forEach(function (selector) {
+      const indicatorId = String(selector.dataset.indicatorId);
+      window.renderIndicatorChart(indicatorId, selector.value || "line");
+    });
+  };
+
+  // ── Graphique Comparatif Objectifs N vs N-1 (chart-obj-global) ──
+  window.renderObjectivesEvolutionChart = function (visualType) {
+    const canvas = document.getElementById("chart-obj-global");
+    const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.evolution;
+
+    if (!canvas) {
+      console.error("Canvas évolution absent", "chart-obj-global");
+      return;
+    }
+    if (!data) {
+      console.error("Données évolution absentes", window.tdbObjectivesChartData);
+      return;
+    }
+    if (typeof Chart === "undefined") return;
+
+    const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    const chartType = visualType === "bar" ? "bar" : "line";
+    const isLine = chartType === "line";
+
+    const normalizeArray = arr => (arr || []).map(v => (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) ? null : Number(v));
+
+    const chart = new Chart(canvas.getContext("2d"), {
+      type: chartType,
+      data: {
+        labels: [...data.labels],
+        datasets: [
+          {
+            label: "Objectif " + data.currentYear,
+            data: normalizeArray(data.currentValues),
+            fill: false,
+            showLine: true,
+            spanGaps: true,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            tension: isLine ? 0.25 : 0,
+            borderColor: "rgb(13, 110, 253)",
+            backgroundColor: chartType === "bar" ? "rgba(13, 110, 253, 0.65)" : "transparent"
+          },
+          {
+            label: "Objectif " + data.previousYear,
+            data: normalizeArray(data.previousValues),
+            fill: false,
+            showLine: true,
+            spanGaps: true,
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 5,
+            tension: isLine ? 0.25 : 0,
+            borderColor: "rgb(108, 117, 125)",
+            backgroundColor: chartType === "bar" ? "rgba(108, 117, 125, 0.45)" : "transparent"
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: "index", intersect: false },
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    console.log("OBJECTIVES EVOLUTION CREATED", {
+      requestedType: visualType,
+      actualType: chart.config.type,
+      labels: data.labels.length,
+      values: data.currentValues.length
+    });
+  }
+
+  // ── Graphique Répartition des Statuts (chart-statut-pie) ──
+  window.renderObjectivesStatusChart = function (visualType) {
+    const canvas = document.getElementById("chart-statut-pie");
+    const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.statuses;
+
+    if (!canvas) {
+      console.error("Canvas statuts absent", "chart-statut-pie");
+      return;
+    }
+    if (!data) {
+      console.error("Données statuts absentes", window.tdbObjectivesChartData);
+      return;
+    }
+    if (typeof Chart === "undefined") return;
+
+    const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    let chartType = "doughnut";
+    if (visualType === "pie") {
+      chartType = "pie";
+    } else if (visualType === "bar") {
+      chartType = "bar";
+    }
+
+    const chart = new Chart(canvas.getContext("2d"), {
+      type: chartType,
+      data: {
+        labels: [...data.labels],
+        datasets: [{
+          label: "Répartition des statuts",
+          data: [...data.values],
+          backgroundColor: [...data.colors],
+          borderColor: "#ffffff",
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: { font: { size: 11 }, padding: 10, usePointStyle: true }
+          }
+        }
+      }
+    });
+
+    console.log("OBJECTIVES STATUS CREATED", {
+      requestedType: visualType,
+      actualType: chart.config.type,
+      values: data.values
+    });
+  }
+
+  function renderAllVisibleObjectivesCharts() {
+    const evolutionSelect = document.querySelector('.chart-type-select[data-chart-id="chart-obj-global"]');
+    const statusSelect = document.querySelector('.chart-type-select[data-chart-id="chart-statut-pie"]');
+    renderObjectivesEvolutionChart((evolutionSelect && evolutionSelect.value) || "bar");
+    renderObjectivesStatusChart((statusSelect && statusSelect.value) || "doughnut");
+  }
+
+  window.renderObjectivesEvolutionChart = renderObjectivesEvolutionChart;
+  window.renderObjectivesStatusChart = renderObjectivesStatusChart;
+
+  // 6. Écouteurs de changement de sélecteur et d'affichage d'onglets
+  document.addEventListener("change", function (event) {
+    const selector = event.target.closest(".js-chart-type-selector");
+    if (!selector) return;
+
+    const indicatorId = String(selector.dataset.indicatorId);
+    window.renderIndicatorChart(indicatorId, selector.value);
+  });
+
+  // Action globale : Appliquer le même type de graphique à tous les indicateurs
+  document.addEventListener("click", function (event) {
+    const btnGlobal = event.target.closest("#btnApplyGlobalChartType");
+    if (!btnGlobal) return;
+
+    const selectGlobal = document.getElementById("globalChartTypeSelector");
+    if (!selectGlobal) return;
+
+    const targetType = selectGlobal.value;
+
+    document.querySelectorAll(".js-chart-type-selector").forEach(function (select) {
+      if (select.value !== targetType) {
+        select.value = targetType;
+      }
+      const indicatorId = String(select.dataset.indicatorId);
+      window.renderIndicatorChart(indicatorId, targetType);
+    });
+  });
+
+  // Utilitaire pour récupérer le cookie CSRF Django
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // Export Excel dynamique transmettant la configuration UI des graphiques
+  const exportExcelBtn = document.getElementById("exportExcelBtn");
+  if (exportExcelBtn) {
+    exportExcelBtn.addEventListener("click", async function (e) {
+      e.preventDefault();
+
+      const chartTypes = {};
+      document.querySelectorAll(".chart-type-select, .js-chart-type-selector").forEach(function (select) {
+        const code = select.dataset.indicatorCode || select.dataset.indicatorId;
+        if (code) {
+          chartTypes[code] = select.value;
+        }
+        if (select.dataset.indicatorId) {
+          chartTypes[select.dataset.indicatorId] = select.value;
+        }
+      });
+
+      console.log("CHART TYPES ENVOYÉS AU BACKEND:", chartTypes);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const payload = {
+        annee: urlParams.get("annee") || "{{ annee }}",
+        societe: urlParams.get("societe") || "{{ selected_societe_id|default:'' }}",
+        processus: urlParams.get("processus") || "{{ selected_processus_id|default:'' }}",
+        chart_types: chartTypes
+      };
+
+      const originalContent = exportExcelBtn.innerHTML;
+      exportExcelBtn.disabled = true;
+      exportExcelBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><span>Exportation...</span>';
+
+      try {
+        const response = await fetch("{% url 'gestion_documentaire:tdb_export_excel' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken") || ""
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          let detail = response.statusText;
+          try {
+            const errJson = await response.json();
+            detail = errJson.error || detail;
+            console.error("TRACEBACK:\n" + (errJson.traceback || ""));
+          } catch (_) {}
+          throw new Error("Erreur serveur (" + response.status + ") : " + detail);
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Tableau_de_bord_SMQS_${payload.annee}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Erreur Export Excel:", err);
+        alert("Erreur lors de la génération du fichier Excel.\n\n" + err.message);
+      } finally {
+        exportExcelBtn.disabled = false;
+        exportExcelBtn.innerHTML = originalContent;
+      }
+    });
+  }
+
+  document.addEventListener("shown.bs.tab", function (event) {
+    const target = event.target.getAttribute("data-bs-target") || event.target.getAttribute("href") || event.target.getAttribute("data-target");
+    if (target === "#tab-graphiques" || target === "#graphiques" || target === "tab-graphiques") {
+      requestAnimationFrame(renderAllVisibleIndicatorCharts);
+    } else if (target === "#tab-objectifs" || target === "#objectifs" || target === "tab-objectifs" || target === "objectifs") {
+      requestAnimationFrame(renderAllVisibleObjectivesCharts);
+    }
+  });
+
+  if (typeof $ !== "undefined") {
+    $(document).on("shown.bs.tab", function (event) {
+      const target = $(event.target).attr("href") || $(event.target).attr("data-target") || $(event.target).attr("data-bs-target");
+      if (target === "#tab-graphiques" || target === "#graphiques" || target === "tab-graphiques") {
+        requestAnimationFrame(renderAllVisibleIndicatorCharts);
+      } else if (target === "#tab-objectifs" || target === "#objectifs" || target === "tab-objectifs" || target === "objectifs") {
+        requestAnimationFrame(renderAllVisibleObjectivesCharts);
+      }
+    });
+  }
+
+  // Rendu initial des graphiques si l'onglet "Vue graphique" est déjà actif au chargement
+  const graphicsPane = document.getElementById("tab-graphiques") || document.getElementById("graphiques");
+  if (graphicsPane && (graphicsPane.classList.contains("active") || graphicsPane.classList.contains("show"))) {
+    requestAnimationFrame(renderAllVisibleIndicatorCharts);
+  }
+
+  // Rendu initial des graphiques si l'onglet "Objectifs annuels" est déjà actif au chargement
+  const objectivesPane = document.getElementById("tab-objectifs") || document.getElementById("objectifs");
+  if (objectivesPane && (objectivesPane.classList.contains("active") || objectivesPane.classList.contains("show"))) {
+    requestAnimationFrame(renderAllVisibleObjectivesCharts);
+  }
+}
+
+  // Écouteurs de changement dynamique de type de graphique sur les autres sélecteurs (.chart-type-select)
+  document.querySelectorAll(".chart-type-select").forEach(select => {
+    select.addEventListener("change", function () {
+      const canvasId = this.getAttribute("data-chart-id");
+      const selectedVal = this.value;
+      if (canvasId === "chart-obj-global") {
+        window.renderObjectivesEvolutionChart(selectedVal);
+      } else if (canvasId === "chart-statut-pie") {
+        window.renderObjectivesStatusChart(selectedVal);
+      }
+    });
+  });
+
+  // 7. Écouteur pour le bouton action "Voir le graphique" (.js-open-indicator-chart) - 100% Côté Client
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-open-indicator-chart");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const indicatorId = btn.getAttribute("data-indicator-id");
+
+    // 1. Activer l'onglet "Vue graphique" immédiatement côté client
+    const tabBtn = document.getElementById("tab-graphiques-btn");
+    if (tabBtn) {
+      activateBootstrapTab(tabBtn);
+      switchTab("graphiques");
+    }
+
+    // 2. Défiler vers la carte, surligner et forcer le rendu des graphiques
+    setTimeout(function () {
+      const cardId = "indicator-card-" + indicatorId;
+      const cardElem = document.getElementById(cardId);
+      if (cardElem) {
+        cardElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cardElem.classList.add('highlight-pulse');
+        setTimeout(() => cardElem.classList.remove('highlight-pulse'), 3000);
+      }
+
+      Object.values(chartsMap).forEach(chart => {
+        if (chart && typeof chart.resize === 'function') {
+          chart.resize();
+          chart.update();
+        }});
+    }, 150);
+  });
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboardLogic);
+  } else {
+    initDashboardLogic();
+  }
+
+  // ── Changer le processus analysé dans l'onglet 2 ──
+  function changerProcessusGraphique(processusId) {
+    const url = new URL(window.location);
+    url.searchParams.set("tab", "graphiques");
+    url.searchParams.set("processus_graphique", processusId);
+    window.location.href = url.toString();
+  }
+
+  // ── Collapse/expand des groupes processus dans le tableau synthèse ──
+  function toggleGroup(processusId) {
+    const childRows = document.querySelectorAll('.group-' + processusId);
+    const icon = document.getElementById('icon-' + processusId);
+    const isHidden = childRows.length > 0 && childRows[0].style.display === 'none';
+    childRows.forEach(function (row) {
+      row.style.display = isHidden ? '' : 'none';
+    });
+    if (icon) {
+      icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }}
+
+  // ── Navigation vers un onglet et scroll vers une carte ──
+  function navigateToCard(tabId, cardId) {
+    // Activer l'onglet cible
+    const tabBtn = document.getElementById('tab-' + tabId + '-btn');
+    if (tabBtn) {
+      const bsTab = new bootstrap.Tab(tabBtn);
+      bsTab.show();
+      switchTab(tabId);
+    }
+    // Scroll vers la carte et redimensionner les graphiques
+    setTimeout(function () {
+      const card = findVisibleObjectiveTarget(cardId) || document.getElementById(cardId);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.classList.add('highlight-pulse');
+        setTimeout(() => card.classList.remove('highlight-pulse'), 2500);
+      }
+      Object.values(chartsMap).forEach(chart => {
+        if (chart && typeof chart.resize === 'function') {
+          chart.resize();
+        }});
+    }, 250);
+  }
+
+  // ── Gestion des indicateurs dans la modal Nouveau processus ──
+  var _procIndCount = 0;
+
+  function addProcessIndicatorRow() {
+    _procIndCount++;
+    var idx = _procIndCount;
+    var procCode = (document.getElementById("id_proc_code").value || "IND").trim();
+    var seqNum = String(document.querySelectorAll(".proc-indicator-row").length + 1).padStart(2, "0");
+    var codePreview = procCode + "-" + seqNum;
+
+    var header = document.getElementById("procIndicatorHeader");
+    if (header) header.classList.remove("d-none");
+    var empty = document.getElementById("procIndicatorEmpty");
+    if (empty) empty.style.display = "none";
+
+    var row = document.createElement("div");
+    row.className = "row g-1 mb-2 align-items-center proc-indicator-row";
+    row.id = "proc-ind-row-" + idx;
+    row.innerHTML = `
+      <div class="col-auto d-flex align-items-center pe-1" style="min-width:80px;">
+        <span class="badge px-2 py-1 proc-code-badge" style="font-family:monospace; font-size:0.78rem; background:#e9ecef; color:#495057; border:1px solid #dee2e6; white-space:nowrap;" title="Code généré automatiquement">${codePreview}</span>
+      </div>
+      <div class="col col-md-5">
+        <input type="text" name="ind_nom_${idx}" class="form-control form-control-sm"
+               placeholder="Nom de l'indicateur" required>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="ind_periodicite_${idx}" class="form-control form-control-sm">
+          <option value="mensuel">Mensuel</option>
+          <option value="trimestriel">Trimestriel</option>
+          <option value="semestriel">Semestriel</option>
+          <option value="annuel">Annuel</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-2">
+        <select name="ind_agregation_${idx}" class="form-control form-control-sm" required>
+          <option value="somme" selected>Somme</option>
+          <option value="moyenne">Moyenne</option>
+          <option value="minimum">Minimum</option>
+          <option value="maximum">Maximum</option>
+          <option value="nombre">Nombre</option>
+        </select>
+      </div>
+      <div class="col-auto text-end" style="min-width:42px;">
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeProcessIndicatorRow(${idx})" title="Supprimer">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+      </div>
+    `;
+
+    document.getElementById("procIndicatorRows").appendChild(row);
+    updatePendingIndicatorCount();
+    refreshProcCodePreviews();
+  }
+
+  function removeProcessIndicatorRow(idx) {
+    var row = document.getElementById("proc-ind-row-" + idx);
+    if (row) row.remove();
+    updatePendingIndicatorCount();
+    refreshProcCodePreviews();
+    var remaining = document.querySelectorAll(".proc-indicator-row");
+    if (remaining.length === 0) {
+      var header = document.getElementById("procIndicatorHeader");
+      if (header) header.classList.add("d-none");
+      var empty = document.getElementById("procIndicatorEmpty");
+      if (empty) empty.style.display = "";
+    }}
+
+  function updatePendingIndicatorCount() {
+    var count = document.querySelectorAll(".proc-indicator-row").length;
+    var badge = document.getElementById("pendingIndicatorCount");
+    if (badge) {
+      badge.textContent = count;
+      badge.style.background = count > 0 ? "#28a745" : "#6c757d";
+    }}
+
+  function refreshProcCodePreviews() {
+    var procCode = (document.getElementById("id_proc_code") || {}).value || "IND";
+    procCode = procCode.trim() || "IND";
+    document.querySelectorAll(".proc-code-badge").forEach(function (badge, i) {
+      badge.textContent = procCode + "-" + String(i + 1).padStart(2, "0");
+    });
+  }
+
+  // Mettre à jour les previews de code en temps réel quand le code du processus change
+  var procCodeInput = document.getElementById("id_proc_code");
+  if (procCodeInput) {
+    procCodeInput.addEventListener("input", refreshProcCodePreviews);
+  }
+
+  // Réinitialiser la modal processus à la fermeture
+  var procModal = document.getElementById("processusCreateModal");
+  if (procModal) {
+    procModal.addEventListener("hidden.bs.modal", function () {
+      _procIndCount = 0;
+      document.querySelectorAll(".proc-indicator-row").forEach(function (r) { r.remove(); });
+      updatePendingIndicatorCount();
+      var empty = document.getElementById("procIndicatorEmpty");
+      if (empty) empty.style.display = "";
+      var header = document.getElementById("procIndicatorHeader");
+      if (header) header.classList.add("d-none");
+      // Réinitialiser vers onglet Informations
+      var tab = document.getElementById("process-info-tab");
+      if (tab) {
+        if (typeof bootstrap !== "undefined" && bootstrap.Tab) {
+          bootstrap.Tab.getOrCreateInstance(tab).show();
+        } else if (typeof $ !== "undefined") { $(tab).tab("show"); }}
+    });
+  }
+
+  // ── Ouverture de la modal de création d'indicateur avec pré-sélection du processus ──
+
+  function toggleObjectiveFields(checkbox) {
+    const card = checkbox.closest(".rounded") || document;
+    const wrapper = card.querySelector("#objectiveFieldsWrapper, #editObjectiveFieldsWrapper") || document.getElementById("objectiveFieldsWrapper");
+    const notice = card.querySelector("#objectiveSkipNotice, #editObjectiveSkipNotice") || document.getElementById("objectiveSkipNotice");
+    if (!wrapper) return;
+    if (checkbox.checked) {
+      wrapper.style.opacity = "0.35";
+      wrapper.querySelectorAll("input").forEach(function (inp) {
+        inp.disabled = true;
+        inp.value = "";
+      });
+      if (notice) notice.style.display = "";
+    } else {
+      wrapper.style.opacity = "1";
+      wrapper.querySelectorAll("input").forEach(function (inp) {
+        inp.disabled = false;
+      });
+      if (notice) notice.style.display = "none";
+      const yearInput = wrapper.querySelector("input[name='objectif_annee']");
+      if (yearInput && !yearInput.value) {
+        yearInput.value = "{{ annee }}";
+      }
+    }
+  }
+
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-open-indicator-modal");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const processId = btn.getAttribute("data-process-id");
+    const processCode = btn.getAttribute("data-process-code") || "";
+    const processName = btn.getAttribute("data-process-name") || "";
+
+    // Champ caché processus
+    const hiddenInput = document.getElementById("indicatorProcessId");
+    if (hiddenInput && processId) hiddenInput.value = processId;
+
+    // Sous-titre de la modal
+    const subtitle = document.getElementById("indicatorModalProcessName");
+    if (subtitle) subtitle.textContent = processCode + (processName ? " — " + processName : "");
+
+    // Réinitialiser le formulaire
+    const nomInput = document.getElementById("modalIndicateurNom");
+    if (nomInput) nomInput.value = "";
+
+    const skipCheckbox = document.getElementById("modalSkipObjective");
+    if (skipCheckbox) {
+      skipCheckbox.checked = false;
+      toggleObjectiveFields(skipCheckbox);
+    }
+    const objValueInput = document.getElementById("initialObjectiveValue");
+    if (objValueInput) objValueInput.value = "";
+
+    const modalElem = document.getElementById("indicatorCreateModal");
+    if (modalElem) {
+      if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+        const bsModal = bootstrap.Modal.getOrCreateInstance
+          ? bootstrap.Modal.getOrCreateInstance(modalElem)
+          : new bootstrap.Modal(modalElem);
+        bsModal.show();
+      } else if (typeof $ !== "undefined" && $.fn && $.fn.modal) {
+        $(modalElem).modal("show");
+      }}
+  });
+
+  // ── Ouverture de la modal de saisie de l'indicateur (mesures + objectif) ──
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-open-measure-modal");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const indicatorId = btn.getAttribute("data-indicator-id");
+    const indicatorCode = btn.getAttribute("data-indicator-code");
+    const indicatorName = btn.getAttribute("data-indicator-name");
+    const processCode = btn.getAttribute("data-process-code");
+    const processName = btn.getAttribute("data-process-name");
+    const year = btn.getAttribute("data-year");
+    const objective = btn.getAttribute("data-objective");
+    const mesuresRaw = btn.getAttribute("data-mesures");
+
+    const codeSpan = document.getElementById("modalMeasureIndicatorCode");
+    const nameSpan = document.getElementById("modalMeasureIndicatorName");
+    const processSpan = document.getElementById("modalMeasureProcessName");
+    const objAnneeInput = document.getElementById("modalObjAnnee");
+
+    if (codeSpan) codeSpan.textContent = indicatorCode || "";
+    if (nameSpan) nameSpan.textContent = indicatorName || "";
+    if (processSpan) processSpan.textContent = (processCode ? processCode + " — " : "") + (processName || "");
+    if (objAnneeInput) objAnneeInput.value = year || "";
+
+    const valObjInput = document.getElementById("modalValObj");
+    if (valObjInput) {
+      valObjInput.value = (objective !== null && objective !== undefined && objective !== "—") ? objective : "";
+    }
+
+    // 1. Réinitialiser strictement TOUS les champs mois à vide
+    for (let m = 1; m <= 12; m++) {
+      const input = document.getElementById("mois_" + m);
+      if (input) input.value = "";
+    }
+
+    // 2. Pré-remplir depuis data-mesures si présent (pour réactivité instantanée)
+    if (mesuresRaw) {
+      try {
+        const mesuresLocal = JSON.parse(mesuresRaw);
+        if (mesuresLocal && typeof mesuresLocal === "object") {
+          Object.keys(mesuresLocal).forEach(function (m) {
+            const input = document.getElementById("mois_" + m);
+            if (input) input.value = mesuresLocal[m];
+          });
+        }} catch (err) { }}
+
+    // 3. Charger les mesures exactes depuis le serveur via JSON (route GET)
+    const form = document.getElementById("formMeasureEntryModal");
+    if (form && indicatorId && year) {
+      const fetchUrl = "/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/saisie/" + year + "/";
+      form.action = fetchUrl;
+
+      fetch(fetchUrl, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }})
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          // Vider d'abord tous les champs
+          for (let m = 1; m <= 12; m++) {
+            const input = document.getElementById("mois_" + m);
+            if (input) input.value = "";
+          }
+          // Appliquer uniquement les mesures réellement reçues
+          if (data && data.mesures) {
+            Object.keys(data.mesures).forEach(function (m) {
+              const input = document.getElementById("mois_" + m);
+              if (input) input.value = data.mesures[m];
+            });
+          }
+          if (data && data.objectif !== undefined && valObjInput) {
+            valObjInput.value = data.objectif || "";
+          }})
+        .catch(function (err) {
+          console.error("Erreur chargement mesures:", err);
+        });
+    }
+
+    // Réinitialiser vers le premier onglet (Mesures mensuelles)
+    const firstTabBtn = document.getElementById("measurements-tab");
+    if (firstTabBtn) {
+      if (typeof $ !== "undefined" && $.fn && $.fn.tab) {
+        $(firstTabBtn).tab("show");
+      } else if (typeof bootstrap !== "undefined" && bootstrap.Tab) {
+        const bsTab = bootstrap.Tab.getOrCreateInstance
+          ? bootstrap.Tab.getOrCreateInstance(firstTabBtn)
+          : new bootstrap.Tab(firstTabBtn);
+        bsTab.show();
+      }}
+
+    const modalElem = document.getElementById("measureEntryModal");
+    if (modalElem) {
+      if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+        const bsModal = bootstrap.Modal.getOrCreateInstance
+          ? bootstrap.Modal.getOrCreateInstance(modalElem)
+          : new bootstrap.Modal(modalElem);
+        bsModal.show();
+      } else if (typeof $ !== "undefined" && $.fn && $.fn.modal) {
+        $(modalElem).modal("show");
+      }}
+  });
+
+  function openModalElem(modalElem) {
+    if (!modalElem) return;
+    if (typeof $ !== "undefined" && $.fn && $.fn.modal) {
+      $(modalElem).modal("show");
+    } else if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+      const bsModal = bootstrap.Modal.getOrCreateInstance
+        ? bootstrap.Modal.getOrCreateInstance(modalElem)
+        : new bootstrap.Modal(modalElem);
+      bsModal.show();
+    }}
+
+  // ── Modals CRUD : Processus & Indicateur ──
+
+  // 1. Modifier un processus
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-edit-process");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const processId = btn.getAttribute("data-process-id") || (btn.dataset ? btn.dataset.processId : "");
+    if (!processId) return;
+
+    const form = document.getElementById("formProcessusEdit");
+    if (form) {
+      form.action = "/gestion-documentaire/tableau-de-bord/processus/" + processId + "/modifier/";
+    }
+
+    // Préremplissage synchrone immédiat depuis le DOM
+    const inputCode = document.getElementById("editProcCode");
+    const inputNom = document.getElementById("editProcNom");
+    const inputDesc = document.getElementById("editProcDescription");
+    const selectSoc = document.getElementById("editProcSociete");
+    const inputActive = document.getElementById("editProcIsActive");
+
+    const code = btn.getAttribute("data-process-code") || (btn.dataset ? btn.dataset.processCode : "");
+    const nom = btn.getAttribute("data-process-nom") || (btn.dataset ? btn.dataset.processNom : "");
+    const description = btn.getAttribute("data-process-description") || (btn.dataset ? btn.dataset.processDescription : "");
+    const societe = btn.getAttribute("data-process-societe") || (btn.dataset ? btn.dataset.processSociete : "");
+    const activeRaw = btn.getAttribute("data-process-active") || (btn.dataset ? btn.dataset.processActive : "");
+
+    if (inputCode) inputCode.value = code;
+    if (inputNom) inputNom.value = nom;
+    if (inputDesc) inputDesc.value = description;
+    if (selectSoc) selectSoc.value = societe;
+    if (inputActive) inputActive.checked = (activeRaw === "true" || activeRaw === "1" || activeRaw === "True");
+
+    // Ouvrir la modal immédiatement
+    openModalElem(document.getElementById("processusEditModal"));
+
+    // Rafraîchir via JSON en arrière-plan
+    fetch("/gestion-documentaire/tableau-de-bord/processus/" + processId + "/json/", {
+      headers: { "X-Requested-With": "XMLHttpRequest" }})
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP error " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        if (data) {
+          if (inputCode && data.code) inputCode.value = data.code;
+          if (inputNom && data.nom) inputNom.value = data.nom;
+          if (inputDesc && data.description !== undefined) inputDesc.value = data.description;
+          if (selectSoc && data.societe_id) selectSoc.value = data.societe_id;
+          if (inputActive && data.is_active !== undefined) inputActive.checked = !!data.is_active;
+        }})
+      .catch(function (err) {
+        console.warn("Chargement JSON processus:", err);
+      });
+  });
+
+  // 2. Supprimer un processus
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-delete-process");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const processId = btn.getAttribute("data-process-id");
+    const processCode = btn.getAttribute("data-process-code") || "";
+    const processName = btn.getAttribute("data-process-name") || "";
+
+    const form = document.getElementById("formProcessusDelete");
+    if (form && processId) {
+      form.action = "/gestion-documentaire/tableau-de-bord/processus/" + processId + "/supprimer/";
+    }
+    const nameDisplay = document.getElementById("deleteProcessNameDisplay");
+    if (nameDisplay) nameDisplay.textContent = processCode + (processName ? " — " + processName : "");
+
+    openModalElem(document.getElementById("processusDeleteModal"));
+  });
+
+  // 3. Modifier un indicateur
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-edit-indicator");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const indicatorId = btn.getAttribute("data-indicator-id");
+    const code = btn.getAttribute("data-indicator-code") || "";
+    const nom = btn.getAttribute("data-indicator-nom") || "";
+    const periodicite = btn.getAttribute("data-indicator-periodicite") || "mensuel";
+    const agregation = btn.getAttribute("data-indicator-agregation") || "somme";
+    const active = btn.getAttribute("data-indicator-active") === "true";
+    const objective = btn.getAttribute("data-indicator-objective") || "";
+    const processCode = btn.getAttribute("data-process-code") || "";
+    const processName = btn.getAttribute("data-process-name") || "";
+
+    const form = document.getElementById("formIndicatorEdit");
+    if (form && indicatorId) {
+      form.action = "/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/modifier/";
+    }
+    const subtitle = document.getElementById("editIndicatorModalProcessName");
+    if (subtitle) subtitle.textContent = processCode + (processName ? " — " + processName : "");
+
+    const codeDisplay = document.getElementById("editIndicatorCodeDisplay");
+    if (codeDisplay) codeDisplay.textContent = code;
+
+    const inputNom = document.getElementById("editIndNom");
+    if (inputNom) inputNom.value = nom;
+
+    const selectPer = document.getElementById("editIndPeriodicite");
+    if (selectPer) selectPer.value = periodicite;
+
+    const selectAgre = document.getElementById("editIndAgregation");
+    if (selectAgre) selectAgre.value = agregation;
+
+    const inputActive = document.getElementById("editIndActive");
+    if (inputActive) inputActive.checked = active;
+
+    const inputObjVal = document.getElementById("editObjectiveValue");
+    if (inputObjVal) inputObjVal.value = objective;
+
+    const inputObjYear = document.getElementById("editObjectiveYear");
+    if (inputObjYear) inputObjYear.value = "{{ annee }}";
+
+    openModalElem(document.getElementById("indicatorEditModal"));
+  });
+
+  // 4. Supprimer un indicateur
+  document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-delete-indicator");
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const indicatorId = btn.getAttribute("data-indicator-id");
+    const indicatorCode = btn.getAttribute("data-indicator-code") || "";
+    const indicatorName = btn.getAttribute("data-indicator-name") || "";
+
+    const form = document.getElementById("formIndicatorDelete");
+    if (form && indicatorId) {
+      form.action = "/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/supprimer/";
+    }
+    const nameDisplay = document.getElementById("deleteIndicatorNameDisplay");
+    if (nameDisplay) nameDisplay.textContent = indicatorCode + (indicatorName ? " — " + indicatorName : "");
+
+    openModalElem(document.getElementById("indicatorDeleteModal"));
+  });
+
+  // ── Initialisation du graphique de l'onglet Audits ──
+  window.initAuditChart = function () {
+    var canvas = document.getElementById("chart-audit-pie");
+    if (!canvas || typeof Chart === "undefined") return;
+
+    var existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+    if (existingChart) {
+      existingChart.destroy();
+    }
+
+    var chartData = {{ audits_chart_data_json| safe }};
+    new Chart(canvas, {
+      type: "doughnut",
+      data: {
+        labels: chartData.labels,
+        datasets: [{
+          data: chartData.data,
+          backgroundColor: chartData.colors,
+          borderWidth: 2,
+          borderColor: "#ffffff"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              font: { size: 11, family: "Inter, sans-serif" },
+              padding: 12,
+              usePointStyle: true
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+                var val = ctx.raw || 0;
+                var pct = total > 0 ? ((val / total) * 100).toFixed(1) + "%" : "0%";
+                return ctx.label + ": " + val + " (" + pct + ")";
+              }
+            }
+          }
+        },
+        cutout: "60%"
+      }
+    });
+  };
+  window.initAuditChart();
+
+  // ── Test immédiat du clic processus ──
+  document.addEventListener("click", function (event) {
+    const editButton = event.target.closest(".js-edit-process");
+    const deleteButton = event.target.closest(".js-delete-process");
+
+    if (editButton) {
+      console.log(
+        "EDIT PROCESS CLICKED",
+        editButton.dataset.processId
+      );
+    }
+
+    if (deleteButton) {
+      console.log(
+        "DELETE PROCESS CLICKED",
+        deleteButton.dataset.processId
+      );
+    }
+  });
+
+  // ── Impression globale des 4 sections du Tableau de Bord SMQS ──
+  window.printDashboard = async function () {
+    document.body.classList.add("print-all-tabs");
+
+    // 1. Déplier et rendre temporairement visibles tous les 4 onglets
+    const tabPanes = document.querySelectorAll("#tdbTabsContent > .tab-pane, .tab-pane");
+    tabPanes.forEach(function (pane) {
+      pane.style.display = "block";
+      pane.style.visibility = "visible";
+      pane.style.opacity = "1";
+    });
+
+    // 2. Déclencher le rendu de tous les graphiques sur tous les onglets
+    try {
+      if (typeof window.renderAllVisibleIndicatorCharts === "function") {
+        window.renderAllVisibleIndicatorCharts();
+      }
+      if (typeof window.renderObjectivesEvolutionChart === "function") {
+        window.renderObjectivesEvolutionChart("line");
+      }
+      if (typeof window.renderObjectivesStatusChart === "function") {
+        window.renderObjectivesStatusChart("doughnut");
+      }
+      if (typeof window.initAuditChart === "function") {
+        window.initAuditChart();
+      }
+    } catch (err) {
+      console.warn("Rendu des graphiques d'impression :", err);
+    }
+
+    // 3. Attendre les boucles d'animation et le layout Chart.js
+    await new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
+    await new Promise(function (resolve) { setTimeout(resolve, 350); });
+
+    // 4. Convertir chaque canvas Chart.js en image PNG temporaire pour l'impression/PDF
+    const createdImages = [];
+    const canvases = document.querySelectorAll("#tdbTabsContent canvas");
+
+    canvases.forEach(function (canvas) {
+      try {
+        if (canvas.width > 0 && canvas.height > 0) {
+          const dataUrl = canvas.toDataURL("image/png", 1.0);
+          if (dataUrl && dataUrl !== "data:,") {
+            const isPie = canvas.id === "chart-statut-pie" || canvas.id === "chart-audit-pie" || (canvas.closest && canvas.closest(".doughnut-chart-container"));
+            const img = document.createElement("img");
+            img.src = dataUrl;
+            img.className = "print-chart-image " + (isPie ? "print-chart-image-pie " : "") + "d-none d-print-block";
+            img.style.maxWidth = isPie ? "280px" : "100%";
+            img.style.maxHeight = "210px";
+            img.style.height = "auto";
+            img.style.margin = "0 auto";
+
+            canvas.classList.add("chart-has-print-image");
+            canvas.parentNode.insertBefore(img, canvas);
+            createdImages.push({ img: img, canvas: canvas });
+          }
+        }
+      } catch (err) {
+        console.warn("Erreur conversion canvas d'impression :", err);
+      }
+    });
+
+    await new Promise(function (resolve) { setTimeout(resolve, 200); });
+
+    // 5. Lancer l'impression
+    window.print();
+
+    // 6. Nettoyage après impression
+    const cleanup = function () {
+      document.body.classList.remove("print-all-tabs");
+      tabPanes.forEach(function (pane) {
+        pane.style.display = "";
+        pane.style.visibility = "";
+        pane.style.opacity = "";
+      });
+      createdImages.forEach(function (item) {
+        if (item.img && item.img.parentNode) {
+          item.img.parentNode.removeChild(item.img);
+        }
+        if (item.canvas) {
+          item.canvas.classList.remove("chart-has-print-image");
+        }
+      });
+      window.removeEventListener("afterprint", cleanup);
+    };
+
+    window.addEventListener("afterprint", cleanup, { once: true });
+  };
+
+  window.addEventListener("beforeprint", function () {
+    document.body.classList.add("print-all-tabs");
+    if (typeof Chart !== "undefined" && Chart.instances) {
+      Object.values(Chart.instances).forEach(function (chart) {
+        try {
+          chart.options.animation = false;
+          chart.resize();
+          chart.update("none");
+        } catch (e) {}
+      });
+    }
+  });
+
+  window.addEventListener("afterprint", function () {
+    document.body.classList.remove("print-all-tabs");
+  });
+</script>
+
+<style>
+  /* ── Conteneur principal Responsive ── */
+  .tdb-page {
+    width: 100%;
+    max-width: 100%;
+    padding: 1rem;
+    overflow-x: hidden;
+  }
+
+  .tdb-page *,
+  .tdb-page *::before,
+  .tdb-page *::after {
+    box-sizing: border-box;
+  }
+
+  /* ── Header Actions (Nouveau processus / Imprimer) ── */
+  .tdb-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem !important;
+    /* Espace clair entre les boutons */
+    flex-wrap: wrap;
+  }
+
+  .tdb-header-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem !important;
+    /* Espace entre l'icône et le texte */
+    padding: 0.45rem 0.95rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  .tdb-header-btn--create {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--create:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--print {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--print:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: #ffffff !important;
+  }
+
+  /* ── Barre d'Onglets Responsive ── */
+  .tdb-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    border-bottom: 2px solid #dee2e6;
+    scrollbar-width: thin;
+    margin-bottom: 1.25rem;
+  }
+
+  .tdb-tabs .nav-item {
+    flex: 0 0 auto;
+  }
+
+  .tdb-tabs .nav-link {
+    white-space: nowrap;
+    font-size: 0.88rem;
+    padding: 0.6rem 1rem;
+  }
+
+  /* ── Modals & Mobile Responsive ── */
+  @media (max-width: 576px) {
+    .tdb-page {
+      padding: 0.5rem;
+    }
+
+    .tdb-page-title {
+      font-size: 1.25rem !important;
+    }
+
+    .tdb-header-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
+
+    .tdb-header-btn {
+      flex: 1 1 auto;
+    }
+
+    .modal-dialog {
+      margin: 0.5rem;
+      max-width: calc(100% - 1rem) !important;
+    }
+
+    .modal-body {
+      padding: 1rem !important;
+    }
+
+    .chart-container-md {
+      height: 220px !important;
+    }}
+
+  /* ── Tableau synthèse processus-first ── */
+  #synthese-table {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #synthese-table th,
+  #synthese-table td {
+    padding: 0.35rem 0.2rem !important;
+    vertical-align: middle;
+  }
+
+  #synthese-table .synthese-group-row td {
+    border-color: #dee2e6 !important;
+  }
+
+  #synthese-table .synthese-group-row:hover {
+    background: #dde2e7 !important;
+  }
+
+  #synthese-table .synthese-child-row td {
+    transition: background 0.15s;
+  }
+
+  #synthese-table .synthese-child-row:hover td {
+    background: #f0f4ff !important;
+  }
+
+  #synthese-table .synthese-child-row td.sticky-col {
+    background: inherit;
+  }
+
+  #synthese-table thead th {
+    border-color: #dee2e6 !important;
+    font-weight: 700;
+  }
+
+  .toggle-icon {
+    display: inline-block;
+  }
+
+  /* ── Barre d'actions compacte et uniforme des lignes ── */
+  .tdb-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    white-space: nowrap;
+  }
+
+  .tdb-row-actions .btn {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 0.25rem;
+  }
+</style>
+
+{% endblock %}

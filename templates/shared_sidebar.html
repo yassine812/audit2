@@ -40,6 +40,7 @@
 {% url 'achats:validation_config_section' as url_achats_validation_config %}
 {% url 'gestion_documentaire:document_list' as url_gd_documents %}
 {% url 'gestion_documentaire:dashboard_qse' as url_gd_dashboard %}
+{% url 'gestion_documentaire:tdb_dashboard' as url_gd_tdb_indicateurs %}
 {% url 'administration:dashboard' as url_adm_dash %}
 {% url 'administration:utilisateurs' as url_adm_users %}
 {% url 'administration:societes' as url_adm_societes %}
@@ -278,6 +279,13 @@
           <a href="{{ url_gd_dashboard }}" class="nav-link {% if ns == 'gestion_documentaire' and un == 'dashboard_qse' %}active{% endif %}">
             <i class="nav-icon fas fa-chart-pie"></i><p>Tableau de bord</p>
           </a>
+        </li>
+        <li class="nav-item">
+          {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO or request.user.is_CE %}
+          <a href="{{ url_gd_tdb_indicateurs }}" class="nav-link {% if ns == 'gestion_documentaire' and un == 'tdb_processus_list' or ns == 'gestion_documentaire' and un == 'tdb_dashboard' or ns == 'gestion_documentaire' and un == 'tdb_saisie_mesures' %}active{% endif %}">
+            <i class="nav-icon fas fa-chart-line"></i><p>Indicateurs SMQS</p>
+          </a>
+          {% endif %}
         </li>
         <li class="nav-item">
           <a href="{{ url_gd_documents }}" class="nav-link {% if ns == 'gestion_documentaire' and un == 'document_list' or ns == 'gestion_documentaire' and un == 'document_detail' or ns == 'gestion_documentaire' and un == 'document_create' or ns == 'gestion_documentaire' and un == 'document_update' %}active{% endif %}">
