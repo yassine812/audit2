@@ -407,17 +407,38 @@ class IndicateurForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["code"].required = False
+        self.fields["sens_objectif"].required = False
+        self.fields["mode_calcul"].required = False
+        if not self.instance.pk and not self.initial.get("sens_objectif"):
+            self.initial["sens_objectif"] = Indicateur.SensObjectif.ATTEINDRE
+        if not self.instance.pk and not self.initial.get("mode_calcul"):
+            self.initial["mode_calcul"] = Indicateur.ModeCalcul.AUTOMATIQUE
+
+    def clean_sens_objectif(self):
+        val = self.cleaned_data.get("sens_objectif")
+        if not val:
+            return Indicateur.SensObjectif.ATTEINDRE
+        return val
 
     class Meta:
         model = Indicateur
-        fields = ["processus", "code", "nom", "periodicite", "mode_agregation", "is_active"]
+        fields = ["processus", "code", "nom", "periodicite", "mode_agregation", "sens_objectif", "mode_calcul", "formule", "is_active"]
         widgets = {
             "processus": forms.Select(attrs={"class": "form-control"}),
             "code": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ex : IND-01 (auto si vide)"}),
             "nom": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nom de l'indicateur"}),
             "periodicite": forms.Select(attrs={"class": "form-control"}),
             "mode_agregation": forms.Select(attrs={"class": "form-control"}),
+            "sens_objectif": forms.Select(attrs={"class": "form-control"}),
+            "mode_calcul": forms.Select(attrs={"class": "form-control"}),
+            "formule": forms.TextInput(attrs={"class": "form-control font-monospace", "placeholder": "Ex : (accidents * 1000000) / heures"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def clean_mode_calcul(self):
+        val = self.cleaned_data.get("mode_calcul")
+        if not val:
+            return Indicateur.ModeCalcul.AUTOMATIQUE
+        return val
 
 

@@ -42,7 +42,8 @@
 
     100% {
       background-color: #ffffff;
-    }}
+    }
+  }
 
   .chart-container-sm {
     position: relative;
@@ -130,12 +131,16 @@
     z-index: 100500 !important;
     opacity: 0;
     visibility: hidden;
+    display: none !important;
+    pointer-events: none !important;
     transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
   }
 
   .tdb-filter-backdrop.active {
     opacity: 1 !important;
     visibility: visible !important;
+    display: block !important;
+    pointer-events: auto !important;
   }
 
   .tdb-filter-drawer {
@@ -145,30 +150,58 @@
     width: 340px !important;
     max-width: 90vw !important;
     height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100vh !important;
+    min-height: 100dvh !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
     background: #2d3436 !important;
-    /* Dark Slate Charcoal background */
     color: #ffffff !important;
     z-index: 100501 !important;
     box-shadow: -6px 0 24px rgba(0, 0, 0, 0.35) !important;
-    display: flex !important;
+    display: none !important;
     flex-direction: column !important;
     transform: translateX(100%) !important;
     transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain !important;
     padding: 1.25rem !important;
     visibility: hidden;
+    pointer-events: none !important;
   }
 
   .tdb-filter-drawer.active {
+    display: flex !important;
     transform: translateX(0) !important;
     visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  /* Pendant que le panneau de filtres est ouvert, la page derrière est
+     verrouillée : le panneau gère seul le scroll vertical (content plus haut
+     que la viewport) → une seule scrollbar active à la fois. */
+  body.filter-open {
+    overflow: hidden !important;
   }
 
   .tdb-filter-drawer__header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 2 !important;
+    background: #2d3436 !important;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     margin-bottom: 1.25rem;
+  }
+
+  .tdb-filter-drawer__actions {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 2 !important;
+    background: #2d3436 !important;
+    padding-top: 0.75rem !important;
+    margin-top: 0.75rem !important;
   }
 
   .tdb-filter-close {
@@ -211,38 +244,49 @@
     padding: 0.45rem 0.75rem !important;
   }
 
-  /* Floating Filter Button on Right Edge */
+  /* Floating Filter Button on Right Edge (référence visuelle : bouton bleu circulaire flottant).
+     position: fixed → indépendant du header/tableau, visible au scroll, au-dessus des cartes. */
   .btn-floating-filter {
-    position: fixed !important;
-    top: 50% !important;
-    right: 0 !important;
-    transform: translateY(-50%) !important;
-    z-index: 100400 !important;
-    border-radius: 8px 0 0 8px !important;
-    padding: 0.75rem 1.1rem !important;
-    background-color: #007bff !important;
-    color: #ffffff !important;
-    box-shadow: -3px 0 14px rgba(0, 123, 255, 0.45) !important;
-    border: none !important;
-    font-weight: 700 !important;
-    font-size: 0.95rem !important;
+    position: fixed;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
     display: flex !important;
-    align-items: center !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #ffffff !important;
   }
 
   .btn-floating-filter:hover {
-    background-color: #0056b3 !important;
-    padding-right: 1.35rem !important;
-    box-shadow: -5px 0 18px rgba(0, 123, 255, 0.6) !important;
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: #ffffff !important;
+  }
+
+  @media (max-width: 768px) {
+    .btn-floating-filter {
+      right: 12px;
+      width: 48px;
+      height: 48px;
+    }
   }
 
   @media (max-width: 576px) {
     .tdb-filter-drawer {
       width: 100vw !important;
       max-width: 100vw !important;
-    }}
+    }
+  }
+
   .print-only {
     display: none !important;
   }
@@ -314,7 +358,7 @@
     .container-fluid,
     .section,
     .tab-content,
-    #tdbTabsContent > .tab-pane,
+    #tdbTabsContent>.tab-pane,
     .tab-pane,
     .dashboard-section,
     .indicators-section,
@@ -430,7 +474,7 @@
       margin-bottom: 1rem !important;
     }
 
-    .summary-cards-container > [class*="col-"] {
+    .summary-cards-container>[class*="col-"] {
       display: block !important;
       width: 100% !important;
       max-width: 100% !important;
@@ -497,7 +541,7 @@
       margin-bottom: 1rem !important;
     }
 
-    .audit-cards-container > [class*="col-"] {
+    .audit-cards-container>[class*="col-"] {
       display: block !important;
       width: 100% !important;
       max-width: 100% !important;
@@ -759,7 +803,9 @@
       border: 1px solid rgba(0, 0, 0, 0.15) !important;
       padding: 0.2rem 0.4rem !important;
     }
-  }  /* ── Responsive ── */
+  }
+
+  /* ── Responsive ── */
 
   /* Mobile: tabs scroll horizontally */
   @media (max-width: 767px) {
@@ -789,7 +835,8 @@
 
     .tdb-tabs .nav-link i {
       margin-right: 0.3rem;
-    }}
+    }
+  }
 
   /* Mobile: hide icon label text in tabs on very small screens */
   @media (max-width: 420px) {
@@ -804,7 +851,8 @@
 
     .tdb-tabs .nav-link {
       padding: 0.55rem 0.9rem;
-    }}
+    }
+  }
 
   /* Mobile: page title scales down */
   @media (max-width: 767px) {
@@ -815,14 +863,16 @@
     .container-fluid.py-3 {
       padding-top: 0.75rem !important;
       padding-bottom: 0.75rem !important;
-    }}
+    }
+  }
 
   /* Mobile: disable sticky first column (causes layout issues on narrow screens) */
   @media (max-width: 575px) {
     .sticky-col {
       position: static !important;
       box-shadow: none !important;
-    }}
+    }
+  }
 
   /* Mobile: KPI cards smaller padding */
   @media (max-width: 575px) {
@@ -836,21 +886,8 @@
 
     .kpi-card .small {
       font-size: 0.65rem !important;
-    }}
-
-  /* Mobile: filter button — hide text label, keep icon */
-  @media (max-width: 575px) {
-    .btn-floating-filter .filter-btn-label {
-      display: none;
     }
-
-    .btn-floating-filter i {
-      margin-right: 0 !important;
-    }
-
-    .btn-floating-filter {
-      padding: 0.75rem 0.85rem !important;
-    }}
+  }
 
   /* Mobile: header action buttons stack */
   @media (max-width: 575px) {
@@ -863,7 +900,8 @@
       flex: 1 1 auto;
       text-align: center;
       font-size: 0.78rem;
-    }}
+    }
+  }
 
   /* Tablet & Mobile: compact layout without forcing horizontal overflow */
   @media (max-width: 991px) {
@@ -871,24 +909,19 @@
     #synthese-table th,
     #synthese-table td {
       padding: 0.25rem 0.15rem !important;
-    }}
+    }
+  }
 
   /* Mobile: graph cards full width */
   @media (max-width: 767px) {
     .chart-container-md {
       height: 220px;
-    }}
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Bouton Flottant Filtres au Milieu du Bord Droit (Right-Middle Floating Button) -->
-<button type="button" class="btn-floating-filter no-print" id="btnOpenTdbFilterDrawer" aria-controls="tdbFilterDrawer"
-  aria-expanded="false" onclick="openTdbFilterDrawer()" title="Ouvrir les filtres">
-  <i class="fas fa-filter me-2"></i>
-  <span class="filter-btn-label">Filtres</span>
-</button>
-
 <div class="tdb-page container-fluid py-3">
   <!-- En-tête Global du Tableau de Bord SMQS -->
   <div
@@ -915,7 +948,8 @@
         <span>Imprimer</span>
       </button>
 
-      <button type="button" class="btn tdb-header-btn tdb-header-btn--excel ms-2" id="exportExcelBtn" title="Exporter le tableau de bord au format Excel (.xlsx)">
+      <button type="button" class="btn tdb-header-btn tdb-header-btn--excel ms-2" id="exportExcelBtn"
+        title="Exporter le tableau de bord au format Excel (.xlsx)">
         <i class="fas fa-file-excel text-success me-1" aria-hidden="true"></i>
         <span>Exporter Excel</span>
       </button>
@@ -960,9 +994,10 @@
     <!-- ============================================================ -->
     <!-- ONGLET 1 : SYNTHÈSE DES INDICATEURS -->
     <!-- ============================================================ -->
-    <div class="tab-pane fade {% if active_tab == 'synthese' %}show active{% endif %} print-part print-part-1" id="tab-synthese"
-      role="tabpanel">
-      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-list-alt me-2"></i>Synthèse des indicateurs</h4>
+    <div class="tab-pane fade {% if active_tab == 'synthese' %}show active{% endif %} print-part print-part-1"
+      id="tab-synthese" role="tabpanel">
+      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-list-alt me-2"></i>Synthèse des indicateurs
+      </h4>
       <!-- Cartes KPI Globale -->
       <div class="row g-3 mb-4 summary-cards-container">
         <div class="col-6 col-md-3">
@@ -994,43 +1029,54 @@
 
       <!-- Tableau consolidé processus-first (style référence Excel) -->
       {% if processus_groups %}
-      <div class="card border-0 shadow-sm mb-4">
-        <div class="table-responsive">
+      <div class="card border-0 shadow-sm mb-4" style="overflow: visible !important;">
+        <div class="table-responsive" id="syntheseTableWrapper">
           <table class="table table-bordered align-middle mb-0 text-xs" id="synthese-table"
-            style="width: 100%; table-layout: auto;">
+            style="width: 100%; table-layout: fixed;">
             <thead class="text-center" style="background: #f8f9fa; color: #343a40;">
               <tr>
-                <th class="text-start sticky-col"
-                  style="width: 18%; min-width: 120px; background: #f8f9fa; color: #343a40;">Code &amp; Indicateur</th>
-                <th style="width: 5.5%; min-width: 50px;">Fréq.</th>
-                <th style="width: 5%; min-width: 45px;">Obj.</th>
-                <th style="width: 6.5%; min-width: 55px;">Cumul / Moy.</th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Jan</span><span class="print-only">J</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Fév</span><span class="print-only">F</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mar</span><span class="print-only">M</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Avr</span><span class="print-only">A</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mai</span><span class="print-only">M</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juin</span><span class="print-only">J</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juil</span><span class="print-only">J</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Août</span><span class="print-only">A</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Sept</span><span class="print-only">S</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Oct</span><span class="print-only">O</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Nov</span><span class="print-only">N</span></th>
-                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Déc</span><span class="print-only">D</span></th>
-                <th style="width: 4%; min-width: 35px;">Ann.</th>
-                <th style="width: 7.5%; min-width: 55px;">Statut</th>
-                <th class="no-print" style="width: 8.5%; min-width: 105px;">Actions</th>
+                <th class="text-start sticky-col indicator-column"
+                  style="width: 18%; background: #f8f9fa; color: #343a40;">Code &amp; Indicateur</th>
+                <th style="width: 6%;">Fréq.</th>
+                <th style="width: 4.5%;">Obj.</th>
+                <th style="width: 6%;">Cumul / Moy.</th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Jan</span><span
+                    class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Fév</span><span
+                    class="print-only">F</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mar</span><span
+                    class="print-only">M</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Avr</span><span
+                    class="print-only">A</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Mai</span><span
+                    class="print-only">M</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juin</span><span
+                    class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Juil</span><span
+                    class="print-only">J</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Août</span><span
+                    class="print-only">A</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Sept</span><span
+                    class="print-only">S</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Oct</span><span
+                    class="print-only">O</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Nov</span><span
+                    class="print-only">N</span></th>
+                <th style="width: 3.5%;" class="month-column"><span class="screen-only">Déc</span><span
+                    class="print-only">D</span></th>
+                <th style="width: 7.5%;">Statut</th>
+                <th class="no-print actions-column actions-col">Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for group in processus_groups %}
               {# ── Ligne de groupe : Processus ── #}
-              <tr class="synthese-group-row"
+              <tr class="synthese-group-row process-group-row"
                 style="background: #e9ecef; color: #212529; cursor: pointer; border-top: 2px solid #dee2e6;"
                 data-group-id="{{ group.processus.pk }}" onclick="toggleGroup({{ group.processus.pk }})">
-                <td colspan="19" class="font-weight-bold py-1.5 px-2"
+                <td colspan="18" class="font-weight-bold py-1.5 px-2 process-group-cell"
                   style="font-size: 0.85rem; letter-spacing: 0.02em;">
-                  <div class="d-flex align-items-center justify-content-between">
+                  <div class="d-flex align-items-center justify-content-between process-header">
                     <div>
                       <i class="fas fa-chevron-down me-1 toggle-icon" id="icon-{{ group.processus.pk }}"
                         style="font-size: 0.68rem; transition: transform 0.2s; color: #6c757d;"></i>
@@ -1038,21 +1084,23 @@
                       {{ group.processus.nom }}
                     </div>
                     {% if group.can_add_indicator or user.is_superuser %}
-                    <div class="tdb-process-actions no-print d-flex align-items-center gap-1">
+                    <div class="tdb-process-actions process-actions no-print d-flex align-items-center gap-1">
                       <button type="button" class="btn btn-sm btn-outline-primary tdb-action-btn js-edit-process"
                         data-process-id="{{ group.processus.pk }}" data-process-code="{{ group.processus.code }}"
                         data-process-nom="{{ group.processus.nom }}"
                         data-process-description="{{ group.processus.description|default:'' }}"
                         data-process-societe="{{ group.processus.societe.pk|default:'' }}"
                         data-process-active="{{ group.processus.is_active|yesno:'true,false' }}"
-                        title="Modifier le processus" aria-label="Modifier {{ group.processus.nom }}">
+                        title="Modifier le processus" aria-label="Modifier {{ group.processus.nom }}"
+                        onclick="event.stopPropagation();">
                         <i class="fas fa-edit" aria-hidden="true"></i>
                       </button>
 
                       <button type="button" class="btn btn-sm btn-outline-danger tdb-action-btn js-delete-process"
                         data-process-id="{{ group.processus.pk }}" data-process-code="{{ group.processus.code }}"
                         data-process-name="{{ group.processus.nom }}" title="Supprimer le processus"
-                        aria-label="Supprimer {{ group.processus.nom }}">
+                        aria-label="Supprimer {{ group.processus.nom }}"
+                        onclick="event.stopPropagation();">
                         <i class="fas fa-trash" aria-hidden="true"></i>
                       </button>
                     </div>
@@ -1065,7 +1113,7 @@
               {% if group.indicateurs_data %}
               {% for item in group.indicateurs_data %}
               <tr class="synthese-child-row group-{{ group.processus.pk }}" style="background: #fff;">
-                <td class="sticky-col ps-2 py-1" style="border-left: 3px solid #4299e1;">
+                <td class="sticky-col indicator-column ps-2 py-1" style="border-left: 3px solid #4299e1;">
                   <strong class="text-primary" style="font-size: 0.75rem;">{{ item.indicateur.code }}</strong><br>
                   <span class="text-dark" style="font-size: 0.78rem; font-weight: 600;">{{ item.indicateur.nom }}</span>
                 </td>
@@ -1086,10 +1134,6 @@
                   {% if m_val != "—" %}{{ m_val }}{% else %}<span class="text-muted">—</span>{% endif %}
                 </td>
                 {% endfor %}
-                <td class="text-center bg-light px-1" style="font-size: 0.73rem;">
-                  {% if item.valeur_annuelle_formatee != "—" %}{{ item.valeur_annuelle_formatee }}{% else %}<span
-                    class="text-muted">—</span>{% endif %}
-                </td>
                 <td class="text-center px-1">
                   <span class="badge {{ item.statut.badge_class }} p-1"
                     style="font-size: 0.68rem; padding: 0.15rem 0.25rem !important;">
@@ -1097,14 +1141,17 @@
                     {{ item.statut_taux_formate }}
                   </span>
                 </td>
-                <td class="no-print text-center px-1">
-                  <div class="tdb-row-actions">
+                <td class="no-print text-center px-1 actions-column actions-col">
+                  <div class="tdb-row-actions actions-cell actions-buttons">
                     {% if item.can_edit_measurements %}
                     <button type="button" class="btn btn-sm btn-primary js-open-measure-modal"
                       data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}"
                       data-indicator-name="{{ item.indicateur.nom }}" data-process-id="{{ group.processus.pk }}"
                       data-process-code="{{ group.processus.code }}" data-process-name="{{ group.processus.nom }}"
-                      data-year="{{ annee }}"
+                      data-year="{{ annee }}" data-periodicite="{{ item.indicateur.periodicite }}"
+                      data-mode-calcul="{{ item.indicateur.mode_calcul }}"
+                      data-indicator-periodicite="{{ item.indicateur.periodicite }}"
+                      data-indicator-mode-calcul="{{ item.indicateur.mode_calcul }}"
                       data-objective="{% if item.objectif_formate != '—' %}{{ item.objectif_formate }}{% endif %}"
                       data-mesures="{{ item.mesures_dict_json|escape }}" title="Saisir les mesures et l’objectif"
                       aria-label="Saisir les mesures de {{ item.indicateur.nom }}">
@@ -1132,6 +1179,8 @@
                       data-indicator-nom="{{ item.indicateur.nom }}"
                       data-indicator-periodicite="{{ item.indicateur.periodicite }}"
                       data-indicator-agregation="{{ item.indicateur.mode_agregation }}"
+                      data-indicator-sens="{{ item.indicateur.sens_objectif }}"
+                      data-indicator-mode-calcul="{{ item.indicateur.mode_calcul }}"
                       data-indicator-objective="{{ item.objectif_valeur_raw }}"
                       data-indicator-active="{{ item.indicateur.is_active|yesno:'true,false' }}"
                       data-process-code="{{ group.processus.code }}" data-process-name="{{ group.processus.nom }}"
@@ -1154,7 +1203,7 @@
               {% if group.can_add_indicator %}
               <tr class="synthese-child-row group-{{ group.processus.pk }} tdb-add-indicator-row"
                 style="background: #f8fafc;">
-                <td colspan="19" class="py-1.5 ps-3">
+                <td colspan="18" class="py-1.5 ps-3">
                   <div class="tdb-add-indicator-row__content">
                     <button type="button" class="btn btn-outline-success btn-sm js-open-indicator-modal py-0.5 px-2"
                       style="font-size: 0.78rem; font-weight: 600;" data-process-id="{{ group.processus.pk }}"
@@ -1169,7 +1218,7 @@
 
               {% else %}
               <tr class="synthese-child-row group-{{ group.processus.pk }} tdb-process-empty-row">
-                <td colspan="19">
+                <td colspan="18">
                   <div class="tdb-empty-indicator-action text-center py-3">
                     <p class="mb-2 text-muted" style="font-size: 0.88rem;">
                       Aucun indicateur actif n’est rattaché à ce processus.
@@ -1213,12 +1262,14 @@
     <!-- ============================================================ -->
     <!-- ONGLET 2 : VUE GRAPHIQUE -->
     <!-- ============================================================ -->
-    <div class="tab-pane fade {% if active_tab == 'graphiques' %}show active{% endif %} print-part print-part-2" id="tab-graphiques"
-      role="tabpanel">
+    <div class="tab-pane fade {% if active_tab == 'graphiques' %}show active{% endif %} print-part print-part-2"
+      id="tab-graphiques" role="tabpanel">
       <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-        <h4 class="d-none d-print-block print-section-title m-0"><i class="fas fa-chart-line me-2"></i>Vue graphique</h4>
+        <h4 class="d-none d-print-block print-section-title m-0"><i class="fas fa-chart-line me-2"></i>Vue graphique
+        </h4>
         <div class="chart-global-controls no-print d-flex align-items-center gap-2 ms-auto">
-          <label for="globalChartTypeSelector" class="form-label mb-0 text-xs font-weight-bold text-muted text-nowrap">Type pour tous :</label>
+          <label for="globalChartTypeSelector"
+            class="form-label mb-0 text-xs font-weight-bold text-muted text-nowrap">Type pour tous :</label>
           <select id="globalChartTypeSelector" class="form-select form-select-sm" style="width: auto;">
             <option value="line">Courbe</option>
             <option value="area">Courbe en aires</option>
@@ -1244,11 +1295,10 @@
                 </div>
                 <div class="no-print">
                   <select class="form-select form-select-sm js-chart-type-selector chart-type-select"
-                    data-indicator-id="{{ item.indicateur.pk }}"
-                    data-indicator-code="{{ item.indicateur.code }}">
-                    <option value="line">Courbe</option>
-                    <option value="area">Courbe en aires</option>
-                    <option value="bar">Barres</option>
+                    data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}">
+                    <option value="line" {% if item.excel_style.chartType == 'line' %}selected{% endif %}>Courbe</option>
+                    <option value="area" {% if item.excel_style.chartType == 'area' %}selected{% endif %}>Courbe en aires</option>
+                    <option value="bar" {% if item.excel_style.chartType == 'bar' %}selected{% endif %}>Barres</option>
                   </select>
                 </div>
               </div>
@@ -1256,17 +1306,17 @@
               <div class="row text-center my-3 py-2 bg-light rounded g-2">
                 <div class="col-4 border-right">
                   <div class="text-uppercase text-xs text-muted font-weight-bold">Objectif</div>
-                  <div class="h6 font-weight-bold text-dark m-0">{% if item.objectif != None %}{{ item.objectif }}{% else %}—{% endif %}</div>
+                  <div class="h6 font-weight-bold text-dark m-0">{% if item.objectif_affichage != "—" %}{{ item.objectif_affichage }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
                 </div>
                 <div class="col-4 border-right">
                   <div class="text-uppercase text-xs text-muted font-weight-bold">Valeur Agrégée</div>
-                  <div class="h6 font-weight-bold text-primary m-0">{% if item.cumul != None %}{{ item.cumul }}{% else %}—{% endif %}</div>
+                  <div class="h6 font-weight-bold text-primary m-0">{% if item.agregat_affichage != "—" %}{{ item.agregat_affichage }}{% else %}<span class="text-muted">—</span>{% endif %}</div>
                 </div>
                 <div class="col-4">
                   <div class="text-uppercase text-xs text-muted font-weight-bold">Écart / Statut</div>
                   <div>
                     <span class="badge {{ item.statut.badge_class }} p-1 text-xs">
-                      {% if item.statut.taux_atteinte != None %}{{ item.statut.taux_atteinte }}%{% else %}{{ item.statut.label }}{% endif %}
+                      {{ item.statut_taux_formate }}
                     </span>
                   </div>
                 </div>
@@ -1286,8 +1336,8 @@
     <!-- ============================================================ -->
     <!-- ONGLET 3 : OBJECTIFS ANNUELS -->
     <!-- ============================================================ -->
-    <div class="tab-pane fade {% if active_tab == 'objectifs' %}show active{% endif %} print-part print-part-3" id="tab-objectifs"
-      role="tabpanel">
+    <div class="tab-pane fade {% if active_tab == 'objectifs' %}show active{% endif %} print-part print-part-3"
+      id="tab-objectifs" role="tabpanel">
       <h4 class="d-none d-print-block print-section-title"><i class="fas fa-bullseye me-2"></i>Objectifs annuels</h4>
       <!-- Comparatif Graphique Global N vs N-1 -->
       <div class="row mb-4">
@@ -1414,8 +1464,10 @@
     <!-- ============================================================ -->
     <!-- ONGLET 4 : AUDITS ET CONFORMITÉ -->
     <!-- ============================================================ -->
-    <div class="tab-pane fade {% if active_tab == 'audits' %}show active{% endif %} print-part print-part-4" id="tab-audits" role="tabpanel">
-      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-clipboard-check me-2"></i>Audits et conformité</h4>
+    <div class="tab-pane fade {% if active_tab == 'audits' %}show active{% endif %} print-part print-part-4"
+      id="tab-audits" role="tabpanel">
+      <h4 class="d-none d-print-block print-section-title"><i class="fas fa-clipboard-check me-2"></i>Audits et
+        conformité</h4>
 
       <!-- Cartes synthétiques des statuts d'audit -->
       <div class="row g-3 mb-4 audit-cards-container">
@@ -1426,7 +1478,8 @@
                 <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Conformes / Atteints</span>
                 <h3 class="mb-0 font-weight-bold text-success">{{ audits_summary.counts.conforme }}</h3>
               </div>
-              <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+              <div
+                class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
                 style="width: 44px; height: 44px; flex-shrink: 0;">
                 <i class="fas fa-check-circle fa-lg"></i>
               </div>
@@ -1442,7 +1495,8 @@
                   surveiller</span>
                 <h3 class="mb-0 font-weight-bold text-warning">{{ audits_summary.counts.defauts_isoles }}</h3>
               </div>
-              <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center summary-icon"
+              <div
+                class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center summary-icon"
                 style="width: 44px; height: 44px; flex-shrink: 0;">
                 <i class="fas fa-exclamation-circle fa-lg"></i>
               </div>
@@ -1457,7 +1511,8 @@
                 <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Non conformes</span>
                 <h3 class="mb-0 font-weight-bold text-danger">{{ audits_summary.counts.non_conforme }}</h3>
               </div>
-              <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+              <div
+                class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
                 style="width: 44px; height: 44px; flex-shrink: 0;">
                 <i class="fas fa-times-circle fa-lg"></i>
               </div>
@@ -1472,7 +1527,8 @@
                 <span class="text-muted small font-weight-bold text-uppercase d-block mb-1">Non audités / Absents</span>
                 <h3 class="mb-0 font-weight-bold text-secondary">{{ audits_summary.counts.non_audite }}</h3>
               </div>
-              <div class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
+              <div
+                class="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center summary-icon"
                 style="width: 44px; height: 44px; flex-shrink: 0;">
                 <i class="fas fa-minus-circle fa-lg"></i>
               </div>
@@ -1564,6 +1620,13 @@
   </div>
 </div>
 
+<!-- Bouton flottant Filtres (position: fixed, droite de l'écran, visible au scroll) -->
+<button type="button" class="btn btn-floating-filter no-print" id="btnOpenTdbFilterDrawer"
+  aria-controls="tdbFilterDrawer" aria-expanded="false" onclick="openTdbFilterDrawer()"
+  title="Ouvrir les filtres" aria-label="Ouvrir les filtres">
+  <i class="fas fa-filter" aria-hidden="true"></i>
+</button>
+
 <!-- Panneau Latéral Offcanvas de Filtres (Référence visuelle exacte) -->
 <div id="tdbFilterBackdrop" class="tdb-filter-backdrop no-print" onclick="closeTdbFilterDrawer()"></div>
 
@@ -1579,7 +1642,7 @@
   </div>
 
   <div class="tdb-filter-drawer__body">
-    <form method="get" id="tdbFilterForm">
+    <form method="get" id="tdbFilterForm" onsubmit="tdbFilterFormSubmit()">
       <input type="hidden" name="tab" id="hiddenTabInput" value="{{ active_tab }}">
 
       <!-- 1. Société / périmètre -->
@@ -1600,8 +1663,7 @@
         <select name="processus" id="processus_select_sb" class="form-control form-control-sm font-weight-bold">
           <option value="" {% if not processus %}selected{% endif %}>Tous les processus</option>
           {% for proc in tous_processus %}
-          <option value="{{ proc.id }}" {% if processus and proc.id == processus.id %}selected{% endif %}>{{ proc.code }}
-            — {{ proc.nom }}</option>
+          <option value="{{ proc.id }}" {% if processus and proc.id == processus.id %}selected{% endif %}>{{ proc.code }} — {{ proc.nom }}</option>
           {% endfor %}
         </select>
       </div>
@@ -1621,19 +1683,18 @@
       <div class="form-group mb-3">
         <label for="type_periode_sb">Type de période</label>
         <select name="type_periode" id="type_periode_sb" class="form-control form-control-sm font-weight-bold mb-2"
-          onchange="togglePeriodeSelect(this.value)">
-          <option value="annee_complete" {% if type_periode == 'annee_complete' %}selected{% endif %}>Année complète
-          </option>
+          onchange="updatePeriodeField()">
+          <option value="annee_complete" {% if type_periode == 'annee_complete' %}selected{% endif %}>Année complète</option>
           <option value="trimestre" {% if type_periode == 'trimestre' %}selected{% endif %}>Trimestre</option>
           <option value="semestre" {% if type_periode == 'semestre' %}selected{% endif %}>Semestre</option>
           <option value="mois" {% if type_periode == 'mois' %}selected{% endif %}>Mois</option>
         </select>
       </div>
 
-      <!-- 5. Période -->
+      <!-- 5. Période / Mois de référence -->
       <div class="form-group mb-3" id="periodeSelectContainer"
-        style="{% if type_periode == 'annee_complete' %}display: none;{% endif %}">
-        <label for="periode_sb">Période</label>
+        style="{% if type_periode == 'annee_complete' and periodicite_filtre != 'glissant_12_mois' %}display: none;{% endif %}">
+        <label for="periode_sb" id="periodeLabel_sb">{% if type_periode == 'mois' or periodicite_filtre == 'glissant_12_mois' %}Mois de référence{% else %}Période{% endif %}</label>
         <select name="periode" id="periode_sb" class="form-control form-control-sm font-weight-bold">
           {% if type_periode == 'trimestre' %}
           <option value="1" {% if periode == 1 %}selected{% endif %}>T1</option>
@@ -1643,7 +1704,7 @@
           {% elif type_periode == 'semestre' %}
           <option value="1" {% if periode == 1 %}selected{% endif %}>S1</option>
           <option value="2" {% if periode == 2 %}selected{% endif %}>S2</option>
-          {% elif type_periode == 'mois' %}
+          {% elif type_periode == 'mois' or periodicite_filtre == 'glissant_12_mois' %}
           <option value="1" {% if periode == 1 %}selected{% endif %}>Janvier</option>
           <option value="2" {% if periode == 2 %}selected{% endif %}>Février</option>
           <option value="3" {% if periode == 3 %}selected{% endif %}>Mars</option>
@@ -1663,7 +1724,8 @@
       <!-- 6. Fréquence / périodicité -->
       <div class="form-group mb-3">
         <label for="periodicite_sb">Fréquence</label>
-        <select name="periodicite" id="periodicite_sb" class="form-control form-control-sm font-weight-bold">
+        <select name="periodicite" id="periodicite_sb" class="form-control form-control-sm font-weight-bold"
+          onchange="updatePeriodeField()">
           <option value="" {% if not periodicite_filtre %}selected{% endif %}>Toutes les fréquences</option>
           {% for code, label in periodicite_choices %}
           <option value="{{ code }}" {% if periodicite_filtre == code %}selected{% endif %}>{{ label }}</option>
@@ -1689,7 +1751,7 @@
           placeholder="Rechercher un processus ou un indicateur..." value="{{ recherche }}">
       </div>
 
-      <div class="d-flex gap-2 pt-2" style="gap: 0.5rem;">
+      <div class="d-flex gap-2 pt-2 tdb-filter-drawer__actions" style="gap: 0.5rem;">
         <button type="submit" class="btn btn-primary font-weight-bold flex-fill py-2 me-1">
           <i class="fas fa-filter me-1"></i>Appliquer
         </button>
@@ -1730,6 +1792,10 @@
         <div class="modal-body p-4 text-start">
 
           <!-- Nom -->
+          <div id="createFormulaErrorAlert" class="alert alert-danger alert-dismissible fade show py-2 d-none"
+            style="font-size:0.85rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i><span id="createFormulaErrorText"></span>
+          </div>
           <div class="form-group mb-3">
             <label for="modalIndicateurNom" class="form-label font-weight-bold text-dark mb-1">Nom de
               l'indicateur</label>
@@ -1737,9 +1803,9 @@
               placeholder="Ex : Taux de satisfaction client" required autofocus>
           </div>
 
-          <!-- Périodicité + Agrégation -->
+          <!-- Périodicité + Agrégation + Sens -->
           <div class="row g-3 mb-3">
-            <div class="col-6">
+            <div class="col-4">
               <label for="modalIndicateurPeriodicite"
                 class="form-label font-weight-bold text-dark mb-1">Périodicité</label>
               <select name="periodicite" id="modalIndicateurPeriodicite" class="form-select form-control">
@@ -1747,9 +1813,10 @@
                 <option value="trimestriel">Trimestriel</option>
                 <option value="semestriel">Semestriel</option>
                 <option value="annuel">Annuel</option>
+                <option value="glissant_12_mois">Glissant sur 12 mois</option>
               </select>
             </div>
-            <div class="col-6">
+            <div class="col-4">
               <label for="modalIndicateurAgregation"
                 class="form-label font-weight-bold text-dark mb-1">Agrégation</label>
               <select name="mode_agregation" id="modalIndicateurAgregation" class="form-select form-control" required>
@@ -1758,8 +1825,100 @@
                 <option value="minimum">Minimum</option>
                 <option value="maximum">Maximum</option>
                 <option value="nombre">Nombre</option>
+                <option value="derniere_valeur">Dernière valeur</option>
               </select>
             </div>
+            <div class="col-4">
+              <label for="modalIndicateurSens" class="form-label font-weight-bold text-dark mb-1">Sens de
+                l'objectif</label>
+              <select name="sens_objectif" id="modalIndicateurSens" class="form-select form-control">
+                <option value="atteindre" selected>À atteindre / dépasser</option>
+                <option value="ne_pas_depasser">À ne pas dépasser</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label for="modalIndicateurModeCalcul" class="form-label font-weight-bold text-dark mb-1">Mode de calcul /
+                saisie</label>
+              <select name="mode_calcul" id="modalIndicateurModeCalcul" class="form-select form-control"
+                onchange="toggleFormulaSection(this, 'create')">
+                <option value="automatique" selected>Calcul automatique à partir des composantes</option>
+                <option value="manuel">Saisie manuelle du réalisé consolidé</option>
+                <option value="formule">Calcul automatique par formule</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section dynamique Formule / Composantes (Création) -->
+          <div id="createFormulaConfigSection" class="p-3 mb-3 rounded border bg-light d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label font-weight-bold text-dark mb-0" style="font-size:0.88rem;">
+                <i class="fas fa-cubes text-primary me-1"></i>Composantes du calcul
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-xs font-weight-bold"
+                onclick="addFormulaComponentRow('create')">
+                <i class="fas fa-plus me-1"></i>Ajouter une composante
+              </button>
+            </div>
+            <div id="createFormulaComponentsContainer" class="mb-3"></div>
+            <!-- Constructeur de formule : choix du type de formule -->
+            <div class="form-group mb-2">
+              <label for="createFormulaType" class="form-label font-weight-bold text-dark mb-1"
+                style="font-size:0.85rem;">
+                <i class="fas fa-magic text-info me-1"></i>Type de formule
+              </label>
+              <select id="createFormulaType" class="form-select form-control form-control-sm"
+                onchange="onFormulaTypeChange('create')">
+                <option value="somme">Somme</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="ratio">Ratio A / B</option>
+                <option value="pourcentage">Pourcentage (A / B × 100)</option>
+                <option value="taux_frequence">Taux de fréquence (A × 1 000 000 / B)</option>
+                <option value="personnalisee">Formule personnalisée</option>
+              </select>
+            </div>
+
+            <!-- Numérateur / Dénominateur (Ratio, Pourcentage, Taux de fréquence) -->
+            <div class="row g-2 mb-2 d-none" id="createFormulaNumDen">
+              <div class="col-6">
+                <label for="createFormulaNumerateur" class="form-label small text-muted mb-1">Numérateur</label>
+                <select id="createFormulaNumerateur" class="form-select form-control form-control-sm"
+                  onchange="updateGeneratedFormula('create')"></select>
+              </div>
+              <div class="col-6">
+                <label for="createFormulaDenominateur" class="form-label small text-muted mb-1">Dénominateur</label>
+                <select id="createFormulaDenominateur" class="form-select form-control form-control-sm"
+                  onchange="updateGeneratedFormula('create')"></select>
+              </div>
+            </div>
+
+            <!-- Sélection multiple de composantes (Somme, Moyenne) -->
+            <div class="form-group mb-2 d-none" id="createFormulaMulti">
+              <label class="form-label small text-muted mb-1">Composantes incluses dans le calcul</label>
+              <div id="createFormulaMultiList"></div>
+            </div>
+
+            <!-- Saisie manuelle (uniquement en mode « Formule personnalisée ») -->
+            <div class="form-group mb-0 d-none" id="createFormulaCustomWrapper">
+              <label for="createIndFormule" class="form-label font-weight-bold text-dark mb-1"
+                style="font-size:0.85rem;">
+                <i class="fas fa-calculator text-success me-1"></i>Formule de calcul
+              </label>
+              <input type="text" name="formule" id="createIndFormule"
+                class="form-control form-control-sm font-monospace" placeholder="Ex : (accidents * 1000000) / heures"
+                oninput="onCustomFormulaInput('create')">
+            </div>
+
+            <!-- Formule générée (lecture seule, uniquement pour les formules prédéfinies) -->
+            <div class="form-group mb-0 d-none" id="createFormulaPreviewGroup">
+              <label for="createFormulaPreview" class="form-label small text-muted mb-1">Formule générée</label>
+              <div id="createFormulaPreview" class="form-control form-control-sm font-monospace bg-white"
+                style="white-space:pre-wrap;word-break:break-word;" aria-readonly="true"></div>
+            </div>
+
+            <input type="hidden" name="type_formule" id="createFormulaTypeHidden" value="somme">
           </div>
 
           <div class="form-check mb-3">
@@ -2007,66 +2166,213 @@
             <!-- Onglet 1 : Mesures -->
             <div class="tab-pane fade show active" id="measurements-pane" role="tabpanel"
               aria-labelledby="measurements-tab">
-              <div class="row g-3">
-                <div class="col-6 col-md-3">
+              <!-- Conteneur dynamique pour la saisie des composantes en mode formule -->
+              <div id="formulaComponentsEntryContainer" class="d-none"></div>
+
+              <div id="standardMeasurementsGrid" class="row g-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_1" class="form-label small font-weight-bold text-dark mb-1">Janvier</label>
-                  <input type="text" name="mois_1" id="mois_1" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_1" id="mois_1" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_1"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_1" id="realise_consolide_1"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-1" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_2" class="form-label small font-weight-bold text-dark mb-1">Février</label>
-                  <input type="text" name="mois_2" id="mois_2" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_2" id="mois_2" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_2"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_2" id="realise_consolide_2"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-2" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_3" class="form-label small font-weight-bold text-dark mb-1">Mars</label>
-                  <input type="text" name="mois_3" id="mois_3" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_3" id="mois_3" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_3"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_3" id="realise_consolide_3"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-3" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_4" class="form-label small font-weight-bold text-dark mb-1">Avril</label>
-                  <input type="text" name="mois_4" id="mois_4" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_4" id="mois_4" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_4"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_4" id="realise_consolide_4"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-4" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_5" class="form-label small font-weight-bold text-dark mb-1">Mai</label>
-                  <input type="text" name="mois_5" id="mois_5" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_5" id="mois_5" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_5"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_5" id="realise_consolide_5"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-5" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_6" class="form-label small font-weight-bold text-dark mb-1">Juin</label>
-                  <input type="text" name="mois_6" id="mois_6" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_6" id="mois_6" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_6"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_6" id="realise_consolide_6"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-6" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_7" class="form-label small font-weight-bold text-dark mb-1">Juillet</label>
-                  <input type="text" name="mois_7" id="mois_7" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_7" id="mois_7" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_7"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_7" id="realise_consolide_7"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-7" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_8" class="form-label small font-weight-bold text-dark mb-1">Août</label>
-                  <input type="text" name="mois_8" id="mois_8" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_8" id="mois_8" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_8"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_8" id="realise_consolide_8"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-8" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_9" class="form-label small font-weight-bold text-dark mb-1">Septembre</label>
-                  <input type="text" name="mois_9" id="mois_9" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_9" id="mois_9" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_9"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_9" id="realise_consolide_9"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-9" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_10" class="form-label small font-weight-bold text-dark mb-1">Octobre</label>
-                  <input type="text" name="mois_10" id="mois_10" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_10" id="mois_10" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_10"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_10" id="realise_consolide_10"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-10" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_11" class="form-label small font-weight-bold text-dark mb-1">Novembre</label>
-                  <input type="text" name="mois_11" id="mois_11" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_11" id="mois_11" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_11"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_11" id="realise_consolide_11"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-11" style="font-size:0.75rem;"></div>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-12 col-md-4 mb-3">
                   <label for="mois_12" class="form-label small font-weight-bold text-dark mb-1">Décembre</label>
-                  <input type="text" name="mois_12" id="mois_12" class="form-control form-control-sm text-center"
-                    placeholder="—">
+                  <div class="js-component-input-wrapper">
+                    <input type="text" name="mois_12" id="mois_12" class="form-control form-control-sm text-center mb-1"
+                      placeholder="Composante —">
+                  </div>
+                  <div
+                    class="js-manual-realise-wrapper js-glissant-manuel-container d-none p-2 rounded border bg-light">
+                    <label for="realise_consolide_12"
+                      class="form-label text-xs font-weight-bold text-danger mb-1 js-realise-label"><i
+                        class="fas fa-chart-line me-1"></i>Réalisé 12 mois glissants</label>
+                    <input type="text" name="realise_consolide_12" id="realise_consolide_12"
+                      class="form-control form-control-sm text-center font-weight-bold border-danger"
+                      placeholder="Saisir le réalisé">
+                  </div>
+                  <div class="text-muted text-xs mt-1 js-periode-helper-12" style="font-size:0.75rem;"></div>
                 </div>
               </div>
             </div>
@@ -2236,6 +2542,10 @@
         <input type="hidden" name="next" value="{{ request.get_full_path }}">
 
         <div class="modal-body p-4 text-start">
+          <div id="editFormulaErrorAlert" class="alert alert-danger alert-dismissible fade show py-2 d-none"
+            style="font-size:0.85rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i><span id="editFormulaErrorText"></span>
+          </div>
           <div class="form-group mb-3">
             <label class="form-label font-weight-bold text-dark mb-1">Code indicateur</label>
             <div>
@@ -2250,16 +2560,17 @@
           </div>
 
           <div class="row g-3 mb-3">
-            <div class="col-6">
+            <div class="col-4">
               <label for="editIndPeriodicite" class="form-label font-weight-bold text-dark mb-1">Périodicité</label>
               <select name="periodicite" id="editIndPeriodicite" class="form-select form-control">
                 <option value="mensuel">Mensuel</option>
                 <option value="trimestriel">Trimestriel</option>
                 <option value="semestriel">Semestriel</option>
                 <option value="annuel">Annuel</option>
+                <option value="glissant_12_mois">Glissant sur 12 mois</option>
               </select>
             </div>
-            <div class="col-6">
+            <div class="col-4">
               <label for="editIndAgregation" class="form-label font-weight-bold text-dark mb-1">Agrégation</label>
               <select name="mode_agregation" id="editIndAgregation" class="form-select form-control" required>
                 <option value="somme">Somme</option>
@@ -2267,8 +2578,97 @@
                 <option value="minimum">Minimum</option>
                 <option value="maximum">Maximum</option>
                 <option value="nombre">Nombre</option>
+                <option value="derniere_valeur">Dernière valeur</option>
               </select>
             </div>
+            <div class="col-4">
+              <label for="editIndSens" class="form-label font-weight-bold text-dark mb-1">Sens de l'objectif</label>
+              <select name="sens_objectif" id="editIndSens" class="form-select form-control">
+                <option value="atteindre">À atteindre / dépasser</option>
+                <option value="ne_pas_depasser">À ne pas dépasser</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <label for="editIndModeCalcul" class="form-label font-weight-bold text-dark mb-1">Mode de calcul /
+                saisie</label>
+              <select name="mode_calcul" id="editIndModeCalcul" class="form-select form-control"
+                onchange="toggleFormulaSection(this, 'edit')">
+                <option value="automatique">Calcul automatique à partir des composantes</option>
+                <option value="manuel">Saisie manuelle du réalisé consolidé</option>
+                <option value="formule">Calcul automatique par formule</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Section dynamique Formule / Composantes (Édition) -->
+          <div id="editFormulaConfigSection" class="p-3 mb-3 rounded border bg-light d-none">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label font-weight-bold text-dark mb-0" style="font-size:0.88rem;">
+                <i class="fas fa-cubes text-primary me-1"></i>Composantes du calcul
+              </label>
+              <button type="button" class="btn btn-outline-primary btn-xs font-weight-bold"
+                onclick="addFormulaComponentRow('edit')">
+                <i class="fas fa-plus me-1"></i>Ajouter une composante
+              </button>
+            </div>
+            <div id="editFormulaComponentsContainer" class="mb-3"></div>
+            <!-- Constructeur de formule : choix du type de formule -->
+            <div class="form-group mb-2">
+              <label for="editFormulaType" class="form-label font-weight-bold text-dark mb-1"
+                style="font-size:0.85rem;">
+                <i class="fas fa-magic text-info me-1"></i>Type de formule
+              </label>
+              <select id="editFormulaType" class="form-select form-control form-control-sm"
+                onchange="onFormulaTypeChange('edit')">
+                <option value="somme">Somme</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="ratio">Ratio A / B</option>
+                <option value="pourcentage">Pourcentage (A / B × 100)</option>
+                <option value="taux_frequence">Taux de fréquence (A × 1 000 000 / B)</option>
+                <option value="personnalisee">Formule personnalisée</option>
+              </select>
+            </div>
+
+            <!-- Numérateur / Dénominateur (Ratio, Pourcentage, Taux de fréquence) -->
+            <div class="row g-2 mb-2 d-none" id="editFormulaNumDen">
+              <div class="col-6">
+                <label for="editFormulaNumerateur" class="form-label small text-muted mb-1">Numérateur</label>
+                <select id="editFormulaNumerateur" class="form-select form-control form-control-sm"
+                  onchange="updateGeneratedFormula('edit')"></select>
+              </div>
+              <div class="col-6">
+                <label for="editFormulaDenominateur" class="form-label small text-muted mb-1">Dénominateur</label>
+                <select id="editFormulaDenominateur" class="form-select form-control form-control-sm"
+                  onchange="updateGeneratedFormula('edit')"></select>
+              </div>
+            </div>
+
+            <!-- Sélection multiple de composantes (Somme, Moyenne) -->
+            <div class="form-group mb-2 d-none" id="editFormulaMulti">
+              <label class="form-label small text-muted mb-1">Composantes incluses dans le calcul</label>
+              <div id="editFormulaMultiList"></div>
+            </div>
+
+            <!-- Saisie manuelle (uniquement en mode « Formule personnalisée ») -->
+            <div class="form-group mb-0 d-none" id="editFormulaCustomWrapper">
+              <label for="editIndFormule" class="form-label font-weight-bold text-dark mb-1" style="font-size:0.85rem;">
+                <i class="fas fa-calculator text-success me-1"></i>Formule de calcul
+              </label>
+              <input type="text" name="formule" id="editIndFormule" class="form-control form-control-sm font-monospace"
+                placeholder="Ex : (accidents * 1000000) / heures" oninput="onCustomFormulaInput('edit')">
+            </div>
+
+            <!-- Formule générée (lecture seule, uniquement pour les formules prédéfinies) -->
+            <div class="form-group mb-0 d-none" id="editFormulaPreviewGroup">
+              <label for="editFormulaPreview" class="form-label small text-muted mb-1">Formule générée</label>
+              <div id="editFormulaPreview" class="form-control form-control-sm font-monospace bg-white"
+                style="white-space:pre-wrap;word-break:break-word;" aria-readonly="true"></div>
+            </div>
+
+            <input type="hidden" name="type_formule" id="editFormulaTypeHidden" value="somme">
           </div>
 
           <div class="form-check mb-3">
@@ -2355,14 +2755,83 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {{ objectives_chart_payload|json_script:"objectives-chart-data" }}
 <script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const openModalParam = urlParams.get("open_modal");
+    if (openModalParam === "processus") {
+      const modalEl = document.getElementById("processusCreateModal");
+      if (modalEl) {
+        if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else if (typeof $ !== "undefined") {
+          $(modalEl).modal("show");
+        }
+      }
+    } else if (openModalParam === "indicateur") {
+      const modalEl = document.getElementById("indicatorCreateModal");
+      if (modalEl) {
+        const procId = urlParams.get("processus");
+        if (procId) {
+          const procSelect = modalEl.querySelector('select[name="processus"]');
+          if (procSelect) procSelect.value = procId;
+        }
+        if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
+          bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } else if (typeof $ !== "undefined") {
+          $(modalEl).modal("show");
+        }
+      }
+    }
+  });
+
+  window.tdbCurrentYear = {{ annee }};
+
   window.tdbChartData = {
     {% for item in indicateurs_data %}
-    "{{ item.indicateur.pk }}": {
-      labels: ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"],
-      values: {{ item.serie_mensuelle_json|safe }}
-    }{% if not forloop.last %},{% endif %}
+  "{{ item.indicateur.pk }}": {
+      code: "{{ item.indicateur.code|escapejs }}",
+      periodicite: "{{ item.indicateur.periodicite }}",
+      nom: "{{ item.indicateur.nom|escapejs }}",
+      labels: {% if item.serie_mensuelle_labels_json %}{{ item.serie_mensuelle_labels_json|safe }}{% elif item.indicateur.periodicite != "glissant_12_mois" %}["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"]{% else %}[]{% endif %},
+      values: {{ item.serie_mensuelle_json|safe }},
+    cumul: {% if item.cumul != None %}{{ item.cumul_valeur_raw }}{% else %}null{% endif %},
+    objectif: {% if item.objectif != None %}{{ item.objectif_valeur_raw }}{% else %}null{% endif %},
+    style: {{ item.excel_style_json|safe }}
+  } {% if not forloop.last %}, {% endif %}
+  {% endfor %}
+  };
+
+  // Configuration graphique centralisée « Excel de référence ».
+  // Source : 2025-Tableau_de_bord_PM02.xlsx — onglet « Synthèse PM02 2025 ».
+  // Chaque entrée reproduit la mise en forme du graphique Excel correspondant
+  // (type, couleurs de série, épaisseur, marqueurs, axe, grille, légende, police…).
+  window.excelChartStyle = {
+    {% for item in indicateurs_data %}
+  "{{ item.indicateur.code|escapejs }}": {{ item.excel_style_json|safe }}{% if not forloop.last %},{% endif %}
     {% endfor %}
   };
+  window.excelChartStyle["_defaut"] = {
+    chartType: "line", seriesColors: ["#5B9BD5"], lineWidth: 2.25,
+    markerStyle: { enabled: false, symbol: "none", size: 5 },
+    targetLineStyle: { color: "#C00000", width: 1.5, dash: [] },
+    yAxisMin: 0, yAxisMax: null, yAxisStep: null, yAxisFormat: "General",
+    gridStyle: { enabled: true, color: "#000000", width: 0.75 },
+    legendPosition: "bottom",
+    font: { family: "Calibri", size: 11, color: "#000000" },
+    barGap: { barPercentage: 0.31, categoryPercentage: 1 },
+    dataLabels: { enabled: false }, background: null, smooth: false
+  };
+
+  // Palette globale unique des graphiques (source : views.py → CHART_COLORS).
+  // Réalisé = bleu, Objectif = rouge, quel que soit l'indicateur ou le type.
+  // Les couleurs du classeur Excel ne doivent plus écraser ces valeurs.
+  window.CHART_COLORS = {{ chart_colors_json|safe }};
+  window.CHART_COLORS = Object.assign({
+    realized: "#4F81BD",
+    target: "#FF0000",
+    grid: "#BFBFBF",
+    axis: "#666666"
+  }, window.CHART_COLORS || {});
 
   const _objectivesDataScript = document.getElementById("objectives-chart-data");
   window.tdbObjectivesChartData = _objectivesDataScript ? JSON.parse(_objectivesDataScript.textContent) : null;
@@ -2385,12 +2854,17 @@
     return el;
   }
 
+  function tdbFilterDrawerCleanup() {
+    document.body.classList.remove("filter-open");
+  }
+
   function openTdbFilterDrawer() {
     const drawer = document.getElementById("tdbFilterDrawer");
     const backdrop = document.getElementById("tdbFilterBackdrop");
     const btnOpen = document.getElementById("btnOpenTdbFilterDrawer");
 
     if (drawer && backdrop) {
+      document.body.classList.add("filter-open");
       backdrop.classList.add("active");
       drawer.classList.add("active");
       drawer.setAttribute("aria-hidden", "false");
@@ -2400,7 +2874,8 @@
         const firstInput = drawer.querySelector("select, input");
         if (firstInput) firstInput.focus();
       }, 100);
-    }}
+    }
+  }
 
   function closeTdbFilterDrawer() {
     const drawer = document.getElementById("tdbFilterDrawer");
@@ -2414,37 +2889,68 @@
       if (btnOpen) {
         btnOpen.setAttribute("aria-expanded", "false");
         btnOpen.focus();
-      }}
+      }
+      tdbFilterDrawerCleanup();
+    }
   }
+
+  window.addEventListener("pagehide", tdbFilterDrawerCleanup);
 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") {
       const drawer = document.getElementById("tdbFilterDrawer");
       if (drawer && drawer.classList.contains("active")) {
         closeTdbFilterDrawer();
-      }}
+      }
+    }
   });
 
-  function togglePeriodeSelect(val) {
+  function updatePeriodeField() {
     const container = document.getElementById("periodeSelectContainer");
     const select = document.getElementById("periode_sb");
+    const label = document.getElementById("periodeLabel_sb");
     if (!container || !select) return;
 
-    if (val === "annee_complete") {
+    const typeEl = document.getElementById("type_periode_sb");
+    const periodiciteEl = document.getElementById("periodicite_sb");
+    const type = typeEl ? typeEl.value : "annee_complete";
+    const periodicite = periodiciteEl ? periodiciteEl.value : "";
+    const forceMois = periodicite === "glissant_12_mois";
+
+    if (type === "annee_complete" && !forceMois) {
       container.style.display = "none";
+      return;
+    }
+
+    container.style.display = "block";
+    if (label) label.textContent = (type === "mois" || forceMois) ? "Mois de référence" : "Période";
+
+    const current = select.value;
+    let html = "";
+    if (type === "trimestre") {
+      html = '<option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option>';
+    } else if (type === "semestre") {
+      html = '<option value="1">S1</option><option value="2">S2</option>';
     } else {
-      container.style.display = "block";
-      let html = "";
-      if (val === "trimestre") {
-        html = '<option value="1">T1</option><option value="2">T2</option><option value="3">T3</option><option value="4">T4</option>';
-      } else if (val === "semestre") {
-        html = '<option value="1">S1</option><option value="2">S2</option>';
-      } else if (val === "mois") {
-        const moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-        html = moisNoms.map((m, idx) => `<option value="${idx + 1}">${m}</option>`).join("");
-      }
-      select.innerHTML = html;
-    }}
+      const moisNoms = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+      html = moisNoms.map((m, idx) => `<option value="${idx + 1}">${m}</option>`).join("");
+    }
+    select.innerHTML = html;
+    if (Array.from(select.options).some((o) => o.value === current)) {
+      select.value = current;
+    }
+  }
+
+  function tdbFilterFormSubmit() {
+    const periodiciteEl = document.getElementById("periodicite_sb");
+    const typeEl = document.getElementById("type_periode_sb");
+    if (!periodiciteEl || !typeEl) return true;
+    if (periodiciteEl.value === "glissant_12_mois" && typeEl.value === "annee_complete") {
+      typeEl.value = "mois";
+      updatePeriodeField();
+    }
+    return true;
+  }
 
   function switchTab(tabName) {
     const inputMain = document.getElementById("hiddenTabInput");
@@ -2470,7 +2976,8 @@
         bsTab.show();
       } catch (e) {
         tabBtn.click();
-      }}
+      }
+    }
     // 3. Simulation DOM directe
     else {
       tabBtn.click();
@@ -2485,13 +2992,15 @@
           pane.classList.remove("active", "show");
         });
         targetPane.classList.add("active", "show");
-      }}
+      }
+    }
 
     const parentNav = tabBtn.closest(".nav");
     if (parentNav) {
       parentNav.querySelectorAll(".nav-link").forEach(el => el.classList.remove("active"));
       tabBtn.classList.add("active");
-    }}
+    }
+  }
 
   function navigateToCard(tabName, cardId) {
     const tabBtn = document.getElementById(`tab-${tabName}-btn`);
@@ -2505,8 +3014,10 @@
           cardElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
           cardElem.classList.add('highlight-pulse');
           setTimeout(() => cardElem.classList.remove('highlight-pulse'), 4000);
-        }}, 200);
-    }}
+        }
+      }, 200);
+    }
+  }
 
   function initDashboardLogic() {
     // 1. Activation de l'onglet actif via GET param ?tab= ou Hash #
@@ -2529,392 +3040,635 @@
           if (targetElem) {
             targetElem.scrollIntoView({ behavior: 'smooth', block: 'center' });
             targetElem.classList.add('highlight-pulse');
-          }}, 300);
-      }}
-
-  // ── Render unique function for indicator charts ──
-  window.renderIndicatorChart = function (indicatorId, visualType) {
-    const key = String(indicatorId);
-    const canvas = document.getElementById(`indicator-chart-${key}`);
-    const chartData = window.tdbChartData && window.tdbChartData[key];
-
-    if (!canvas) {
-      console.error("Canvas absent", key);
-      return;
-    }
-
-    if (!chartData) {
-      console.error("Données absentes", key, window.tdbChartData);
-      return;
-    }
-
-    const existingChart = typeof Chart !== "undefined" && typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
-    if (existingChart) {
-      existingChart.destroy();
-    }
-
-    let chartType = "line";
-    let fill = false;
-
-    if (visualType === "bar") {
-      chartType = "bar";
-    } else if (visualType === "area") {
-      chartType = "line";
-      fill = true;
-    }
-
-    const normalizedValues = (chartData.values || []).map(v => {
-      if (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) {
-        return null;
+          }
+        }, 300);
       }
-      return Number(v);
-    });
+    }
 
-    try {
+    // ── Helpers style « Excel de référence » ──
+    function _hexToRgba(hex, alpha) {
+      if (!hex || typeof hex !== "string") return hex;
+      const m = hex.replace("#", "");
+      if (m.length !== 6) return hex;
+      const r = parseInt(m.slice(0, 2), 16);
+      const g = parseInt(m.slice(2, 4), 16);
+      const b = parseInt(m.slice(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+    function _chartPointStyle(symbol) {
+      const map = {
+        circle: "circle", square: "rect", diamond: "rectRot", triangle: "triangle",
+        x: "cross", plus: "crossRot", star: "star", auto: "circle"
+      };
+      return map[symbol] || "circle";
+    }
+
+    // Pas de graduation « propre » et lisible pour les axes en % : 1, 2, 5, 10…
+    // (jamais de pas « en coin » du type 6,7 ; 13,4 ; 20,1).
+    function _nicePercentStep(range) {
+      if (!(range > 0)) return 1;
+      const target = range / 10;
+      const steps = [0.5, 1, 2, 5, 10, 20, 25, 50, 100];
+      for (const s of steps) {
+        if (s >= target) return s;
+      }
+      return 100;
+    }
+
+    // Axe Y dynamique pour les indicateurs en % (valeurs déjà sur 0–100) :
+    // l'axe suit les données (Réalisé + Objectif) avec une petite marge au
+    // lieu d'imposer systématiquement un départ à 0 %, ce qui aplatissait les
+    // courbes concentrées près de 100 %.
+    function _percentAxisRange(normalizedValues, objectif) {
+      const allValues = [];
+      for (const v of normalizedValues) {
+        if (v !== null && v !== undefined && !isNaN(v)) allValues.push(Number(v));
+      }
+      if (objectif !== null && objectif !== undefined) {
+        const objVal = Number(objectif);
+        if (!isNaN(objVal)) allValues.push(objVal);
+      }
+      if (!allValues.length) return { yMin: null, yMax: null, yStep: null };
+
+      const minValue = Math.min.apply(null, allValues);
+      const maxValue = Math.max.apply(null, allValues);
+      const padding = Math.max((maxValue - minValue) * 0.2, 2);
+
+      let yMin = Math.floor(minValue - padding);
+      let yMax = Math.ceil(maxValue + padding);
+      yMin = Math.max(0, yMin);
+      // Ne jamais dépasser 100 % tant que les données n'excèdent pas 100.
+      if (maxValue <= 100) yMax = Math.min(100, yMax);
+
+      return { yMin, yMax, yStep: _nicePercentStep(yMax - yMin) };
+    }
+
+    function _excelTickFormatter(formatCode) {
+      // Les valeurs sont déjà sur l'échelle 0–100 : on n'ajoute que le « % »,
+      // on ne multiplie JAMAIS par 100 (les données ne sont pas 0–1).
+      if (formatCode === "percent") {
+        return function (v) {
+          return Number(v).toLocaleString("fr-FR", { maximumFractionDigits: 2 }) + " %";
+        };
+      }
+      if (formatCode === "percent2") {
+        return function (v) {
+          return Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " %";
+        };
+      }
+      if (formatCode === "decimal2") {
+        return function (v) { return Number(v).toFixed(2).replace(".", ","); };
+      }
+      if (formatCode === "decimal1") {
+        return function (v) { return Number(v).toFixed(1).replace(".", ","); };
+      }
+      return undefined;
+    }
+
+    // ── Render unique function for indicator charts ──
+    window.renderIndicatorChart = function (indicatorId, visualType) {
+      const key = String(indicatorId);
+      const canvas = document.getElementById(`indicator-chart-${key}`);
+      const chartData = window.tdbChartData && window.tdbChartData[key];
+
+      if (!canvas) {
+        console.error("Canvas absent", key);
+        return;
+      }
+
+      if (!chartData) {
+        console.error("Données absentes", key, window.tdbChartData);
+        return;
+      }
+
+      const existingChart = typeof Chart !== "undefined" && typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      // Style Excel de référence : config centralisée window.excelChartStyle
+      // (résolue côté serveur par indicateur, fallback par code puis _defaut).
+      let style = chartData.style;
+      if (!style || !style.chartType) {
+        style = (window.excelChartStyle && (window.excelChartStyle[chartData.code] || window.excelChartStyle["_defaut"])) || {};
+      }
+
+      let chartType = "line";
+      let fill = false;
+
+      if (visualType === "bar") {
+        chartType = "bar";
+      } else if (visualType === "area") {
+        chartType = "line";
+        fill = true;
+      }
+
+      const isBar = chartType === "bar";
+      // Palette globale normalisée : les couleurs du classeur Excel ne sont
+      // plus utilisées pour les séries. Réalisé = bleu, Objectif = rouge.
+      const chartColors = window.CHART_COLORS || {};
+      const realizedColor = chartColors.realized || "#4F81BD";
+      const targetColor = chartColors.target || "#FF0000";
+      const marker = style.markerStyle || {};
+      // Marqueurs Excel : symbol != none + enabled != false (uniquement en courbe).
+      const useExcelMarkers = !isBar && visualType === "line" && marker.enabled !== false && marker.symbol && marker.symbol !== "none";
+      const smooth = !!style.smooth;
+
+      const normalizedValues = (chartData.values || []).map(v => {
+        if (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) {
+          return null;
+        }
+        return Number(v);
+      });
+
+      // Barre « Cumul {année} » en tête d'axe (rendu Excel de référence) :
+      // 1ère catégorie rouge avec la valeur agrégée (ex. TF cumul = 19,26).
+      // Les barres mensuelles restent dans la palette Réalisé. Uniquement en
+      // graphique en barres ; la valeur n'est pas reliée à la série mensuelle.
+      const cumulRaw = (chartData.cumul !== null && chartData.cumul !== undefined && chartData.cumul !== "")
+        ? Number(chartData.cumul)
+        : null;
+      const cumulOk = cumulRaw !== null && !isNaN(cumulRaw);
+      // Libellé de la barre Cumul : pour un indicateur Glissant sur 12 mois,
+      // « Cumul {année} » est ambigu (fenêtre sur deux années) → on utilise
+      // « TF glissant » (indicateur de taux de fréquence) ou « Cumul glissant ».
+      // Les indicateurs annuels conservent « Cumul {année} ».
+      let cumulLabel;
+      if (chartData.periodicite === "glissant_12_mois") {
+        const cumulSig = ((chartData.code || "") + " " + (chartData.nom || "")).toUpperCase();
+        cumulLabel = (cumulSig.indexOf("TF") !== -1 || cumulSig.indexOf("TAUX DE FRÉQUENCE") !== -1)
+          ? "TF glissant" : "Cumul glissant";
+      } else {
+        cumulLabel = "Cumul " + (window.tdbCurrentYear || "2025");
+      }
+      const labels = isBar ? [cumulLabel, ...chartData.labels] : [...chartData.labels];
+      const plotValues = isBar ? [cumulOk ? cumulRaw : null, ...normalizedValues] : normalizedValues;
+
+      const datasets = [{
+        label: "Réalisé",
+        data: plotValues,
+        fill: fill,
+        showLine: true,
+        spanGaps: true,
+        borderColor: realizedColor,
+        backgroundColor: isBar
+          ? plotValues.map((v, i) => (i === 0 && cumulOk) ? targetColor : realizedColor)
+          : (fill ? _hexToRgba(realizedColor, 0.18) : "transparent"),
+        borderWidth: isBar ? 1 : (style.lineWidth || 2.25),
+        pointRadius: useExcelMarkers ? (marker.size || 5) : 0,
+        pointHoverRadius: useExcelMarkers ? (marker.size || 5) + 2 : 0,
+        pointStyle: _chartPointStyle(marker.symbol),
+        pointBackgroundColor: realizedColor,
+        pointBorderColor: realizedColor,
+        pointBorderWidth: marker.borderWidth || 0.75,
+        tension: smooth ? 0.35 : 0
+      }];
+
+      if (isBar && style.barGap) {
+        datasets[0].barPercentage = style.barGap.barPercentage;
+        datasets[0].categoryPercentage = style.barGap.categoryPercentage;
+      }
+
+      if (chartData.objectif !== null && chartData.objectif !== undefined) {
+        const objVal = Number(chartData.objectif);
+        if (!isNaN(objVal)) {
+          const tls = style.targetLineStyle || { color: "#FF0000", width: 1.5, dash: [] };
+          datasets.push({
+            label: "Objectif",
+            data: Array(labels.length).fill(objVal),
+            type: "line",
+            borderColor: targetColor,
+            backgroundColor: "transparent",
+            borderWidth: tls.width,
+            borderDash: tls.dash || [],
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            fill: false,
+            tension: 0
+          });
+        }
+      }
+
+      // Axe Y :
+      //  - indicateurs en % : plage dynamique [Réalisé ∪ Objectif] + marge,
+      //    pas « propre » (1/2/5/10…), jamais > 100 sauf si les données dépassent.
+      //  - autres indicateurs : bornes Excel, neutralisées si les données
+      //    sortent de l'échelle du graphique de référence.
+      const isPercentAxis = style.yAxisFormat === "percent" || style.yAxisFormat === "percent2";
+      const objectifNumber = (chartData.objectif !== null && chartData.objectif !== undefined)
+        ? Number(chartData.objectif)
+        : null;
+      const objectifValide = objectifNumber !== null && !isNaN(objectifNumber);
+
+      let yMin, yMax, yStep;
+      if (isPercentAxis) {
+        const axePct = _percentAxisRange(plotValues, objectifValide ? objectifNumber : null);
+        yMin = axePct.yMin;
+        yMax = axePct.yMax;
+        yStep = axePct.yStep;
+      } else {
+        const valeursNumeriques = plotValues.filter(v => v !== null && !isNaN(v));
+        const dataMax = valeursNumeriques.length ? Math.max.apply(null, valeursNumeriques) : 0;
+        const dataMin = valeursNumeriques.length ? Math.min.apply(null, valeursNumeriques) : 0;
+        yMax = (typeof style.yAxisMax === "number") && dataMax <= style.yAxisMax ? style.yAxisMax : null;
+        yMin = (typeof style.yAxisMin === "number") && style.yAxisMin <= dataMin ? style.yAxisMin : null;
+        yStep = style.yAxisStep || null;
+      }
+
+      const fontFam = (style.font && style.font.family) || "Calibri";
+      const fontSize = (style.font && style.font.size) || 11;
+      const fontColor = (style.font && style.font.color) || "#000000";
+      const grid = style.gridStyle || {};
+
+      try {
+        const chart = new Chart(canvas.getContext("2d"), {
+          type: chartType,
+          data: {
+            labels: labels,
+            datasets: datasets
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              title: {
+                display: false
+              },
+              legend: {
+                display: true,
+                position: style.legendPosition || "bottom",
+                align: "center",
+                labels: {
+                  font: { size: Math.max(fontSize - 1, 9), family: fontFam + ", sans-serif", weight: "500" },
+                  padding: 10,
+                  usePointStyle: true,
+                  boxWidth: 8,
+                  color: fontColor
+                }
+              },
+              tooltip: {
+                mode: "index",
+                intersect: false,
+                padding: 10,
+                backgroundColor: "rgba(15, 23, 42, 0.9)",
+                titleFont: { size: 12, weight: "bold" },
+                bodyFont: { size: 11 },
+                callbacks: {
+                  label: function (context) {
+                    if (isBar && context.dataIndex === 0 && cumulOk) {
+                      return cumulLabel + " : " + context.formattedValue;
+                    }
+                    return context.dataset.label + " : " + context.formattedValue;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: {
+                  display: false
+                },
+                ticks: {
+                  font: { size: fontSize, family: fontFam + ", sans-serif" },
+                  color: fontColor
+                }
+              },
+              y: {
+                ...(yMin !== null ? { min: yMin } : {}),
+                ...(yMax !== null ? { max: yMax } : {}),
+                grid: {
+                  display: grid.enabled !== false,
+                  color: grid.color || "#000000",
+                  lineWidth: grid.width || 0.75
+                },
+                ticks: {
+                  font: { size: fontSize, family: fontFam + ", sans-serif" },
+                  color: fontColor,
+                  ...(yStep ? { stepSize: yStep } : {}),
+                  callback: _excelTickFormatter(style.yAxisFormat)
+                }
+              }
+            }
+          }
+        });
+
+        console.log("GRAPH CREATED", {
+          indicatorId: key,
+          code: chartData.code,
+          requestedType: visualType,
+          actualType: chart.config.type,
+          valueCount: chartData.values.length,
+          excelSource: style.source || null
+        });
+      } catch (error) {
+        console.error("GRAPH CREATION FAILED", key, error);
+      }
+    };
+
+    window.renderAllVisibleIndicatorCharts = function () {
+      document.querySelectorAll(".js-chart-type-selector").forEach(function (selector) {
+        const indicatorId = String(selector.dataset.indicatorId);
+        window.renderIndicatorChart(indicatorId, selector.value || "line");
+      });
+    };
+
+    // ── Graphique Comparatif Objectifs N vs N-1 (chart-obj-global) ──
+    window.renderObjectivesEvolutionChart = function (visualType) {
+      const canvas = document.getElementById("chart-obj-global");
+      const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.evolution;
+
+      if (!canvas) {
+        console.error("Canvas évolution absent", "chart-obj-global");
+        return;
+      }
+      if (!data) {
+        console.error("Données évolution absentes", window.tdbObjectivesChartData);
+        return;
+      }
+      if (typeof Chart === "undefined") return;
+
+      const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      const chartType = visualType === "bar" ? "bar" : "line";
+      const isLine = chartType === "line";
+      const chartColors = window.CHART_COLORS || {};
+      const realizedColor = chartColors.realized || "#4F81BD";
+      const previousColor = chartColors.previous || "#6C757D";
+
+      const normalizeArray = arr => (arr || []).map(v => (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) ? null : Number(v));
+
       const chart = new Chart(canvas.getContext("2d"), {
         type: chartType,
         data: {
-          labels: [...chartData.labels],
+          labels: [...data.labels],
+          datasets: [
+            {
+              label: "Objectif " + data.currentYear,
+              data: normalizeArray(data.currentValues),
+              fill: false,
+              showLine: true,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              tension: isLine ? 0.25 : 0,
+              borderColor: realizedColor,
+              backgroundColor: chartType === "bar" ? _hexToRgba(realizedColor, 0.65) : "transparent"
+            },
+            {
+              label: "Objectif " + data.previousYear,
+              data: normalizeArray(data.previousValues),
+              fill: false,
+              showLine: true,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 4,
+              pointHoverRadius: 5,
+              tension: isLine ? 0.25 : 0,
+              borderColor: previousColor,
+              backgroundColor: chartType === "bar" ? _hexToRgba(previousColor, 0.45) : "transparent"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: { mode: "index", intersect: false },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      console.log("OBJECTIVES EVOLUTION CREATED", {
+        requestedType: visualType,
+        actualType: chart.config.type,
+        labels: data.labels.length,
+        values: data.currentValues.length
+      });
+    }
+
+    // ── Graphique Répartition des Statuts (chart-statut-pie) ──
+    window.renderObjectivesStatusChart = function (visualType) {
+      const canvas = document.getElementById("chart-statut-pie");
+      const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.statuses;
+
+      if (!canvas) {
+        console.error("Canvas statuts absent", "chart-statut-pie");
+        return;
+      }
+      if (!data) {
+        console.error("Données statuts absentes", window.tdbObjectivesChartData);
+        return;
+      }
+      if (typeof Chart === "undefined") return;
+
+      const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
+      if (existingChart) {
+        existingChart.destroy();
+      }
+
+      let chartType = "doughnut";
+      if (visualType === "pie") {
+        chartType = "pie";
+      } else if (visualType === "bar") {
+        chartType = "bar";
+      }
+
+      const chart = new Chart(canvas.getContext("2d"), {
+        type: chartType,
+        data: {
+          labels: [...data.labels],
           datasets: [{
-            label: "Réalisé",
-            data: normalizedValues,
-            fill: fill,
-            showLine: true,
-            spanGaps: true,
-            borderColor: "rgb(13, 110, 253)",
-            backgroundColor: visualType === "bar"
-              ? "rgba(13, 110, 253, 0.65)"
-              : (fill ? "rgba(13, 110, 253, 0.20)" : "transparent"),
-            borderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 5,
-            pointBorderColor: "rgb(13, 110, 253)",
-            pointBackgroundColor: "#ffffff",
-            tension: chartType === "line" ? 0.25 : 0
+            label: "Répartition des statuts",
+            data: [...data.values],
+            backgroundColor: [...data.colors],
+            borderColor: "#ffffff",
+            borderWidth: 2
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           animation: false,
-          scales: {
-            y: {
-              beginAtZero: true
+          plugins: {
+            legend: {
+              position: "bottom",
+              labels: { font: { size: 11 }, padding: 10, usePointStyle: true }
             }
           }
         }
       });
 
-      console.log("GRAPH CREATED", {
-        indicatorId: key,
+      console.log("OBJECTIVES STATUS CREATED", {
         requestedType: visualType,
         actualType: chart.config.type,
-        valueCount: chartData.values.length
+        values: data.values
       });
-    } catch (error) {
-      console.error("GRAPH CREATION FAILED", key, error);
     }
-  };
 
-  window.renderAllVisibleIndicatorCharts = function () {
-    document.querySelectorAll(".js-chart-type-selector").forEach(function (selector) {
+    function renderAllVisibleObjectivesCharts() {
+      const evolutionSelect = document.querySelector('.chart-type-select[data-chart-id="chart-obj-global"]');
+      const statusSelect = document.querySelector('.chart-type-select[data-chart-id="chart-statut-pie"]');
+      renderObjectivesEvolutionChart((evolutionSelect && evolutionSelect.value) || "bar");
+      renderObjectivesStatusChart((statusSelect && statusSelect.value) || "doughnut");
+    }
+
+    window.renderObjectivesEvolutionChart = renderObjectivesEvolutionChart;
+    window.renderObjectivesStatusChart = renderObjectivesStatusChart;
+
+    // 6. Écouteurs de changement de sélecteur et d'affichage d'onglets
+    document.addEventListener("change", function (event) {
+      const selector = event.target.closest(".js-chart-type-selector");
+      if (!selector) return;
+
       const indicatorId = String(selector.dataset.indicatorId);
-      window.renderIndicatorChart(indicatorId, selector.value || "line");
+      window.renderIndicatorChart(indicatorId, selector.value);
     });
-  };
 
-  // ── Graphique Comparatif Objectifs N vs N-1 (chart-obj-global) ──
-  window.renderObjectivesEvolutionChart = function (visualType) {
-    const canvas = document.getElementById("chart-obj-global");
-    const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.evolution;
+    // Action globale : Appliquer le même type de graphique à tous les indicateurs
+    document.addEventListener("click", function (event) {
+      const btnGlobal = event.target.closest("#btnApplyGlobalChartType");
+      if (!btnGlobal) return;
 
-    if (!canvas) {
-      console.error("Canvas évolution absent", "chart-obj-global");
-      return;
-    }
-    if (!data) {
-      console.error("Données évolution absentes", window.tdbObjectivesChartData);
-      return;
-    }
-    if (typeof Chart === "undefined") return;
+      const selectGlobal = document.getElementById("globalChartTypeSelector");
+      if (!selectGlobal) return;
 
-    const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
-    if (existingChart) {
-      existingChart.destroy();
-    }
+      const targetType = selectGlobal.value;
 
-    const chartType = visualType === "bar" ? "bar" : "line";
-    const isLine = chartType === "line";
-
-    const normalizeArray = arr => (arr || []).map(v => (v === "" || v === undefined || v === null || v === "-" || (typeof v === "number" && isNaN(v))) ? null : Number(v));
-
-    const chart = new Chart(canvas.getContext("2d"), {
-      type: chartType,
-      data: {
-        labels: [...data.labels],
-        datasets: [
-          {
-            label: "Objectif " + data.currentYear,
-            data: normalizeArray(data.currentValues),
-            fill: false,
-            showLine: true,
-            spanGaps: true,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 5,
-            tension: isLine ? 0.25 : 0,
-            borderColor: "rgb(13, 110, 253)",
-            backgroundColor: chartType === "bar" ? "rgba(13, 110, 253, 0.65)" : "transparent"
-          },
-          {
-            label: "Objectif " + data.previousYear,
-            data: normalizeArray(data.previousValues),
-            fill: false,
-            showLine: true,
-            spanGaps: true,
-            borderWidth: 2,
-            pointRadius: 4,
-            pointHoverRadius: 5,
-            tension: isLine ? 0.25 : 0,
-            borderColor: "rgb(108, 117, 125)",
-            backgroundColor: chartType === "bar" ? "rgba(108, 117, 125, 0.45)" : "transparent"
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        interaction: { mode: "index", intersect: false },
-        scales: {
-          y: { beginAtZero: true }
+      document.querySelectorAll(".js-chart-type-selector").forEach(function (select) {
+        if (select.value !== targetType) {
+          select.value = targetType;
         }
-      }
-    });
-
-    console.log("OBJECTIVES EVOLUTION CREATED", {
-      requestedType: visualType,
-      actualType: chart.config.type,
-      labels: data.labels.length,
-      values: data.currentValues.length
-    });
-  }
-
-  // ── Graphique Répartition des Statuts (chart-statut-pie) ──
-  window.renderObjectivesStatusChart = function (visualType) {
-    const canvas = document.getElementById("chart-statut-pie");
-    const data = window.tdbObjectivesChartData && window.tdbObjectivesChartData.statuses;
-
-    if (!canvas) {
-      console.error("Canvas statuts absent", "chart-statut-pie");
-      return;
-    }
-    if (!data) {
-      console.error("Données statuts absentes", window.tdbObjectivesChartData);
-      return;
-    }
-    if (typeof Chart === "undefined") return;
-
-    const existingChart = typeof Chart.getChart === "function" ? Chart.getChart(canvas) : null;
-    if (existingChart) {
-      existingChart.destroy();
-    }
-
-    let chartType = "doughnut";
-    if (visualType === "pie") {
-      chartType = "pie";
-    } else if (visualType === "bar") {
-      chartType = "bar";
-    }
-
-    const chart = new Chart(canvas.getContext("2d"), {
-      type: chartType,
-      data: {
-        labels: [...data.labels],
-        datasets: [{
-          label: "Répartition des statuts",
-          data: [...data.values],
-          backgroundColor: [...data.colors],
-          borderColor: "#ffffff",
-          borderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: { font: { size: 11 }, padding: 10, usePointStyle: true }
-          }
-        }
-      }
-    });
-
-    console.log("OBJECTIVES STATUS CREATED", {
-      requestedType: visualType,
-      actualType: chart.config.type,
-      values: data.values
-    });
-  }
-
-  function renderAllVisibleObjectivesCharts() {
-    const evolutionSelect = document.querySelector('.chart-type-select[data-chart-id="chart-obj-global"]');
-    const statusSelect = document.querySelector('.chart-type-select[data-chart-id="chart-statut-pie"]');
-    renderObjectivesEvolutionChart((evolutionSelect && evolutionSelect.value) || "bar");
-    renderObjectivesStatusChart((statusSelect && statusSelect.value) || "doughnut");
-  }
-
-  window.renderObjectivesEvolutionChart = renderObjectivesEvolutionChart;
-  window.renderObjectivesStatusChart = renderObjectivesStatusChart;
-
-  // 6. Écouteurs de changement de sélecteur et d'affichage d'onglets
-  document.addEventListener("change", function (event) {
-    const selector = event.target.closest(".js-chart-type-selector");
-    if (!selector) return;
-
-    const indicatorId = String(selector.dataset.indicatorId);
-    window.renderIndicatorChart(indicatorId, selector.value);
-  });
-
-  // Action globale : Appliquer le même type de graphique à tous les indicateurs
-  document.addEventListener("click", function (event) {
-    const btnGlobal = event.target.closest("#btnApplyGlobalChartType");
-    if (!btnGlobal) return;
-
-    const selectGlobal = document.getElementById("globalChartTypeSelector");
-    if (!selectGlobal) return;
-
-    const targetType = selectGlobal.value;
-
-    document.querySelectorAll(".js-chart-type-selector").forEach(function (select) {
-      if (select.value !== targetType) {
-        select.value = targetType;
-      }
-      const indicatorId = String(select.dataset.indicatorId);
-      window.renderIndicatorChart(indicatorId, targetType);
-    });
-  });
-
-  // Utilitaire pour récupérer le cookie CSRF Django
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
-  }
-
-  // Export Excel dynamique transmettant la configuration UI des graphiques
-  const exportExcelBtn = document.getElementById("exportExcelBtn");
-  if (exportExcelBtn) {
-    exportExcelBtn.addEventListener("click", async function (e) {
-      e.preventDefault();
-
-      const chartTypes = {};
-      document.querySelectorAll(".chart-type-select, .js-chart-type-selector").forEach(function (select) {
-        const code = select.dataset.indicatorCode || select.dataset.indicatorId;
-        if (code) {
-          chartTypes[code] = select.value;
-        }
-        if (select.dataset.indicatorId) {
-          chartTypes[select.dataset.indicatorId] = select.value;
-        }
+        const indicatorId = String(select.dataset.indicatorId);
+        window.renderIndicatorChart(indicatorId, targetType);
       });
+    });
 
-      console.log("CHART TYPES ENVOYÉS AU BACKEND:", chartTypes);
+    // Utilitaire pour récupérer le cookie CSRF Django
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
 
-      const urlParams = new URLSearchParams(window.location.search);
-      const payload = {
-        annee: urlParams.get("annee") || "{{ annee }}",
-        societe: urlParams.get("societe") || "{{ selected_societe_id|default:'' }}",
-        processus: urlParams.get("processus") || "{{ selected_processus_id|default:'' }}",
-        chart_types: chartTypes
-      };
+    // Export Excel dynamique transmettant la configuration UI des graphiques
+    const exportExcelBtn = document.getElementById("exportExcelBtn");
+    if (exportExcelBtn) {
+      exportExcelBtn.addEventListener("click", async function (e) {
+        e.preventDefault();
 
-      const originalContent = exportExcelBtn.innerHTML;
-      exportExcelBtn.disabled = true;
-      exportExcelBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><span>Exportation...</span>';
-
-      try {
-        const response = await fetch("{% url 'gestion_documentaire:tdb_export_excel' %}", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCookie("csrftoken") || ""
-          },
-          body: JSON.stringify(payload)
+        const chartTypes = {};
+        document.querySelectorAll(".chart-type-select, .js-chart-type-selector").forEach(function (select) {
+          const code = select.dataset.indicatorCode || select.dataset.indicatorId;
+          if (code) {
+            chartTypes[code] = select.value;
+          }
+          if (select.dataset.indicatorId) {
+            chartTypes[select.dataset.indicatorId] = select.value;
+          }
         });
 
-        if (!response.ok) {
-          let detail = response.statusText;
-          try {
-            const errJson = await response.json();
-            detail = errJson.error || detail;
-            console.error("TRACEBACK:\n" + (errJson.traceback || ""));
-          } catch (_) {}
-          throw new Error("Erreur serveur (" + response.status + ") : " + detail);
+        console.log("CHART TYPES ENVOYÉS AU BACKEND:", chartTypes);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const payload = {
+          annee: urlParams.get("annee") || "{{ annee }}",
+          societe: urlParams.get("societe") || "{{ selected_societe_id|default:'' }}",
+          processus: urlParams.get("processus") || "{{ selected_processus_id|default:'' }}",
+          chart_types: chartTypes
+        };
+
+        const originalContent = exportExcelBtn.innerHTML;
+        exportExcelBtn.disabled = true;
+        exportExcelBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i><span>Exportation...</span>';
+
+        try {
+          const response = await fetch("{% url 'gestion_documentaire:tdb_export_excel' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken") || ""
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            let detail = response.statusText;
+            try {
+              const errJson = await response.json();
+              detail = errJson.error || detail;
+              console.error("TRACEBACK:\n" + (errJson.traceback || ""));
+            } catch (_) { }
+            throw new Error("Erreur serveur (" + response.status + ") : " + detail);
+          }
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Tableau_de_bord_SMQS_${payload.annee}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err) {
+          console.error("Erreur Export Excel:", err);
+          alert("Erreur lors de la génération du fichier Excel.\n\n" + err.message);
+        } finally {
+          exportExcelBtn.disabled = false;
+          exportExcelBtn.innerHTML = originalContent;
         }
-
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `Tableau_de_bord_SMQS_${payload.annee}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      } catch (err) {
-        console.error("Erreur Export Excel:", err);
-        alert("Erreur lors de la génération du fichier Excel.\n\n" + err.message);
-      } finally {
-        exportExcelBtn.disabled = false;
-        exportExcelBtn.innerHTML = originalContent;
-      }
-    });
-  }
-
-  document.addEventListener("shown.bs.tab", function (event) {
-    const target = event.target.getAttribute("data-bs-target") || event.target.getAttribute("href") || event.target.getAttribute("data-target");
-    if (target === "#tab-graphiques" || target === "#graphiques" || target === "tab-graphiques") {
-      requestAnimationFrame(renderAllVisibleIndicatorCharts);
-    } else if (target === "#tab-objectifs" || target === "#objectifs" || target === "tab-objectifs" || target === "objectifs") {
-      requestAnimationFrame(renderAllVisibleObjectivesCharts);
+      });
     }
-  });
 
-  if (typeof $ !== "undefined") {
-    $(document).on("shown.bs.tab", function (event) {
-      const target = $(event.target).attr("href") || $(event.target).attr("data-target") || $(event.target).attr("data-bs-target");
+    document.addEventListener("shown.bs.tab", function (event) {
+      const target = event.target.getAttribute("data-bs-target") || event.target.getAttribute("href") || event.target.getAttribute("data-target");
       if (target === "#tab-graphiques" || target === "#graphiques" || target === "tab-graphiques") {
         requestAnimationFrame(renderAllVisibleIndicatorCharts);
       } else if (target === "#tab-objectifs" || target === "#objectifs" || target === "tab-objectifs" || target === "objectifs") {
         requestAnimationFrame(renderAllVisibleObjectivesCharts);
       }
     });
-  }
 
-  // Rendu initial des graphiques si l'onglet "Vue graphique" est déjà actif au chargement
-  const graphicsPane = document.getElementById("tab-graphiques") || document.getElementById("graphiques");
-  if (graphicsPane && (graphicsPane.classList.contains("active") || graphicsPane.classList.contains("show"))) {
-    requestAnimationFrame(renderAllVisibleIndicatorCharts);
-  }
+    if (typeof $ !== "undefined") {
+      $(document).on("shown.bs.tab", function (event) {
+        const target = $(event.target).attr("href") || $(event.target).attr("data-target") || $(event.target).attr("data-bs-target");
+        if (target === "#tab-graphiques" || target === "#graphiques" || target === "tab-graphiques") {
+          requestAnimationFrame(renderAllVisibleIndicatorCharts);
+        } else if (target === "#tab-objectifs" || target === "#objectifs" || target === "tab-objectifs" || target === "objectifs") {
+          requestAnimationFrame(renderAllVisibleObjectivesCharts);
+        }
+      });
+    }
 
-  // Rendu initial des graphiques si l'onglet "Objectifs annuels" est déjà actif au chargement
-  const objectivesPane = document.getElementById("tab-objectifs") || document.getElementById("objectifs");
-  if (objectivesPane && (objectivesPane.classList.contains("active") || objectivesPane.classList.contains("show"))) {
-    requestAnimationFrame(renderAllVisibleObjectivesCharts);
+    // Rendu initial des graphiques si l'onglet "Vue graphique" est déjà actif au chargement
+    const graphicsPane = document.getElementById("tab-graphiques") || document.getElementById("graphiques");
+    if (graphicsPane && (graphicsPane.classList.contains("active") || graphicsPane.classList.contains("show"))) {
+      requestAnimationFrame(renderAllVisibleIndicatorCharts);
+    }
+
+    // Rendu initial des graphiques si l'onglet "Objectifs annuels" est déjà actif au chargement
+    const objectivesPane = document.getElementById("tab-objectifs") || document.getElementById("objectifs");
+    if (objectivesPane && (objectivesPane.classList.contains("active") || objectivesPane.classList.contains("show"))) {
+      requestAnimationFrame(renderAllVisibleObjectivesCharts);
+    }
   }
-}
 
   // Écouteurs de changement dynamique de type de graphique sur les autres sélecteurs (.chart-type-select)
   document.querySelectorAll(".chart-type-select").forEach(select => {
@@ -2959,7 +3713,8 @@
         if (chart && typeof chart.resize === 'function') {
           chart.resize();
           chart.update();
-        }});
+        }
+      });
     }, 150);
   });
 
@@ -2987,7 +3742,8 @@
     });
     if (icon) {
       icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
-    }}
+    }
+  }
 
   // ── Navigation vers un onglet et scroll vers une carte ──
   function navigateToCard(tabId, cardId) {
@@ -3009,7 +3765,8 @@
       Object.values(chartsMap).forEach(chart => {
         if (chart && typeof chart.resize === 'function') {
           chart.resize();
-        }});
+        }
+      });
     }, 250);
   }
 
@@ -3079,7 +3836,8 @@
       if (header) header.classList.add("d-none");
       var empty = document.getElementById("procIndicatorEmpty");
       if (empty) empty.style.display = "";
-    }}
+    }
+  }
 
   function updatePendingIndicatorCount() {
     var count = document.querySelectorAll(".proc-indicator-row").length;
@@ -3087,7 +3845,8 @@
     if (badge) {
       badge.textContent = count;
       badge.style.background = count > 0 ? "#28a745" : "#6c757d";
-    }}
+    }
+  }
 
   function refreshProcCodePreviews() {
     var procCode = (document.getElementById("id_proc_code") || {}).value || "IND";
@@ -3119,7 +3878,8 @@
       if (tab) {
         if (typeof bootstrap !== "undefined" && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(tab).show();
-        } else if (typeof $ !== "undefined") { $(tab).tab("show"); }}
+        } else if (typeof $ !== "undefined") { $(tab).tab("show"); }
+      }
     });
   }
 
@@ -3180,6 +3940,15 @@
     const objValueInput = document.getElementById("initialObjectiveValue");
     if (objValueInput) objValueInput.value = "";
 
+    // Réinitialiser la section Formule / Composantes
+    const createFormulaInput = document.getElementById("createIndFormule");
+    if (createFormulaInput) createFormulaInput.value = "";
+    const createCompContainer = document.getElementById("createFormulaComponentsContainer");
+    if (createCompContainer) createCompContainer.innerHTML = "";
+    const createModeSelect = document.getElementById("modalIndicateurModeCalcul");
+    if (createModeSelect) toggleFormulaSection(createModeSelect, "create");
+    resetFormulaBuilder("create");
+
     const modalElem = document.getElementById("indicatorCreateModal");
     if (modalElem) {
       if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
@@ -3189,10 +3958,15 @@
         bsModal.show();
       } else if (typeof $ !== "undefined" && $.fn && $.fn.modal) {
         $(modalElem).modal("show");
-      }}
+      }
+    }
   });
 
   // ── Ouverture de la modal de saisie de l'indicateur (mesures + objectif) ──
+  let measureLastModeCalcul = "automatique";
+  let measureLastPeriodicite = "mensuel";
+  let measureLastYear = "{{ annee }}";
+
   document.addEventListener("click", function (e) {
     const btn = e.target.closest(".js-open-measure-modal");
     if (!btn) return;
@@ -3200,74 +3974,53 @@
     e.stopPropagation();
 
     const indicatorId = btn.getAttribute("data-indicator-id");
-    const indicatorCode = btn.getAttribute("data-indicator-code");
-    const indicatorName = btn.getAttribute("data-indicator-name");
-    const processCode = btn.getAttribute("data-process-code");
-    const processName = btn.getAttribute("data-process-name");
-    const year = btn.getAttribute("data-year");
-    const objective = btn.getAttribute("data-objective");
-    const mesuresRaw = btn.getAttribute("data-mesures");
+    const indicatorCode = btn.getAttribute("data-indicator-code") || "";
+    const indicatorName = btn.getAttribute("data-indicator-name") || btn.getAttribute("data-indicator-nom") || "";
+    const processCode = btn.getAttribute("data-process-code") || "";
+    const processName = btn.getAttribute("data-process-name") || "";
+    const year = btn.getAttribute("data-year") || "{{ annee }}";
+    const objective = btn.getAttribute("data-objective") || "";
 
     const codeSpan = document.getElementById("modalMeasureIndicatorCode");
     const nameSpan = document.getElementById("modalMeasureIndicatorName");
     const processSpan = document.getElementById("modalMeasureProcessName");
     const objAnneeInput = document.getElementById("modalObjAnnee");
 
-    if (codeSpan) codeSpan.textContent = indicatorCode || "";
-    if (nameSpan) nameSpan.textContent = indicatorName || "";
+    if (codeSpan) codeSpan.textContent = indicatorCode;
+    if (nameSpan) nameSpan.textContent = indicatorName;
     if (processSpan) processSpan.textContent = (processCode ? processCode + " — " : "") + (processName || "");
-    if (objAnneeInput) objAnneeInput.value = year || "";
+    if (objAnneeInput) objAnneeInput.value = year;
 
     const valObjInput = document.getElementById("modalValObj");
     if (valObjInput) {
       valObjInput.value = (objective !== null && objective !== undefined && objective !== "—") ? objective : "";
     }
 
-    // 1. Réinitialiser strictement TOUS les champs mois à vide
+    function getAttr(elem, ...attrs) {
+      for (const a of attrs) {
+        const val = elem.getAttribute(a);
+        if (val !== null && val !== undefined && val !== "") return val;
+      }
+      return "";
+    }
+
+    const periodiciteSync = getAttr(btn, "data-periodicite", "data-indicator-periodicite") || "mensuel";
+    const modeCalculSync = getAttr(btn, "data-mode-calcul", "data-indicator-mode-calcul") || "automatique";
+
+    // Mémoriser le mode UI pour le ré-appliquer à chaque ouverture (shown.bs.modal)
+    measureLastModeCalcul = modeCalculSync;
+    measureLastPeriodicite = periodiciteSync;
+    measureLastYear = year;
+
+    // Configuration UI synchrone immédiate pendant le chargement
+    configureMeasureModalUI(modeCalculSync, periodiciteSync, year);
+
+    // Vider les champs
     for (let m = 1; m <= 12; m++) {
       const input = document.getElementById("mois_" + m);
       if (input) input.value = "";
-    }
-
-    // 2. Pré-remplir depuis data-mesures si présent (pour réactivité instantanée)
-    if (mesuresRaw) {
-      try {
-        const mesuresLocal = JSON.parse(mesuresRaw);
-        if (mesuresLocal && typeof mesuresLocal === "object") {
-          Object.keys(mesuresLocal).forEach(function (m) {
-            const input = document.getElementById("mois_" + m);
-            if (input) input.value = mesuresLocal[m];
-          });
-        }} catch (err) { }}
-
-    // 3. Charger les mesures exactes depuis le serveur via JSON (route GET)
-    const form = document.getElementById("formMeasureEntryModal");
-    if (form && indicatorId && year) {
-      const fetchUrl = "/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/saisie/" + year + "/";
-      form.action = fetchUrl;
-
-      fetch(fetchUrl, {
-        headers: { "X-Requested-With": "XMLHttpRequest" }})
-        .then(function (res) { return res.json(); })
-        .then(function (data) {
-          // Vider d'abord tous les champs
-          for (let m = 1; m <= 12; m++) {
-            const input = document.getElementById("mois_" + m);
-            if (input) input.value = "";
-          }
-          // Appliquer uniquement les mesures réellement reçues
-          if (data && data.mesures) {
-            Object.keys(data.mesures).forEach(function (m) {
-              const input = document.getElementById("mois_" + m);
-              if (input) input.value = data.mesures[m];
-            });
-          }
-          if (data && data.objectif !== undefined && valObjInput) {
-            valObjInput.value = data.objectif || "";
-          }})
-        .catch(function (err) {
-          console.error("Erreur chargement mesures:", err);
-        });
+      const rcInput = document.getElementById("realise_consolide_" + m);
+      if (rcInput) rcInput.value = "";
     }
 
     // Réinitialiser vers le premier onglet (Mesures mensuelles)
@@ -3280,19 +4033,181 @@
           ? bootstrap.Tab.getOrCreateInstance(firstTabBtn)
           : new bootstrap.Tab(firstTabBtn);
         bsTab.show();
-      }}
+      }
+    }
 
-    const modalElem = document.getElementById("measureEntryModal");
-    if (modalElem) {
-      if (typeof bootstrap !== "undefined" && bootstrap.Modal) {
-        const bsModal = bootstrap.Modal.getOrCreateInstance
-          ? bootstrap.Modal.getOrCreateInstance(modalElem)
-          : new bootstrap.Modal(modalElem);
-        bsModal.show();
-      } else if (typeof $ !== "undefined" && $.fn && $.fn.modal) {
-        $(modalElem).modal("show");
-      }}
+    // Ouvrir la modal immédiatement
+    openModalElem(document.getElementById("measureEntryModal"));
+
+    // Charger les mesures exactes depuis le serveur via JSON (route GET)
+    const form = document.getElementById("formMeasureEntryModal");
+    if (form && indicatorId && year) {
+      const fetchUrl = "/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/saisie/" + year + "/";
+      form.action = fetchUrl;
+
+      fetch(fetchUrl, {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          // ÉTAPE 1: Vider les champs
+          for (let m = 1; m <= 12; m++) {
+            const input = document.getElementById("mois_" + m);
+            if (input) input.value = "";
+            const rcInput = document.getElementById("realise_consolide_" + m);
+            if (rcInput) rcInput.value = "";
+          }
+
+          // ÉTAPE 2: Remplir les inputs (mesures et réalisés reçus)
+          if (data && data.mesures) {
+            Object.keys(data.mesures).forEach(function (m) {
+              const input = document.getElementById("mois_" + m);
+              if (input) input.value = data.mesures[m];
+            });
+          }
+          if (data && data.realises_consolides) {
+            Object.keys(data.realises_consolides).forEach(function (m) {
+              const input = document.getElementById("realise_consolide_" + m);
+              if (input) input.value = data.realises_consolides[m];
+            });
+          }
+          if (data && data.objectif !== undefined && valObjInput) {
+            valObjInput.value = data.objectif || "";
+          }
+
+          // ÉTAPE 3 (DERNIÈRE ÉTAPE): Appliquer l'état UI en DERNIER
+          const periodiciteFetch = (data && data.periodicite) ? data.periodicite : periodiciteSync;
+          const modeCalculFetch = (data && data.mode_calcul) ? data.mode_calcul : modeCalculSync;
+          configureMeasureModalUI(
+            modeCalculFetch,
+            periodiciteFetch,
+            year,
+            data ? data.formule : "",
+            data ? data.composantes : [],
+            data ? data.valeurs_composantes : {}
+          );
+        })
+        .catch(function (err) {
+          console.error("Erreur chargement mesures:", err);
+        });
+    }
   });
+
+  function configureMeasureModalUI(modeCalcul, periodicite, year, formule, composantes, valeursComposantes) {
+    var isGlissantManuel = periodicite === "glissant_12_mois" && modeCalcul === "manuel";
+    var isFormule = modeCalcul === "formule";
+
+    var formulaContainer = document.getElementById("formulaComponentsEntryContainer");
+    var standardGrid = document.getElementById("standardMeasurementsGrid");
+
+    var MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+
+    for (var m = 1; m <= 12; m++) {
+      var wrapper = null;
+      var inputMois = document.getElementById("mois_" + m);
+      if (inputMois) {
+        wrapper = inputMois.closest(".js-component-input-wrapper");
+      }
+      var glissantContainer = null;
+      var inputRC = document.getElementById("realise_consolide_" + m);
+      if (inputRC) {
+        glissantContainer = inputRC.closest(".js-glissant-manuel-container");
+      }
+      var helper = document.querySelector(".js-periode-helper-" + m);
+
+      if (isGlissantManuel) {
+        if (wrapper) wrapper.classList.add("d-none");
+        if (glissantContainer) glissantContainer.classList.remove("d-none");
+        if (helper) {
+          var startM = (m % 12) + 1;
+          var startYear = Number(year) - 1;
+          helper.textContent = "Période : " + MOIS[startM - 1] + " " + startYear + " → " + MOIS[m - 1] + " " + year;
+        }
+      } else {
+        if (wrapper) wrapper.classList.remove("d-none");
+        if (glissantContainer) glissantContainer.classList.add("d-none");
+        if (helper) helper.textContent = "";
+      }
+    }
+
+    if (formulaContainer) formulaContainer.classList.toggle("d-none", !isFormule);
+    if (standardGrid) standardGrid.classList.toggle("d-none", isFormule);
+
+    if (isFormule) {
+      buildFormulaComponentInputs(composantes, valeursComposantes, formule, year, MOIS);
+    }
+  }
+
+  function buildFormulaComponentInputs(composantes, valeursComposantes, formule, year, MOIS) {
+    var container = document.getElementById("formulaComponentsEntryContainer");
+    if (!container) return;
+    container.innerHTML = "";
+
+    if (formule) {
+      var header = document.createElement("div");
+      header.className = "mb-2 text-muted small";
+      header.textContent = "Formule : " + formule;
+      container.appendChild(header);
+    }
+
+    var sorted = (composantes || []).slice().sort(function (a, b) {
+      return (a.ordre || 0) - (b.ordre || 0);
+    });
+
+    if (sorted.length === 0) {
+      var note = document.createElement("div");
+      note.className = "alert alert-info py-2 mb-2 small";
+      note.textContent = "Aucune composante déclarée pour cette formule.";
+      container.appendChild(note);
+      return;
+    }
+
+    sorted.forEach(function (comp) {
+      var block = document.createElement("div");
+      block.className = "mb-3 p-2 rounded border bg-white";
+
+      var title = document.createElement("div");
+      title.className = "form-label small font-weight-bold text-dark mb-2";
+      title.textContent = comp.libelle + " (" + comp.code + ")";
+      block.appendChild(title);
+
+      var grid = document.createElement("div");
+      grid.className = "row g-2";
+
+      for (var m = 1; m <= 12; m++) {
+        var col = document.createElement("div");
+        col.className = "col-6 col-md-4 col-lg-3";
+
+        var lbl = document.createElement("label");
+        lbl.className = "text-xs text-muted d-block";
+        lbl.textContent = MOIS[m - 1];
+
+        var inp = document.createElement("input");
+        inp.type = "text";
+        inp.className = "form-control form-control-sm text-center";
+        inp.name = "comp_" + comp.code + "_mois_" + m;
+
+        var monthValues = valeursComposantes && valeursComposantes[comp.code] ? valeursComposantes[comp.code] : {};
+        var v = monthValues[String(m)];
+        inp.value = (v !== undefined && v !== null) ? v : "";
+
+        col.appendChild(lbl);
+        col.appendChild(inp);
+        grid.appendChild(col);
+      }
+
+      block.appendChild(grid);
+      container.appendChild(block);
+    });
+  }
+
+  // Garantir le mode UI (12 mois glissants manuel) à CHAQUE ouverture de la modal
+  const measureModalElem = document.getElementById("measureEntryModal");
+  if (measureModalElem) {
+    measureModalElem.addEventListener("shown.bs.modal", function () {
+      configureMeasureModalUI(measureLastModeCalcul, measureLastPeriodicite, measureLastYear);
+    });
+  }
 
   function openModalElem(modalElem) {
     if (!modalElem) return;
@@ -3303,7 +4218,8 @@
         ? bootstrap.Modal.getOrCreateInstance(modalElem)
         : new bootstrap.Modal(modalElem);
       bsModal.show();
-    }}
+    }
+  }
 
   // ── Modals CRUD : Processus & Indicateur ──
 
@@ -3346,7 +4262,8 @@
 
     // Rafraîchir via JSON en arrière-plan
     fetch("/gestion-documentaire/tableau-de-bord/processus/" + processId + "/json/", {
-      headers: { "X-Requested-With": "XMLHttpRequest" }})
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
       .then(function (res) {
         if (!res.ok) throw new Error("HTTP error " + res.status);
         return res.json();
@@ -3358,11 +4275,12 @@
           if (inputDesc && data.description !== undefined) inputDesc.value = data.description;
           if (selectSoc && data.societe_id) selectSoc.value = data.societe_id;
           if (inputActive && data.is_active !== undefined) inputActive.checked = !!data.is_active;
-        }})
+        }
+      })
       .catch(function (err) {
         console.warn("Chargement JSON processus:", err);
       });
-  });
+  }, true);
 
   // 2. Supprimer un processus
   document.addEventListener("click", function (e) {
@@ -3383,7 +4301,292 @@
     if (nameDisplay) nameDisplay.textContent = processCode + (processName ? " — " + processName : "");
 
     openModalElem(document.getElementById("processusDeleteModal"));
-  });
+  }, true);
+
+  // ── Section Formule / Composantes (modals Création et Édition) ──
+  function toggleFormulaSection(select, ctx) {
+    var section = document.getElementById(ctx + "FormulaConfigSection");
+    if (!section) return;
+    var show = select && select.value === "formule";
+    section.classList.toggle("d-none", !show);
+  }
+
+  function addFormulaComponentRow(ctx, code, libelle) {
+    var container = document.getElementById(ctx + "FormulaComponentsContainer");
+    if (!container) return null;
+
+    var row = document.createElement("div");
+    row.className = "formula-component-row d-flex align-items-center gap-2 mb-2";
+
+    var codeInput = document.createElement("input");
+    codeInput.type = "text";
+    codeInput.name = "comp_code";
+    codeInput.className = "form-control form-control-sm font-monospace";
+    codeInput.placeholder = "Code (ex : accidents)";
+    codeInput.value = code || "";
+    codeInput.style.flex = "0 0 26%";
+    codeInput.setAttribute("aria-label", "Code de la composante");
+
+    var libInput = document.createElement("input");
+    libInput.type = "text";
+    libInput.name = "comp_libelle";
+    libInput.className = "form-control form-control-sm";
+    libInput.placeholder = "Libellé";
+    libInput.value = libelle || "";
+    libInput.style.flex = "1 1 auto";
+    libInput.setAttribute("aria-label", "Libellé de la composante");
+
+    var delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn-outline-danger btn-xs";
+    delBtn.title = "Supprimer la composante";
+    delBtn.setAttribute("aria-label", "Supprimer la composante");
+    delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+    delBtn.addEventListener("click", function () {
+      if (row.parentNode) row.parentNode.removeChild(row);
+      rebuildFormulaBuilder(ctx);
+    });
+
+    row.appendChild(codeInput);
+    row.appendChild(libInput);
+    row.appendChild(delBtn);
+    container.appendChild(row);
+
+    // Maintenir le constructeur de formule synchronisé avec les composantes
+    codeInput.addEventListener("input", function () { rebuildFormulaBuilder(ctx); });
+    libInput.addEventListener("input", function () { rebuildFormulaBuilder(ctx); });
+    rebuildFormulaBuilder(ctx);
+    return row;
+  }
+
+  // ── Constructeur de formule (modals Création et Édition) ──
+  function getFormulaType(ctx) {
+    var el = document.getElementById(ctx + "FormulaType");
+    return el ? el.value : "";
+  }
+
+  function getFormulaBuilderComposantes(ctx) {
+    var comps = [];
+    var rows = document.querySelectorAll("#" + ctx + "FormulaComponentsContainer .formula-component-row");
+    rows.forEach(function (row) {
+      var codeInput = row.querySelector('input[name="comp_code"]');
+      var libInput = row.querySelector('input[name="comp_libelle"]');
+      var code = codeInput ? String(codeInput.value).trim() : "";
+      if (!code) return;
+      var libelle = libInput ? String(libInput.value).trim() : "";
+      comps.push({ code: code, libelle: libelle || code });
+    });
+    return comps;
+  }
+
+  function buildSelect(id, comps) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var prev = el.value;
+    el.innerHTML = "";
+    var placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "— Choisir une composante —";
+    el.appendChild(placeholder);
+    comps.forEach(function (c) {
+      var o = document.createElement("option");
+      o.value = c.code;
+      o.textContent = c.libelle + " (" + c.code + ")";
+      el.appendChild(o);
+    });
+    el.value = "";
+    if (prev) {
+      var exists = Array.prototype.some.call(el.options, function (o) { return o.value === prev; });
+      if (exists) el.value = prev;
+    }
+  }
+
+  function safeElementId(code) {
+    return String(code).replace(/[^a-zA-Z0-9_-]/g, "_");
+  }
+
+  function buildMultiList(ctx, comps) {
+    var list = document.getElementById(ctx + "FormulaMultiList");
+    if (!list) return;
+    var checked = {};
+    list.querySelectorAll(".formula-comp-checkbox:checked").forEach(function (cb) {
+      checked[cb.getAttribute("data-code")] = true;
+    });
+    list.innerHTML = "";
+    if (!comps.length) {
+      var none = document.createElement("small");
+      none.className = "text-muted";
+      none.textContent = "Aucune composante définie — ajoutez des composantes ci-dessus.";
+      list.appendChild(none);
+      return;
+    }
+    comps.forEach(function (c) {
+      var wrap = document.createElement("div");
+      wrap.className = "form-check form-check-inline mb-1";
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "form-check-input formula-comp-checkbox";
+      cb.id = ctx + "compChk_" + safeElementId(c.code);
+      cb.setAttribute("data-code", c.code);
+      cb.checked = !!checked[c.code];
+      cb.addEventListener("change", function () { updateGeneratedFormula(ctx); });
+      var lbl = document.createElement("label");
+      lbl.className = "form-check-label";
+      lbl.htmlFor = cb.id;
+      lbl.textContent = c.libelle;
+      lbl.title = c.code;
+      lbl.style.fontSize = "0.8rem";
+      wrap.appendChild(cb);
+      wrap.appendChild(lbl);
+      list.appendChild(wrap);
+    });
+  }
+
+  function rebuildFormulaBuilder(ctx) {
+    var comps = getFormulaBuilderComposantes(ctx);
+    buildSelect(ctx + "FormulaNumerateur", comps);
+    buildSelect(ctx + "FormulaDenominateur", comps);
+    buildMultiList(ctx, comps);
+  }
+
+  function setSelectValue(id, value) {
+    var el = document.getElementById(id);
+    if (el) el.value = value || "";
+  }
+
+  function markMulti(ctx, codes) {
+    var list = document.getElementById(ctx + "FormulaMultiList");
+    if (!list || !codes || !codes.length) return;
+    var wanted = {};
+    codes.forEach(function (c) { wanted[c] = true; });
+    list.querySelectorAll(".formula-comp-checkbox").forEach(function (cb) {
+      cb.checked = !!wanted[cb.getAttribute("data-code")];
+    });
+  }
+
+  function getSelectedMultiCodes(ctx) {
+    var codes = [];
+    var list = document.getElementById(ctx + "FormulaMultiList");
+    if (list) {
+      list.querySelectorAll(".formula-comp-checkbox:checked").forEach(function (cb) {
+        codes.push(cb.getAttribute("data-code"));
+      });
+    }
+    return codes;
+  }
+
+  function generateTemplateFormula(ctx) {
+    var type = getFormulaType(ctx);
+    if (type === "personnalisee") return "";
+    var num = document.getElementById(ctx + "FormulaNumerateur");
+    var den = document.getElementById(ctx + "FormulaDenominateur");
+    var numVal = num ? String(num.value).toLowerCase() : "";
+    var denVal = den ? String(den.value).toLowerCase() : "";
+    switch (type) {
+      case "ratio":
+        return (numVal && denVal) ? numVal + " / " + denVal : "";
+      case "pourcentage":
+        return (numVal && denVal) ? "(" + numVal + " / " + denVal + ") * 100" : "";
+      case "taux_frequence":
+        return (numVal && denVal) ? "(" + numVal + " * 1000000) / " + denVal : "";
+      case "somme":
+      case "moyenne": {
+        var codes = getSelectedMultiCodes(ctx).map(function (c) { return String(c).toLowerCase(); });
+        if (!codes.length) return "";
+        if (type === "somme") return codes.join(" + ");
+        return "(" + codes.join(" + ") + ") / " + codes.length;
+      }
+      default:
+        return "";
+    }
+  }
+
+  function updateGeneratedFormula(ctx) {
+    var input = document.getElementById(ctx + "IndFormule");
+    var preview = document.getElementById(ctx + "FormulaPreview");
+    if (getFormulaType(ctx) === "personnalisee") {
+      if (preview) preview.textContent = input ? input.value : "";
+      return;
+    }
+    var f = generateTemplateFormula(ctx);
+    if (input) input.value = f;
+    if (preview) preview.textContent = f;
+  }
+
+  function onCustomFormulaInput(ctx) {
+    var input = document.getElementById(ctx + "IndFormule");
+    var preview = document.getElementById(ctx + "FormulaPreview");
+    if (preview) preview.textContent = input ? input.value : "";
+  }
+
+  function onFormulaTypeChange(ctx, keepFormula) {
+    var type = getFormulaType(ctx);
+    var hidden = document.getElementById(ctx + "FormulaTypeHidden");
+    if (hidden) hidden.value = type;
+    var numDen = document.getElementById(ctx + "FormulaNumDen");
+    var multi = document.getElementById(ctx + "FormulaMulti");
+    var customWrap = document.getElementById(ctx + "FormulaCustomWrapper");
+    var previewGroup = document.getElementById(ctx + "FormulaPreviewGroup");
+    var input = document.getElementById(ctx + "IndFormule");
+    var preview = document.getElementById(ctx + "FormulaPreview");
+    var isCustom = type === "personnalisee";
+    var usesNumDen = type === "ratio" || type === "pourcentage" || type === "taux_frequence";
+    var usesMulti = type === "somme" || type === "moyenne";
+
+    if (numDen) numDen.classList.toggle("d-none", !usesNumDen);
+    if (multi) multi.classList.toggle("d-none", !usesMulti);
+    if (customWrap) customWrap.classList.toggle("d-none", !isCustom);
+    if (previewGroup) previewGroup.classList.toggle("d-none", isCustom);
+    if (input) input.readOnly = !isCustom;
+
+    rebuildFormulaBuilder(ctx);
+
+    if (isCustom) {
+      if (preview) preview.textContent = input ? input.value : "";
+    } else if (!keepFormula) {
+      var f = generateTemplateFormula(ctx);
+      if (input) input.value = f;
+      if (preview) preview.textContent = f;
+    } else if (preview) {
+      preview.textContent = input ? input.value : "";
+    }
+  }
+
+  function resetFormulaBuilder(ctx) {
+    var sel = document.getElementById(ctx + "FormulaType");
+    if (sel) sel.value = "somme";
+    onFormulaTypeChange(ctx, true);
+  }
+
+  function detectFormulaBuilder(ctx) {
+    var input = document.getElementById(ctx + "IndFormule");
+    var formula = input ? String(input.value).trim() : "";
+    var type = "personnalisee";
+    var num = "", den = "", multi = [];
+    if (!formula) {
+      type = "somme";
+    } else {
+      var m;
+      if ((m = formula.match(/^\((.+?)\s*\*\s*1000000\)\s*\/\s*(.+)$/))) {
+        type = "taux_frequence"; num = m[1].trim(); den = m[2].trim();
+      } else if ((m = formula.match(/^\((.+?)\s*\/\s*(.+?)\)\s*\*\s*100$/))) {
+        type = "pourcentage"; num = m[1].trim(); den = m[2].trim();
+      } else if ((m = formula.match(/^\((.+)\)\s*\/\s*(\d+)$/)) && m[1].indexOf("+") !== -1) {
+        type = "moyenne"; multi = m[1].split("+").map(function (s) { return s.trim(); });
+      } else if (formula.indexOf("+") !== -1 && formula.indexOf("/") === -1 && /^[a-z0-9_\s+]+$/.test(formula)) {
+        type = "somme"; multi = formula.split("+").map(function (s) { return s.trim(); });
+      } else if ((m = formula.match(/^([a-z0-9_]+)\s*\/\s*([a-z0-9_]+)$/))) {
+        type = "ratio"; num = m[1].trim(); den = m[2].trim();
+      }
+    }
+    var sel = document.getElementById(ctx + "FormulaType");
+    if (sel) sel.value = type;
+    rebuildFormulaBuilder(ctx);
+    setSelectValue(ctx + "FormulaNumerateur", num);
+    setSelectValue(ctx + "FormulaDenominateur", den);
+    markMulti(ctx, multi);
+    onFormulaTypeChange(ctx, true);
+  }
 
   // 3. Modifier un indicateur
   document.addEventListener("click", function (e) {
@@ -3397,6 +4600,7 @@
     const nom = btn.getAttribute("data-indicator-nom") || "";
     const periodicite = btn.getAttribute("data-indicator-periodicite") || "mensuel";
     const agregation = btn.getAttribute("data-indicator-agregation") || "somme";
+    const sens = btn.getAttribute("data-indicator-sens") || "atteindre";
     const active = btn.getAttribute("data-indicator-active") === "true";
     const objective = btn.getAttribute("data-indicator-objective") || "";
     const processCode = btn.getAttribute("data-process-code") || "";
@@ -3421,6 +4625,21 @@
     const selectAgre = document.getElementById("editIndAgregation");
     if (selectAgre) selectAgre.value = agregation;
 
+    const selectSens = document.getElementById("editIndSens");
+    if (selectSens) selectSens.value = sens;
+
+    const modeCalcul = btn.getAttribute("data-indicator-mode-calcul") || "automatique";
+    const selectModeCalcul = document.getElementById("editIndModeCalcul");
+    if (selectModeCalcul) selectModeCalcul.value = modeCalcul;
+
+    // Réinitialiser la section Formule / Composantes
+    const editFormulaInput = document.getElementById("editIndFormule");
+    if (editFormulaInput) editFormulaInput.value = "";
+    const editCompContainer = document.getElementById("editFormulaComponentsContainer");
+    if (editCompContainer) editCompContainer.innerHTML = "";
+    if (selectModeCalcul) toggleFormulaSection(selectModeCalcul, "edit");
+    resetFormulaBuilder("edit");
+
     const inputActive = document.getElementById("editIndActive");
     if (inputActive) inputActive.checked = active;
 
@@ -3431,6 +4650,30 @@
     if (inputObjYear) inputObjYear.value = "{{ annee }}";
 
     openModalElem(document.getElementById("indicatorEditModal"));
+
+    // Préremplissage Formule / Composantes (mode formule) via le JSON de détail
+    if (indicatorId) {
+      fetch("/gestion-documentaire/tableau-de-bord/indicateur/" + indicatorId + "/json/", {
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          if (selectModeCalcul && data.mode_calcul) selectModeCalcul.value = data.mode_calcul;
+          if (editFormulaInput && data.formule !== undefined) editFormulaInput.value = data.formule;
+          if (editCompContainer) {
+            editCompContainer.innerHTML = "";
+            (data.composantes || []).forEach(function (c) {
+              addFormulaComponentRow("edit", c.code, c.libelle);
+            });
+          }
+          detectFormulaBuilder("edit");
+          toggleFormulaSection(selectModeCalcul, "edit");
+        })
+        .catch(function () {
+          toggleFormulaSection(selectModeCalcul, "edit");
+        });
+    }
   });
 
   // 4. Supprimer un indicateur
@@ -3464,45 +4707,45 @@
       existingChart.destroy();
     }
 
-    var chartData = {{ audits_chart_data_json| safe }};
-    new Chart(canvas, {
-      type: "doughnut",
-      data: {
-        labels: chartData.labels,
-        datasets: [{
-          data: chartData.data,
-          backgroundColor: chartData.colors,
-          borderWidth: 2,
-          borderColor: "#ffffff"
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: false,
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: {
-              font: { size: 11, family: "Inter, sans-serif" },
-              padding: 12,
-              usePointStyle: true
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: function (ctx) {
-                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
-                var val = ctx.raw || 0;
-                var pct = total > 0 ? ((val / total) * 100).toFixed(1) + "%" : "0%";
-                return ctx.label + ": " + val + " (" + pct + ")";
-              }
-            }
+    var chartData = {{ audits_chart_data_json|safe }}
+  new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels: chartData.labels,
+      datasets: [{
+        data: chartData.data,
+        backgroundColor: chartData.colors,
+        borderWidth: 2,
+        borderColor: "#ffffff"
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            font: { size: 11, family: "Inter, sans-serif" },
+            padding: 12,
+            usePointStyle: true
           }
         },
-        cutout: "60%"
-      }
-    });
+        tooltip: {
+          callbacks: {
+            label: function (ctx) {
+              var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0);
+              var val = ctx.raw || 0;
+              var pct = total > 0 ? ((val / total) * 100).toFixed(1) + "%" : "0%";
+              return ctx.label + ": " + val + " (" + pct + ")";
+            }
+          }
+        }
+      },
+      cutout: "60%"
+    }
+  });
   };
   window.initAuditChart();
 
@@ -3627,7 +4870,7 @@
           chart.options.animation = false;
           chart.resize();
           chart.update("none");
-        } catch (e) {}
+        } catch (e) { }
       });
     }
   });
@@ -3635,15 +4878,124 @@
   window.addEventListener("afterprint", function () {
     document.body.classList.remove("print-all-tabs");
   });
+
+  // ── Garde : formule obligatoire en mode « formule » ──
+  function showFormulaError(ctx, message) {
+    var alert = document.getElementById(ctx + "FormulaErrorAlert");
+    var text = document.getElementById(ctx + "FormulaErrorText");
+    if (!alert || !text) return;
+    text.textContent = message || "";
+    alert.classList.remove("d-none");
+    var input = document.getElementById(ctx + "IndFormule");
+    if (input) input.focus();
+  }
+
+  function hideFormulaError(ctx) {
+    var alert = document.getElementById(ctx + "FormulaErrorAlert");
+    if (alert) alert.classList.add("d-none");
+  }
+
+  function guardFormulaSubmission(form, ctx, modeSelectId) {
+    form.addEventListener("submit", function (e) {
+      var modeSelect = document.getElementById(modeSelectId);
+      if (!modeSelect) return;
+      if (modeSelect.value !== "formule") {
+        hideFormulaError(ctx);
+        return;
+      }
+      var input = document.getElementById(ctx + "IndFormule");
+      var formule = input ? String(input.value).trim() : "";
+      if (!formule) {
+        e.preventDefault();
+        e.stopPropagation();
+        showFormulaError(ctx, "La formule est obligatoire pour le mode de calcul automatique par formule.");
+      } else {
+        hideFormulaError(ctx);
+      }
+    });
+  }
+
+  var editFormGuard = document.getElementById("formIndicatorEdit");
+  if (editFormGuard) guardFormulaSubmission(editFormGuard, "edit", "editIndModeCalcul");
+  var createFormGuard = document.getElementById("formCreateIndicatorModal");
+  if (createFormGuard) guardFormulaSubmission(createFormGuard, "create", "modalIndicateurModeCalcul");
+
+  // ── Réouverture de la modal d'édition après une erreur de sauvegarde ──
+  {% if indicateur_form_erreur_json %}
+  (function () {
+    var payload = {{ indicateur_form_erreur_json|safe }};
+    if (!payload) return;
+    var form = document.getElementById("formIndicatorEdit");
+    if (form && payload.indicateur_id) {
+      form.action = "/gestion-documentaire/tableau-de-bord/indicateur/" + payload.indicateur_id + "/modifier/";
+    }
+    var setVal = function (id, val) {
+      var el = document.getElementById(id);
+      if (el) el.value = (val != null) ? String(val) : "";
+    };
+    setVal("editIndNom", payload.nom);
+    setVal("editIndPeriodicite", payload.periodicite || "mensuel");
+    setVal("editIndAgregation", payload.mode_agregation || "somme");
+    setVal("editIndSens", payload.sens_objectif || "atteindre");
+    var modeCalc = document.getElementById("editIndModeCalcul");
+    if (modeCalc) modeCalc.value = payload.mode_calcul || "automatique";
+    var inputActive = document.getElementById("editIndActive");
+    if (inputActive) inputActive.checked = !!payload.is_active;
+    setVal("editIndFormule", payload.formule || "");
+    var compContainer = document.getElementById("editFormulaComponentsContainer");
+    if (compContainer) {
+      compContainer.innerHTML = "";
+      var codes = payload.comp_code || [];
+      var libs = payload.comp_libelle || [];
+      codes.forEach(function (c, i) {
+        addFormulaComponentRow("edit", c, libs[i] || c);
+      });
+    }
+    setVal("editFormulaTypeHidden", payload.type_formule || "somme");
+    setVal("editObjectiveValue", payload.valeur_objectif || "");
+    setVal("editObjectiveYear", payload.objectif_annee || "{{ annee }}");
+    var codeDisplay = document.getElementById("editIndicatorCodeDisplay");
+    if (codeDisplay) codeDisplay.textContent = payload.code || "";
+    var subtitle = document.getElementById("editIndicatorModalProcessName");
+    if (subtitle && payload.code) subtitle.textContent = payload.code;
+    detectFormulaBuilder("edit");
+    if (modeCalc) toggleFormulaSection(modeCalc, "edit");
+    openModalElem(document.getElementById("indicatorEditModal"));
+  })();
+  {% endif %}
 </script>
 
 <style>
-  /* ── Conteneur principal Responsive ── */
+  /* ── Conteneur principal Responsive & Scrollbar Gutter ── */
+  html,
+  body,
+  .wrapper,
+  .content-wrapper,
+  .content,
+  .dashboard-scroll-container,
   .tdb-page {
-    width: 100%;
-    max-width: 100%;
-    padding: 1rem;
-    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .dashboard-scroll-container,
+  .content-wrapper > .content,
+  .tdb-page {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ── Neutralisation du chevauchement de la scrollbar custom (OverlayScrollbars / AdminLTE) ── */
+  .os-scrollbar,
+  .os-scrollbar-vertical,
+  .os-scrollbar-horizontal,
+  .os-scrollbar-corner,
+  .os-scrollbar-track,
+  .os-scrollbar-handle {
+    pointer-events: none !important;
+    z-index: 1 !important;
   }
 
   .tdb-page *,
@@ -3703,6 +5055,18 @@
     color: #ffffff !important;
   }
 
+  .tdb-header-btn--filter {
+    background-color: #007bff;
+    border-color: #007bff;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--filter:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: #ffffff !important;
+  }
+
   /* ── Barre d'Onglets Responsive ── */
   .tdb-tabs {
     display: flex;
@@ -3756,18 +5120,212 @@
 
     .chart-container-md {
       height: 220px !important;
-    }}
+    }
+  }
+
+  /* ── Suppression du double scroll vertical (le tableau n'a pas sa propre scrollbar) ── */
+  @media screen {
+    .dashboard-table-container,
+    .tdb-page .table-responsive,
+    .table-responsive {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      overflow-x: auto !important;
+      overflow-y: visible !important;
+      max-height: none !important;
+      height: auto !important;
+      padding-right: 0 !important;
+      margin-right: 0 !important;
+    }
+
+    .actions-col,
+    th.actions-col,
+    td.actions-col,
+    th.actions-column,
+    td.actions-column,
+    #synthese-table th.actions-column,
+    #synthese-table td.actions-column,
+    #synthese-table th.actions-col,
+    #synthese-table td.actions-col {
+      min-width: 0 !important;
+      width: 18% !important;
+      text-align: center !important;
+      white-space: nowrap !important;
+      padding-right: 4px !important;
+      box-sizing: border-box !important;
+    }
+
+    /* La colonne « Code & Indicateur » absorbe la majorité de la réduction de
+       largeur via retour à la ligne, tandis que les colonnes des mois restent
+       très compactes. */
+    #synthese-table th.indicator-column,
+    #synthese-table td.indicator-column {
+      min-width: 0 !important;
+      width: 16% !important;
+      white-space: normal !important;
+      overflow-wrap: anywhere !important;
+      word-break: break-word !important;
+    }
+
+    /* Tableau de synthèse sans barre horizontale : il s'adapte à la largeur
+       de l'écran, aucune colonne hors écran. */
+    #syntheseTableWrapper {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 100% !important;
+      overflow-x: hidden !important;
+      overflow-y: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      box-sizing: border-box !important;
+    }
+
+    .actions-cell,
+    .actions-buttons,
+    .tdb-row-actions {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 6px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      white-space: nowrap !important;
+      padding-right: 4px !important;
+      box-sizing: border-box !important;
+    }
+
+    .process-header {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+    }
+
+    .process-actions,
+    .tdb-process-actions {
+      display: flex !important;
+      flex-wrap: nowrap !important;
+      gap: 6px !important;
+      margin-left: auto !important;
+      padding-right: 8px !important;
+      flex-shrink: 0 !important;
+      position: relative !important;
+      z-index: 10 !important;
+    }
+
+    /* Actions du processus toujours visibles : épinglées au bord droit visible
+       du conteneur scrollable (le tableau peut déborder horizontalement). */
+    #synthese-table .process-actions,
+    #synthese-table .tdb-process-actions {
+      position: sticky !important;
+      right: 0 !important;
+      z-index: 20 !important;
+    }
+
+    /* ── Colonnes mensuelles très compactes : chaque mois ≈ 3 % de largeur ── */
+    #synthese-table th.month-column,
+    #synthese-table td.month-column {
+      width: 3% !important;
+      min-width: 0 !important;
+      max-width: none !important;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    #synthese-table thead th.month-column {
+      font-size: 0.68rem;
+      padding-left: 1px !important;
+      padding-right: 1px !important;
+    }
+
+    /* ── Bouton « Ajouter un indicateur » : une seule ligne, non compressé ── */
+    #synthese-table .tdb-add-indicator-row .js-open-indicator-modal {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+    }
+  }
+
+  /* ── UN SEUL SCROLL VERTICAL (niveau page) ──
+     Le document (html/body) scrolle verticalement. Aucun conteneur interne
+     (wrapper, content-wrapper, contenu, tableau, onglets) ne doit créer de
+     second scrollbar vertical : hauteur naturelle + overflow-y visible.
+     Le scroll horizontal des grands tableaux reste géré par .table-responsive. */
+  @media screen {
+    html {
+      height: auto;
+      min-height: 100%;
+      overflow: visible;
+    }
+
+    body {
+      margin: 0;
+      height: auto;
+      min-height: 100%;
+      overflow-y: auto;
+      overflow-x: visible;
+    }
+
+    .wrapper,
+    .content-wrapper,
+    .content-wrapper > .content,
+    .container-fluid,
+    .tdb-page,
+    .tab-content,
+    #tdbTabsContent,
+    .tab-pane,
+    .dashboard,
+    .dashboard-content,
+    .dashboard-container,
+    .dashboard-scroll-container,
+    .main-content,
+    .indicators-section,
+    .charts-section,
+    .objectives-section,
+    .audit-section {
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow-y: visible !important;
+    }
+
+    /* Le content-wrapper AdminLTE garde son min-height pour caler le footer,
+       sans jamais devenir un conteneur de scroll vertical. */
+    .content-wrapper {
+      min-height: calc(100vh - (3.5rem + 1px) - (3.5rem + 1px));
+    }
+
+    .table-responsive,
+    .dashboard-table-container {
+      overflow-x: auto !important;
+      overflow-y: visible !important;
+      max-height: none !important;
+      height: auto !important;
+    }
+  }
 
   /* ── Tableau synthèse processus-first ── */
   #synthese-table {
     width: 100% !important;
     max-width: 100% !important;
+    table-layout: fixed !important;
   }
 
   #synthese-table th,
   #synthese-table td {
-    padding: 0.35rem 0.2rem !important;
+    padding: 6px 4px !important;
+    font-size: 12px !important;
     vertical-align: middle;
+  }
+
+  #synthese-table td .badge {
+    white-space: normal !important;
   }
 
   #synthese-table .synthese-group-row td {
@@ -3800,23 +5358,41 @@
   }
 
   /* ── Barre d'actions compacte et uniforme des lignes ── */
-  .tdb-row-actions {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
-    white-space: nowrap;
+  .tdb-row-actions,
+  .tdb-process-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    white-space: nowrap !important;
+    position: relative !important;
+    z-index: 10 !important;
+    pointer-events: auto !important;
   }
 
-  .tdb-row-actions .btn {
-    width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
+  .tdb-row-actions .btn,
+  .tdb-process-actions .btn,
+  .tdb-action-btn,
+  .js-open-measure-modal,
+  .js-open-indicator-chart,
+  .js-open-indicator-objective,
+  .js-edit-indicator,
+  .js-delete-indicator,
+  .js-edit-process,
+  .js-delete-process {
+    width: 22px !important;
+    height: 22px !important;
+    min-height: 22px !important;
     padding: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     border-radius: 0.25rem;
+    position: relative !important;
+    z-index: 15 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
   }
 </style>
 

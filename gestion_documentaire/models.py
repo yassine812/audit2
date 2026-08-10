@@ -4,7 +4,7 @@ import os
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -768,6 +768,7 @@ class Indicateur(models.Model):
         TRIMESTRIEL = "trimestriel", "Trimestriel"
         SEMESTRIEL = "semestriel", "Semestriel"
         ANNUEL = "annuel", "Annuel"
+        GLISSANT_12_MOIS = "glissant_12_mois", "Glissant sur 12 mois"
 
     class ModeAgregation(models.TextChoices):
         SOMME = "somme", "Somme"
@@ -776,6 +777,15 @@ class Indicateur(models.Model):
         MAXIMUM = "maximum", "Maximum"
         NOMBRE = "nombre", "Nombre"
         DERNIERE_VALEUR = "derniere_valeur", "Dernière valeur"
+
+    class SensObjectif(models.TextChoices):
+        ATTEINDRE = "atteindre", "À atteindre / dépasser"
+        NE_PAS_DEPASSER = "ne_pas_depasser", "À ne pas dépasser"
+
+    class ModeCalcul(models.TextChoices):
+        AUTOMATIQUE = "automatique", "Calcul automatique à partir des composantes"
+        MANUEL = "manuel", "Saisie manuelle du réalisé consolidé"
+        FORMULE = "formule", "Calcul automatique par formule"
 
     processus = models.ForeignKey(
         Processus,
@@ -796,6 +806,23 @@ class Indicateur(models.Model):
         choices=ModeAgregation.choices,
         default=ModeAgregation.SOMME,
         verbose_name="Mode d’agrégation",
+    )
+    sens_objectif = models.CharField(
+        max_length=30,
+        choices=SensObjectif.choices,
+        default=SensObjectif.ATTEINDRE,
+        verbose_name="Sens de l’objectif",
+    )
+    mode_calcul = models.CharField(
+        max_length=30,
+        choices=ModeCalcul.choices,
+        default=ModeCalcul.AUTOMATIQUE,
+        verbose_name="Mode de calcul / saisie",
+    )
+    formule = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="Formule de calcul",
     )
     formats_chart_disponibles = models.JSONField(
         default=list,
@@ -903,6 +930,135 @@ class MesureIndicateur(models.Model):
         if self.mois is not None:
             return f"{self.indicateur} - {self.mois}/{self.annee} : {self.valeur}"
         return f"{self.indicateur} - {self.annee} : {self.valeur}"
+
+
+class RealiseConsolideIndicateur(models.Model):
+    indicateur = models.ForeignKey(
+        Indicateur,
+        on_delete=models.CASCADE,
+        related_name="realises_consolides",
+        verbose_name="Indicateur",
+    )
+    annee_reference = models.PositiveIntegerField(verbose_name="Année de référence")
+    mois_reference = models.PositiveSmallIntegerField(
+        verbose_name="Mois de référence",
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+    )
+    valeur = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        verbose_name="Valeur du réalisé consolidé",
+    )
+    saisie_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Saisi par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Réalisé consolidé d'indicateur"
+        verbose_name_plural = "Réalisés consolidés d'indicateurs"
+        ordering = ["indicateur__code", "-annee_reference", "-mois_reference"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["indicateur", "annee_reference", "mois_reference"],
+                name="unique_realise_consolide_indicateur_periode",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.indicateur} - Consolidé {self.mois_reference:02d}/{self.annee_reference} : {self.valeur}"
+
+
+def validate_code_composante(value):
+    import re
+    if not value or not re.match(r"^[a-z0-9_]+$", value.strip()):
+        raise ValidationError(
+            "Le code de la composante doit contenir uniquement des lettres minuscules, chiffres et underscores (ex: nb_accidents, nb_heures)."
+        )
+
+
+class ComposanteIndicateur(models.Model):
+    indicateur = models.ForeignKey(
+        Indicateur,
+        on_delete=models.CASCADE,
+        related_name="composantes",
+        verbose_name="Indicateur",
+    )
+    code = models.CharField(
+        max_length=50,
+        validators=[validate_code_composante],
+        verbose_name="Code de la composante",
+    )
+    libelle = models.CharField(
+        max_length=150,
+        verbose_name="Libellé de la composante",
+    )
+    ordre = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name="Ordre d'affichage",
+    )
+
+    class Meta:
+        verbose_name = "Composante d'indicateur"
+        verbose_name_plural = "Composantes d'indicateurs"
+        ordering = ["indicateur", "ordre", "code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["indicateur", "code"],
+                name="unique_code_composante_par_indicateur",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.indicateur.code} - {self.code} ({self.libelle})"
+
+
+class ValeurComposanteIndicateur(models.Model):
+    composante = models.ForeignKey(
+        ComposanteIndicateur,
+        on_delete=models.CASCADE,
+        related_name="valeurs",
+        verbose_name="Composante",
+    )
+    annee = models.PositiveIntegerField(verbose_name="Année")
+    mois = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        verbose_name="Mois",
+    )
+    valeur = models.DecimalField(
+        max_digits=20,
+        decimal_places=4,
+        verbose_name="Valeur mesurée",
+    )
+    saisie_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Saisie par",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Valeur de composante"
+        verbose_name_plural = "Valeurs de composantes"
+        ordering = ["composante", "-annee", "-mois"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["composante", "annee", "mois"],
+                name="unique_valeur_composante_periode",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.composante} - {self.mois:02d}/{self.annee} : {self.valeur}"
+
 
 
 

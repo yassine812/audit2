@@ -142,7 +142,50 @@ class Command(BaseCommand):
                 "mesures_2026": {3: 1, 6: 1, 9: 1, 12: 1},
             },
 
-            # ── Processus PM02 ──
+            {
+                "processus_code": "PM02",
+                "code": "PM02-TF",
+                "nom": "Taux de fréquence (TF) 12M glissants",
+                "periodicite": Indicateur.Periodicite.GLISSANT_12_MOIS,
+                "mode_agregation": Indicateur.ModeAgregation.MOYENNE,
+                "sens_objectif": Indicateur.SensObjectif.NE_PAS_DEPASSER,
+                "mode_calcul": Indicateur.ModeCalcul.MANUEL,
+                "objectif_2026": Decimal("15"),
+                "objectif_2025": Decimal("16"),
+                "mesures_2026": {1: 3.2, 2: 3.0, 3: 3.4},
+                "realises_consolides_2026": {1: 18.50, 2: 18.80, 3: 19.26},
+            },
+            {
+                # Mode FORMULE : TF calculé dynamiquement = Σ(accidents 12M) × 1 000 000 / Σ(heures 12M)
+                # Composantes saisies sur 12 mois traversant 2025 et 2026 (Sept 2025 → Août 2026).
+                # Code composante en minuscules (validate_code_composante) : accidents / heures.
+                "processus_code": "PM02",
+                "code": "PM02-TF2",
+                "nom": "Taux de fréquence (TF) 12M glissants — Formule",
+                "periodicite": Indicateur.Periodicite.GLISSANT_12_MOIS,
+                "mode_agregation": Indicateur.ModeAgregation.MOYENNE,
+                "sens_objectif": Indicateur.SensObjectif.NE_PAS_DEPASSER,
+                "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+                "formule": "accidents * 1000000 / heures",
+                "objectif_2026": Decimal("80"),
+                "objectif_2025": Decimal("85"),
+                "composantes": [
+                    {"code": "accidents", "libelle": "Nombre d'accidents avec arrêt", "ordre": 1},
+                    {"code": "heures", "libelle": "Heures travaillées", "ordre": 2},
+                ],
+                "valeurs_composantes": {
+                    "accidents": {
+                        (2025, 9): 1, (2025, 10): 0, (2025, 11): 1, (2025, 12): 2,
+                        (2026, 1): 0, (2026, 2): 1, (2026, 3): 1, (2026, 4): 0,
+                        (2026, 5): 1, (2026, 6): 0, (2026, 7): 1, (2026, 8): 1,
+                    },
+                    "heures": {
+                        (2025, 9): 9000, (2025, 10): 9000, (2025, 11): 10000, (2025, 12): 10000,
+                        (2026, 1): 9500, (2026, 2): 9000, (2026, 3): 10000, (2026, 4): 9500,
+                        (2026, 5): 9000, (2026, 6): 10000, (2026, 7): 10000, (2026, 8): 9500,
+                    },
+                },
+            },
             {
                 "processus_code": "PM02",
                 "code": "PM02-01",
@@ -322,9 +365,10 @@ class Command(BaseCommand):
                 "nom": "Nombre de pannes critiques",
                 "periodicite": Indicateur.Periodicite.MENSUEL,
                 "mode_agregation": Indicateur.ModeAgregation.SOMME,
+                "sens_objectif": Indicateur.SensObjectif.NE_PAS_DEPASSER,
                 "objectif_2026": Decimal("3"),
                 "objectif_2025": Decimal("5"),
-                # Sens attendu : Valeur faible souhaitée
+                # Sens attendu : Valeur faible souhaitée (À ne pas dépasser)
                 "mesures_2026": {1: 1, 2: 0, 3: 1, 4: 0, 5: 0, 6: 1, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0},
             },
         ]
@@ -344,6 +388,9 @@ class Command(BaseCommand):
                     "nom": idata["nom"],
                     "periodicite": idata["periodicite"],
                     "mode_agregation": idata["mode_agregation"],
+                    "sens_objectif": idata.get("sens_objectif", Indicateur.SensObjectif.ATTEINDRE),
+                    "mode_calcul": idata.get("mode_calcul", Indicateur.ModeCalcul.AUTOMATIQUE),
+                    "formule": idata.get("formule", ""),
                     "formats_chart_disponibles": idata.get("formats_chart_disponibles", ["bar", "line", "pie", "doughnut", "radar"]),
                     "is_active": True,
                 },
@@ -380,6 +427,41 @@ class Command(BaseCommand):
                     },
                 )
                 count_mes += 1
+
+            # Réalisés consolidés 2026 (pour mode manuel 12M glissants)
+            from gestion_documentaire.models import RealiseConsolideIndicateur
+            for mois, val in idata.get("realises_consolides_2026", {}).items():
+                RealiseConsolideIndicateur.objects.update_or_create(
+                    indicateur=ind,
+                    annee_reference=2026,
+                    mois_reference=mois,
+                    defaults={
+                        "valeur": Decimal(str(val)),
+                        "saisie_par": admin_user,
+                    },
+                )
+
+            # Composantes et valeurs (pour le mode FORMULE)
+            from gestion_documentaire.models import ComposanteIndicateur, ValeurComposanteIndicateur
+            for cdata in idata.get("composantes", []):
+                comp, _ = ComposanteIndicateur.objects.update_or_create(
+                    indicateur=ind,
+                    code=cdata["code"],
+                    defaults={
+                        "libelle": cdata["libelle"],
+                        "ordre": cdata.get("ordre", 1),
+                    },
+                )
+                for (annee_c, mois_c), val in idata.get("valeurs_composantes", {}).get(cdata["code"], {}).items():
+                    ValeurComposanteIndicateur.objects.update_or_create(
+                        composante=comp,
+                        annee=annee_c,
+                        mois=mois_c,
+                        defaults={
+                            "valeur": Decimal(str(val)),
+                            "saisie_par": admin_user,
+                        },
+                    )
 
         self.stdout.write(
             self.style.SUCCESS(

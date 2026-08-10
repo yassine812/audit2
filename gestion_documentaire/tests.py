@@ -221,11 +221,20 @@ class BibliothequeDocumentaireTests(TestCase):
 
 from decimal import Decimal
 from accounts.models import Societe
-from .models import Processus, Indicateur, ObjectifIndicateur, MesureIndicateur
+from .models import (
+    Processus,
+    Indicateur,
+    ObjectifIndicateur,
+    MesureIndicateur,
+    RealiseConsolideIndicateur,
+    ComposanteIndicateur,
+    ValeurComposanteIndicateur,
+)
 from .views import (
     obtenir_mois_periode,
     calculer_agregation_indicateur,
     evaluer_statut_indicateur,
+    obtenir_donnees_tableau_de_bord,
 )
 
 
@@ -504,6 +513,94 @@ class TdbModuleTests(TestCase):
         somme_t1 = calculer_agregation_indicateur(self.ind_somme, mesures, type_periode="trimestre")
         self.assertEqual(somme_t1, Decimal("2.0000"))
 
+    def test_valeur_annuelle_repli_sur_agregat_sans_mesure_stockee(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
+        )
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=2, valeur=Decimal("3.0000"), saisie_par=self.ro_user
+        )
+
+        data = obtenir_donnees_tableau_de_bord(
+            self.ro_user, {"annee": "2026", "processus": str(self.processus.id)}
+        )
+        ind_item = next(
+            (item for item in data["indicateurs_data"] if item["indicateur"].id == self.ind_somme.id), None
+        )
+        self.assertIsNotNone(ind_item)
+        # Pas de mesure annuelle stockée (mois=None) : repli sur l'agrégat calculé
+        self.assertEqual(ind_item["cumul"], Decimal("5.0000"))
+        self.assertEqual(ind_item["mesure_annuelle"], Decimal("5.0000"))
+        self.assertEqual(ind_item["valeur_annuelle_formatee"], "5")
+
+    def test_valeur_annuelle_priorite_mesure_stockee(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
+        )
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=2, valeur=Decimal("3.0000"), saisie_par=self.ro_user
+        )
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=None, valeur=Decimal("7.0000"), saisie_par=self.ro_user
+        )
+
+        data = obtenir_donnees_tableau_de_bord(
+            self.ro_user, {"annee": "2026", "processus": str(self.processus.id)}
+        )
+        ind_item = next(
+            (item for item in data["indicateurs_data"] if item["indicateur"].id == self.ind_somme.id), None
+        )
+        self.assertIsNotNone(ind_item)
+        # L'agrégat Cumul/Moy. en année complète inclut la mesure annuelle (2+3+7=12),
+        # règle métier inchangée ; Ann. doit utiliser la mesure stockée (pas de repli)
+        self.assertEqual(ind_item["cumul"], Decimal("12.0000"))
+        self.assertEqual(ind_item["mesure_annuelle"], Decimal("7.0000"))
+        self.assertEqual(ind_item["valeur_annuelle_formatee"], "7")
+
+    def test_valeur_annuelle_zero_stockee_preservee(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
+        )
+        MesureIndicateur.objects.create(
+            indicateur=self.ind_somme, annee=2026, mois=None, valeur=Decimal("0.0000"), saisie_par=self.ro_user
+        )
+
+        data = obtenir_donnees_tableau_de_bord(
+            self.ro_user, {"annee": "2026", "processus": str(self.processus.id)}
+        )
+        ind_item = next(
+            (item for item in data["indicateurs_data"] if item["indicateur"].id == self.ind_somme.id), None
+        )
+        self.assertIsNotNone(ind_item)
+        # La valeur 0 est valide : pas de repli sur l'agrégat (2), pas de "—"
+        self.assertEqual(ind_item["mesure_annuelle"], Decimal("0.0000"))
+        self.assertEqual(ind_item["valeur_annuelle_formatee"], "0")
+
+    def test_valeur_annuelle_absente_sans_agregat(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        ind_sans = Indicateur.objects.create(
+            processus=self.processus,
+            code="IND99",
+            nom="Indicateur sans données",
+            periodicite=Indicateur.Periodicite.MENSUEL,
+            mode_agregation=Indicateur.ModeAgregation.SOMME,
+            is_active=True,
+        )
+
+        data = obtenir_donnees_tableau_de_bord(
+            self.ro_user, {"annee": "2026", "processus": str(self.processus.id)}
+        )
+        ind_item = next(
+            (item for item in data["indicateurs_data"] if item["indicateur"].id == ind_sans.id), None
+        )
+        self.assertIsNotNone(ind_item)
+        # Ni mesure annuelle ni agrégat calculable : Ann. doit rester "—"
+        self.assertIsNone(ind_item["mesure_annuelle"])
+        self.assertEqual(ind_item["valeur_annuelle_formatee"], "—")
+
     def test_saisie_mesures_conservation_champ_vide(self):
         url_saisie = reverse(
             "gestion_documentaire:tdb_saisie_mesures",
@@ -546,6 +643,176 @@ class TdbModuleTests(TestCase):
         res = self.client.get(url)
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, "Répartition Globale des Audits")
+
+    def test_evaluer_statut_indicateur_sens_ne_pas_depasser_tf(self):
+        ind_tf = Indicateur.objects.create(
+            processus=self.processus,
+            code="TF01",
+            nom="Taux de fréquence",
+            periodicite=Indicateur.Periodicite.MENSUEL,
+            mode_agregation=Indicateur.ModeAgregation.MOYENNE,
+            sens_objectif=Indicateur.SensObjectif.NE_PAS_DEPASSER,
+            is_active=True,
+        )
+        obj = Decimal("15.0000")
+
+        # Exemple TF : Objectif = 15, Réalisé = 19.26 => Objectif non atteint (non_conforme)
+        res_non_conforme = evaluer_statut_indicateur(ind_tf, Decimal("19.2600"), obj)
+        self.assertEqual(res_non_conforme["code"], "non_conforme")
+        self.assertEqual(res_non_conforme["label"], "Objectif non atteint")
+        self.assertEqual(res_non_conforme["badge_class"], "badge-danger")
+        self.assertAlmostEqual(res_non_conforme["taux_atteinte"], 77.88, places=2)
+
+        # Exemple TF : Objectif = 15, Réalisé = 12 => Objectif atteint (conforme)
+        res_conforme = evaluer_statut_indicateur(ind_tf, Decimal("12.0000"), obj)
+        self.assertEqual(res_conforme["code"], "conforme")
+        self.assertEqual(res_conforme["label"], "Objectif atteint")
+        self.assertEqual(res_conforme["badge_class"], "badge-success")
+        self.assertAlmostEqual(res_conforme["taux_atteinte"], 125.00, places=2)
+
+        # Cas Réalisé = 0 => Objectif atteint, pas de division par zéro
+        res_zero = evaluer_statut_indicateur(ind_tf, Decimal("0.0000"), obj)
+        self.assertEqual(res_zero["code"], "conforme")
+        self.assertEqual(res_zero["taux_atteinte"], 100.00)
+
+    def test_creation_et_modification_sens_objectif(self):
+        url_update = reverse(
+            "gestion_documentaire:tdb_indicateur_update",
+            kwargs={"indicateur_id": self.ind_somme.pk},
+        )
+        self.client.force_login(self.ro_user)
+
+        res = self.client.post(url_update, {
+            "nom": "Nombre d'audits modifié",
+            "periodicite": "mensuel",
+            "mode_agregation": "somme",
+            "sens_objectif": "ne_pas_depasser",
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+
+        self.ind_somme.refresh_from_db()
+        self.assertEqual(self.ind_somme.sens_objectif, Indicateur.SensObjectif.NE_PAS_DEPASSER)
+
+    def test_export_excel_graphique_combine_et_ligne_objectif(self):
+        url_export = reverse("gestion_documentaire:tdb_export_excel")
+        self.client.force_login(self.ro_user)
+        res = self.client.post(url_export, data='{"chart_type": "bar"}', content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+
+        import io
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(res.content))
+        ws2 = wb["Vue graphique"]
+        # Vérification des en-têtes de la table source (Mois, Réalisé, Objectif)
+        self.assertEqual(ws2.cell(row=9, column=1).value, "Mois")
+        self.assertEqual(ws2.cell(row=9, column=2).value, "Réalisé")
+        self.assertEqual(ws2.cell(row=9, column=3).value, "Objectif")
+        self.assertEqual(len(ws2._charts), 2)  # au moins 2 graphiques présents
+
+    def test_indicateur_mode_calcul_et_realise_consolide(self):
+        from gestion_documentaire.models import RealiseConsolideIndicateur
+        ind_glissant = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-TF",
+            nom="Taux de fréquence 12M",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_agregation=Indicateur.ModeAgregation.MOYENNE,
+            sens_objectif=Indicateur.SensObjectif.NE_PAS_DEPASSER,
+            mode_calcul=Indicateur.ModeCalcul.MANUEL,
+        )
+        ObjectifIndicateur.objects.create(indicateur=ind_glissant, annee=2026, valeur_objectif=Decimal("15"))
+
+        # Coexistence d'une composante mensuelle (3.4) et d'un réalisé consolidé manuel (19.26)
+        MesureIndicateur.objects.create(indicateur=ind_glissant, annee=2026, mois=3, valeur=Decimal("3.40"))
+        RealiseConsolideIndicateur.objects.create(
+            indicateur=ind_glissant, annee_reference=2026, mois_reference=3, valeur=Decimal("19.26")
+        )
+
+        data = obtenir_donnees_tableau_de_bord(self.ro_user, {"annee": "2026", "processus": str(self.processus.id)})
+        ind_item = next((item for item in data["indicateurs_data"] if item["indicateur"].id == ind_glissant.id), None)
+
+        self.assertIsNotNone(ind_item)
+        # La valeur agrégée KPI doit être le dernier réalisé glissant disponible (19.26)
+        self.assertEqual(ind_item["cumul"], Decimal("19.26"))
+        self.assertEqual(ind_item["statut"]["code"], "non_conforme")  # 19.26 > 15 pour ne_pas_depasser
+
+    def test_mode_manuel_indicateur_mensuel_exclusivite_realise_consolide(self):
+        from gestion_documentaire.models import RealiseConsolideIndicateur
+        ind_mensuel_manuel = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-MAN",
+            nom="Indicateur Mensuel Manuel Exclusif",
+            periodicite=Indicateur.Periodicite.MENSUEL,
+            mode_agregation=Indicateur.ModeAgregation.SOMME,
+            mode_calcul=Indicateur.ModeCalcul.MANUEL,
+        )
+        # Mesures mensuelles qui donneraient 9 en automatique (2+3+4)
+        MesureIndicateur.objects.create(indicateur=ind_mensuel_manuel, annee=2026, mois=1, valeur=Decimal("2"))
+        MesureIndicateur.objects.create(indicateur=ind_mensuel_manuel, annee=2026, mois=2, valeur=Decimal("3"))
+        MesureIndicateur.objects.create(indicateur=ind_mensuel_manuel, annee=2026, mois=3, valeur=Decimal("4"))
+
+        # Réalisé consolidé manuel saisi = 19.26
+        RealiseConsolideIndicateur.objects.create(
+            indicateur=ind_mensuel_manuel, annee_reference=2026, mois_reference=3, valeur=Decimal("19.26")
+        )
+
+        data = obtenir_donnees_tableau_de_bord(self.ro_user, {"annee": "2026", "processus": str(self.processus.id)})
+        ind_item = next((item for item in data["indicateurs_data"] if item["indicateur"].id == ind_mensuel_manuel.id), None)
+
+        self.assertIsNotNone(ind_item)
+        # La valeur agrégée doit être 19.26 et surtout PAS 9.00
+        self.assertEqual(ind_item["cumul"], Decimal("19.26"))
+        self.assertNotEqual(ind_item["cumul"], Decimal("9.00"))
+
+    def test_calcul_fenetre_12_mois_glissants_automatique(self):
+        ind_auto = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-AUTO",
+            nom="Indicateur Glissant Auto",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_agregation=Indicateur.ModeAgregation.SOMME,
+            mode_calcul=Indicateur.ModeCalcul.AUTOMATIQUE,
+        )
+
+        # 9 mois en 2025 (Avril à Décembre, 10 par mois = 90)
+        for m in range(4, 13):
+            MesureIndicateur.objects.create(indicateur=ind_auto, annee=2025, mois=m, valeur=Decimal("10"))
+        # 3 mois en 2026 (Janvier à Mars, 10 par mois = 30)
+        for m in range(1, 4):
+            MesureIndicateur.objects.create(indicateur=ind_auto, annee=2026, mois=m, valeur=Decimal("10"))
+
+        data = obtenir_donnees_tableau_de_bord(self.ro_user, {"annee": "2026", "processus": str(self.processus.id)})
+        ind_item = next((item for item in data["indicateurs_data"] if item["indicateur"].id == ind_auto.id), None)
+
+        self.assertIsNotNone(ind_item)
+        # Fenêtre de 12 mois (Avril 2025 à Mars 2026) : 12 * 10 = 120.0000
+        self.assertEqual(ind_item["cumul"], Decimal("120.0000"))
+        # L'axe X affiche les mois de fin de chaque fenêtre glissante, avec l'année
+        self.assertEqual(ind_item["serie_mensuelle_labels"], [
+            "Jan 2026", "Fév 2026", "Mar 2026", "Avr 2026", "Mai 2026", "Juin 2026",
+            "Juil 2026", "Août 2026", "Sept 2026", "Oct 2026", "Nov 2026", "Déc 2026",
+        ])
+
+    def test_preservation_donnees_basculement_mode(self):
+        from gestion_documentaire.models import RealiseConsolideIndicateur
+        ind = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-SW",
+            nom="Indicateur Switch Mode",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_calcul=Indicateur.ModeCalcul.MANUEL,
+        )
+        rc = RealiseConsolideIndicateur.objects.create(
+            indicateur=ind, annee_reference=2026, mois_reference=1, valeur=Decimal("50")
+        )
+
+        # Basculement en mode AUTOMATIQUE
+        ind.mode_calcul = Indicateur.ModeCalcul.AUTOMATIQUE
+        ind.save()
+
+        # Vérification : l'enregistrement RealiseConsolideIndicateur n'est PAS supprimé
+        self.assertTrue(RealiseConsolideIndicateur.objects.filter(pk=rc.pk).exists())
 
 
 class TdbCrudAndCodeGenerationTests(TestCase):
@@ -782,6 +1049,500 @@ class TdbExportExcelTest(TestCase):
         self.assertEqual(response.status_code, 200)
         wb = load_workbook(io.BytesIO(response.content))
         self.assertIn("Vue graphique", wb.sheetnames)
+
+    def test_export_excel_labels_glissants_avec_annee(self):
+        """Un indicateur GLISSANT_12_MOIS doit inscrire ses labels roulants (mois + année) dans le classeur."""
+        import io
+        from openpyxl import load_workbook
+
+        ind_glissant = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM01-GL",
+            nom="Glissant Excel",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_agregation=Indicateur.ModeAgregation.SOMME,
+            mode_calcul=Indicateur.ModeCalcul.AUTOMATIQUE,
+        )
+        # 12 mesures traversant 2025/2026 (fenêtres roulantes terminant chaque mois de 2026)
+        for m in range(4, 13):
+            MesureIndicateur.objects.create(indicateur=ind_glissant, annee=2025, mois=m, valeur=Decimal("10"))
+        for m in range(1, 4):
+            MesureIndicateur.objects.create(indicateur=ind_glissant, annee=2026, mois=m, valeur=Decimal("10"))
+
+        url = reverse("gestion_documentaire:tdb_export_excel")
+        self.client.force_login(self.user)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        wb = load_workbook(io.BytesIO(response.content))
+        ws2 = wb["Vue graphique"]
+
+        valeurs_mois_col = []
+        for row in range(1, ws2.max_row + 1):
+            for col in range(1, ws2.max_column + 1):
+                val = ws2.cell(row=row, column=col).value
+                if val == "Mois":
+                    valeurs_mois_col = [
+                        ws2.cell(row=row + i, column=col).value for i in range(1, 13)
+                    ]
+                    break
+        self.assertEqual(valeurs_mois_col[0], "Jan 2026")
+        self.assertEqual(valeurs_mois_col[8], "Sept 2026")
+        self.assertEqual(valeurs_mois_col[-1], "Déc 2026")
+
+
+class NouvelIndicateurSansMesuresTests(TestCase):
+    def setUp(self):
+        from accounts.models import Societe
+        self.user = User.objects.create_superuser("admin_no_m", "admin_no_m@test.com", "pass123")
+        self.societe = Societe.objects.create(nom="Société Test")
+        self.processus = Processus.objects.create(code="PM01", nom="Pilotage", societe=self.societe)
+        self.processus.RO.add(self.user)
+
+        # Indicateur A avec des mesures
+        self.ind_a = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM01-01",
+            nom="Indicateur A avec mesures",
+            periodicite=Indicateur.Periodicite.MENSUEL,
+            mode_calcul=Indicateur.ModeCalcul.AUTOMATIQUE,
+        )
+        MesureIndicateur.objects.create(indicateur=self.ind_a, annee=2026, mois=1, valeur=Decimal("5"))
+        MesureIndicateur.objects.create(indicateur=self.ind_a, annee=2026, mois=2, valeur=Decimal("8"))
+
+        # Indicateur B nouvellement créé SANS aucune mesure (mode MANUEL)
+        self.ind_b = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM01-02",
+            nom="Indicateur B sans mesure (Manuel)",
+            periodicite=Indicateur.Periodicite.MENSUEL,
+            mode_calcul=Indicateur.ModeCalcul.MANUEL,
+        )
+
+    def test_nouvel_indicateur_sans_mesures_affiche_12_mois_vides(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        donnees = obtenir_donnees_tableau_de_bord(self.user, {"annee": "2026"})
+
+        items_b = [
+            item for group in donnees["processus_groups"]
+            for item in group["indicateurs_data"]
+            if item["indicateur"].pk == self.ind_b.pk
+        ]
+        self.assertEqual(len(items_b), 1)
+        item_b = items_b[0]
+
+        # Agrégat et 12 mois formates doivent être "—" (vides)
+        self.assertEqual(item_b["agregat_formate"], "—")
+        self.assertEqual(item_b["mois_formates"], ["—"] * 12)
+        self.assertEqual(item_b["serie_mensuelle"], [None] * 12)
+
+    def test_calculer_fenetre_12_mois_glissants_multi_annees(self):
+        from gestion_documentaire.views import calculer_fenetre_12_mois_glissants
+        ind = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM01-03",
+            nom="Indicateur Glissant 12M",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_agregation=Indicateur.ModeAgregation.SOMME,
+        )
+        # Mesure en Avril 2025 = 10, Mesure en Mars 2026 = 5
+        mesures_dict = {
+            (2025, 4): Decimal("10"),
+            (2026, 3): Decimal("5"),
+        }
+        # Fenêtre pour Mars 2026 (mois_ref=3, annee_ref=2026) -> Avril 2025 à Mars 2026
+        valeur = calculer_fenetre_12_mois_glissants(ind, 3, 2026, mesures_dict)
+        self.assertEqual(valeur, Decimal("15.0000"))
+
+
+class IndicateurFormuleTests(TestCase):
+    def setUp(self):
+        from accounts.models import Societe
+        self.user = User.objects.create_superuser("admin_formule", "formula@test.com", "pass123")
+        self.societe = Societe.objects.create(nom="Société Formule")
+        self.processus = Processus.objects.create(code="PM02", nom="Sécurité & Qualité", societe=self.societe)
+        self.processus.RO.add(self.user)
+
+        # Indicateur TF (Taux de fréquence) en Mode Formule
+        self.ind_tf = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-TF",
+            nom="Taux de fréquence (TF)",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_calcul=Indicateur.ModeCalcul.FORMULE,
+            formule="(accidents * 1000000) / heures",
+        )
+        self.comp_accidents = ComposanteIndicateur.objects.create(
+            indicateur=self.ind_tf, code="accidents", libelle="Nombre d'accidents", ordre=1
+        )
+        self.comp_heures = ComposanteIndicateur.objects.create(
+            indicateur=self.ind_tf, code="heures", libelle="Heures travaillées", ordre=2
+        )
+
+    def test_formula_simple_tf_evaluation(self):
+        from gestion_documentaire.utils_formule import evaluer_formule_securisee
+        res = evaluer_formule_securisee("(accidents * 1000000) / heures", {
+            "accidents": Decimal("3"),
+            "heures": Decimal("200000"),
+        })
+        self.assertEqual(res, Decimal("15"))
+
+    def test_formula_division_by_zero_returns_none(self):
+        from gestion_documentaire.utils_formule import evaluer_formule_securisee
+        res = evaluer_formule_securisee("(accidents * 1000000) / heures", {
+            "accidents": Decimal("3"),
+            "heures": Decimal("0"),
+        })
+        self.assertIsNone(res)
+
+    def test_formula_glissant_12_mois_consolidation(self):
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+        # Saisies sur 12 mois (ex: Avril 2025 à Mars 2026)
+        # 3 accidents au total (1 en Mai 2025, 1 en Nov 2025, 1 en Fév 2026)
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_accidents, annee=2025, mois=5, valeur=Decimal("1")
+        )
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_accidents, annee=2025, mois=11, valeur=Decimal("1")
+        )
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_accidents, annee=2026, mois=2, valeur=Decimal("1")
+        )
+
+        # 200 000 heures réparties (20 000 h par mois sur 10 mois)
+        for m in range(4, 13):
+            ValeurComposanteIndicateur.objects.create(
+                composante=self.comp_heures, annee=2025, mois=m, valeur=Decimal("20000")
+            )
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_heures, annee=2026, mois=1, valeur=Decimal("10000")
+        )
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_heures, annee=2026, mois=2, valeur=Decimal("10000")
+        )
+
+        donnees = obtenir_donnees_tableau_de_bord(self.user, {"annee": "2026"})
+        items = [
+            item for group in donnees["processus_groups"]
+            for item in group["indicateurs_data"]
+            if item["indicateur"].pk == self.ind_tf.pk
+        ]
+        self.assertEqual(len(items), 1)
+        tf_item = items[0]
+
+        # TF consolidé en Mars 2026 (mois 3):
+        # Sum accidents = 3, Sum heures = 200,000 -> TF = (3 * 1,000,000) / 200,000 = 15.00
+        self.assertIsNotNone(tf_item["serie_mensuelle"][2]) # Mars (index 2)
+        self.assertEqual(Decimal(str(tf_item["serie_mensuelle"][2])), Decimal("15"))
+        # L'axe X affiche le mois de fin de chaque fenêtre glissante, avec l'année
+        self.assertEqual(tf_item["serie_mensuelle_labels"], [
+            "Jan 2026", "Fév 2026", "Mar 2026", "Avr 2026", "Mai 2026", "Juin 2026",
+            "Juil 2026", "Août 2026", "Sept 2026", "Oct 2026", "Nov 2026", "Déc 2026",
+        ])
+
+    def test_mode_manuel_vs_formule_independence(self):
+        # Créer une valeur de composante
+        ValeurComposanteIndicateur.objects.create(
+            composante=self.comp_accidents, annee=2026, mois=3, valeur=Decimal("5")
+        )
+
+        # Passer temporairement en mode MANUEL et ajouter un réalisé consolidé
+        self.ind_tf.mode_calcul = Indicateur.ModeCalcul.MANUEL
+        self.ind_tf.save()
+        RealiseConsolideIndicateur.objects.create(
+            indicateur=self.ind_tf, annee_reference=2026, mois_reference=3, valeur=Decimal("42.50")
+        )
+
+        # Revenir en mode FORMULE
+        self.ind_tf.mode_calcul = Indicateur.ModeCalcul.FORMULE
+        self.ind_tf.save()
+
+        # Vérifier que les deux enregistrements subsistent de façon indépendante sans écrasement
+        self.assertTrue(ValeurComposanteIndicateur.objects.filter(composante=self.comp_accidents, annee=2026, mois=3).exists())
+        self.assertTrue(RealiseConsolideIndicateur.objects.filter(indicateur=self.ind_tf, annee_reference=2026, mois_reference=3).exists())
+
+    def test_creation_formule_personnalisee_est_sauvegardee(self):
+        """La modal de création doit enregistrer la formule personnalisée (ex: (5*5)/100)."""
+        url = reverse("gestion_documentaire:indicateur_create")
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "processus": self.processus.id,
+            "nom": "Perso constante",
+            "periodicite": "mensuel",
+            "mode_agregation": "somme",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "formule": "(5*5)/100",
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+        ind = Indicateur.objects.get(nom="Perso constante")
+        self.assertEqual(ind.formule, "(5*5)/100")
+        self.assertEqual(ind.composantes.count(), 0)
+
+    def test_creation_formule_avec_composantes_est_sauvegardee(self):
+        """La création doit enregistrer formule et composantes (workflow Fabien / TF)."""
+        url = reverse("gestion_documentaire:indicateur_create")
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "processus": self.processus.id,
+            "nom": "TF creation",
+            "periodicite": "mensuel",
+            "mode_agregation": "somme",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "formule": "(accidents * 1000000) / heures",
+            "comp_code": ["accidents", "heures"],
+            "comp_libelle": ["Nombre d'accidents", "Nombre d'heures travaillées"],
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+        ind = Indicateur.objects.get(nom="TF creation")
+        self.assertEqual(ind.formule, "(accidents * 1000000) / heures")
+        self.assertEqual(ind.composantes.count(), 2)
+        self.assertEqual(set(ind.composantes.values_list("code", flat=True)), {"accidents", "heures"})
+
+    def test_creation_formule_invalide_rejetee(self):
+        """Une formule référençant une variable non déclarée ne doit pas créer l'indicateur."""
+        url = reverse("gestion_documentaire:indicateur_create")
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "processus": self.processus.id,
+            "nom": "TF invalide",
+            "periodicite": "mensuel",
+            "mode_agregation": "somme",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "formule": "(inconnue * 1000000) / heures",
+            "comp_code": ["accidents", "heures"],
+            "comp_libelle": ["Accidents", "Heures"],
+            "is_active": "true",
+        })
+        self.assertFalse(Indicateur.objects.filter(nom="TF invalide").exists())
+
+    def test_update_formule_personnalisee_constante_sans_composante(self):
+        """L'update doit accepter une formule constante sans composante et nettoyer les anciennes."""
+        url = reverse("gestion_documentaire:tdb_indicateur_update", kwargs={"indicateur_id": self.ind_tf.pk})
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "nom": self.ind_tf.nom,
+            "periodicite": "mensuel",
+            "mode_agregation": "somme",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "formule": "(7*8)",
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+        self.ind_tf.refresh_from_db()
+        self.assertEqual(self.ind_tf.formule, "(7*8)")
+        self.assertEqual(self.ind_tf.composantes.count(), 0)
+
+    def test_detail_json_renvoie_formule_sauvegardee(self):
+        """Le JSON de détail doit renvoyer la formule sauvegardée pour le préremplissage."""
+        self.client.force_login(self.user)
+        url = reverse("gestion_documentaire:tdb_indicateur_detail_json", kwargs={"indicateur_id": self.ind_tf.pk})
+        res = self.client.get(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["formule"], "(accidents * 1000000) / heures")
+        self.assertEqual(len(data["composantes"]), 2)
+
+    def _passer_en_manuel(self):
+        """Bascule l'indicateur en mode MANUEL sans formule ni composantes (état de départ du scénario)."""
+        self.ind_tf.mode_calcul = Indicateur.ModeCalcul.MANUEL
+        self.ind_tf.formule = ""
+        self.ind_tf.composantes.all().delete()
+        self.ind_tf.save()
+
+    def test_update_manuel_vers_formule_sauvegarde_ok(self):
+        """MANUEL → FORMULE avec composantes accidents/heures (type taux de fréquence) doit sauvegarder."""
+        self._passer_en_manuel()
+        url = reverse("gestion_documentaire:tdb_indicateur_update", kwargs={"indicateur_id": self.ind_tf.pk})
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "nom": self.ind_tf.nom,
+            "periodicite": "glissant_12_mois",
+            "mode_agregation": "moyenne",
+            "sens_objectif": "ne_pas_depasser",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "type_formule": "taux_frequence",
+            "formule": "(accidents * 1000000) / heures",
+            "comp_code": ["accidents", "heures"],
+            "comp_libelle": ["Nombre d'accidents", "Heures travaillées"],
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+        self.ind_tf.refresh_from_db()
+        self.assertEqual(self.ind_tf.mode_calcul, Indicateur.ModeCalcul.FORMULE)
+        self.assertEqual(self.ind_tf.formule, "(accidents * 1000000) / heures")
+        self.assertEqual(set(self.ind_tf.composantes.values_list("code", flat=True)), {"accidents", "heures"})
+
+    def test_update_formule_normalise_casse_des_identifiants(self):
+        """Saisie Accidents/Heures (majuscules) → formule normalisée en minuscules et composantes en minuscules."""
+        self._passer_en_manuel()
+        url = reverse("gestion_documentaire:tdb_indicateur_update", kwargs={"indicateur_id": self.ind_tf.pk})
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "nom": self.ind_tf.nom,
+            "periodicite": "glissant_12_mois",
+            "mode_agregation": "moyenne",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "type_formule": "taux_frequence",
+            "formule": "(Accidents * 1000000) / Heures",
+            "comp_code": ["Accidents", "Heures"],
+            "comp_libelle": ["Nombre d'accidents", "Heures travaillées"],
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+        self.ind_tf.refresh_from_db()
+        self.assertEqual(self.ind_tf.formule, "(accidents * 1000000) / heures")
+        self.assertEqual(set(self.ind_tf.composantes.values_list("code", flat=True)), {"accidents", "heures"})
+
+    def test_update_formule_vide_bloquee_avec_erreur_visible_et_valeurs_conservees(self):
+        """MANUEL → FORMULE avec formule vide : sauvegarde bloquée, erreur visible, valeurs conservées."""
+        self._passer_en_manuel()
+        url = reverse("gestion_documentaire:tdb_indicateur_update", kwargs={"indicateur_id": self.ind_tf.pk})
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "nom": self.ind_tf.nom,
+            "periodicite": "glissant_12_mois",
+            "mode_agregation": "moyenne",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "type_formule": "taux_frequence",
+            "formule": "",
+            "comp_code": ["accidents", "heures"],
+            "comp_libelle": ["Nombre d'accidents", "Heures travaillées"],
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+
+        # BD inchangée : l'indicateur reste en MANUEL, formule vide
+        self.ind_tf.refresh_from_db()
+        self.assertEqual(self.ind_tf.mode_calcul, Indicateur.ModeCalcul.MANUEL)
+        self.assertEqual(self.ind_tf.formule, "")
+
+        # Valeurs saisies conservées dans la session pour réafficher la modal
+        conserve = self.client.session.get("tdb_indicateur_form_erreur")
+        self.assertIsNotNone(conserve)
+        self.assertEqual(conserve["mode_calcul"], Indicateur.ModeCalcul.FORMULE)
+        self.assertEqual(conserve["formule"], "")
+        self.assertEqual(conserve["type_formule"], "taux_frequence")
+        self.assertEqual(conserve["comp_code"], ["accidents", "heures"])
+
+        # Erreur visible après redirection
+        page = self.client.get(res.url)
+        self.assertContains(page, "La formule est obligatoire pour le mode de calcul automatique par formule.")
+
+    def test_update_formule_reexamen_detail_json(self):
+        """Après un passage réussi MANUEL → FORMULE, le JSON de détail expose mode_calcul, formule et composantes."""
+        self._passer_en_manuel()
+        url = reverse("gestion_documentaire:tdb_indicateur_update", kwargs={"indicateur_id": self.ind_tf.pk})
+        self.client.force_login(self.user)
+        res = self.client.post(url, {
+            "nom": self.ind_tf.nom,
+            "periodicite": "glissant_12_mois",
+            "mode_agregation": "moyenne",
+            "mode_calcul": Indicateur.ModeCalcul.FORMULE,
+            "type_formule": "taux_frequence",
+            "formule": "(accidents * 1000000) / heures",
+            "comp_code": ["accidents", "heures"],
+            "comp_libelle": ["Nombre d'accidents", "Heures travaillées"],
+            "is_active": "true",
+        })
+        self.assertEqual(res.status_code, 302)
+
+        detail_url = reverse("gestion_documentaire:tdb_indicateur_detail_json", kwargs={"indicateur_id": self.ind_tf.pk})
+        res = self.client.get(detail_url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        self.assertEqual(data["mode_calcul"], Indicateur.ModeCalcul.FORMULE)
+        self.assertEqual(data["formule"], "(accidents * 1000000) / heures")
+        self.assertEqual(len(data["composantes"]), 2)
+
+
+
+class ModeManuelGlissantTests(TestCase):
+    """
+    Le mode MANUEL d'un indicateur GLISSANT_12_MOIS doit lire la série sur les
+    12 derniers mois terminant au mois de référence (fin de période filtrée),
+    en traversant l'année précédente — et non seulement Janvier → Décembre de
+    l'année sélectionnée.
+    """
+
+    def setUp(self):
+        from accounts.models import Societe
+        from .models import RealiseConsolideIndicateur
+
+        self.user = User.objects.create_superuser("admin_glissant", "glissant@test.com", "pass123")
+        self.societe = Societe.objects.create(nom="Société Glissant")
+        self.processus = Processus.objects.create(code="PM02", nom="Sécurité & Qualité", societe=self.societe)
+        self.processus.RO.add(self.user)
+
+        self.ind_tf = Indicateur.objects.create(
+            processus=self.processus,
+            code="PM02-TFG",
+            nom="Taux de fréquence (TF) 12M glissants — Manuel",
+            periodicite=Indicateur.Periodicite.GLISSANT_12_MOIS,
+            mode_calcul=Indicateur.ModeCalcul.MANUEL,
+            mode_agregation=Indicateur.ModeAgregation.MOYENNE,
+            sens_objectif=Indicateur.SensObjectif.NE_PAS_DEPASSER,
+        )
+        valeurs = {
+            (2025, 9): "10.0", (2025, 10): "10.5", (2025, 11): "11.0", (2025, 12): "11.5",
+            (2026, 1): "12.0", (2026, 2): "12.5", (2026, 3): "13.0", (2026, 4): "13.5",
+            (2026, 5): "14.0", (2026, 6): "14.5", (2026, 7): "15.0", (2026, 8): "15.5",
+        }
+        for (annee, mois), val in valeurs.items():
+            RealiseConsolideIndicateur.objects.create(
+                indicateur=self.ind_tf,
+                annee_reference=annee,
+                mois_reference=mois,
+                valeur=Decimal(val),
+                saisie_par=self.user,
+            )
+
+    def test_fenetre_12_mois_traverse_les_annees_manuelle(self):
+        """Référence Août 2026 : la série couvre Sept 2025 → Août 2026."""
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+
+        donnees = obtenir_donnees_tableau_de_bord(
+            self.user,
+            {"annee": "2026", "type_periode": "mois", "periode": "8"},
+        )
+        item = next(
+            it for group in donnees["processus_groups"]
+            for it in group["indicateurs_data"]
+            if it["indicateur"].pk == self.ind_tf.pk
+        )
+        expected = [
+            Decimal("10.0"), Decimal("10.5"), Decimal("11.0"), Decimal("11.5"),
+            Decimal("12.0"), Decimal("12.5"), Decimal("13.0"), Decimal("13.5"),
+            Decimal("14.0"), Decimal("14.5"), Decimal("15.0"), Decimal("15.5"),
+        ]
+        self.assertEqual(len(item["serie_mensuelle"]), 12)
+        self.assertEqual(
+            [Decimal(str(v)) if v is not None else None for v in item["serie_mensuelle"]],
+            expected,
+        )
+        self.assertEqual(item["serie_mensuelle_labels"][0], "Sept 2025")
+        self.assertEqual(item["serie_mensuelle_labels"][-1], "Août 2026")
+        # KPI = valeur au mois de référence (dernier point de la fenêtre)
+        self.assertEqual(Decimal(str(item["agregat"])), Decimal("15.5"))
+
+    def test_annee_complete_garde_janvier_decembre(self):
+        """Année complète : la fenêtre reste Janvier → Décembre (comportement inchangé)."""
+        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
+
+        donnees = obtenir_donnees_tableau_de_bord(self.user, {"annee": "2026"})
+        item = next(
+            it for group in donnees["processus_groups"]
+            for it in group["indicateurs_data"]
+            if it["indicateur"].pk == self.ind_tf.pk
+        )
+        self.assertEqual(item["serie_mensuelle"][0], 12.0)  # Janvier 2026
+        self.assertIsNone(item["serie_mensuelle"][8])       # Septembre 2026 : aucune saisie
+        self.assertEqual(item["serie_mensuelle_labels"], [
+            "Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc",
+        ])
+
+
+
 
 
 

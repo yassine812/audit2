@@ -10,6 +10,7 @@ from django.core.files.base import ContentFile
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Q, Sum
 import json
+import unicodedata
 
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -41,10 +42,14 @@ from .models import (
     MesureIndicateur,
     ObjectifIndicateur,
     Processus,
+    RealiseConsolideIndicateur,
     RegleAccesDossier,
     ValidationDocument,
     VersionDocument,
+    ComposanteIndicateur,
+    ValeurComposanteIndicateur,
 )
+from .utils_formule import evaluer_formule_securisee, valider_formule_securisee
 from .permissions import (
     DirectionOuHabiliteRequiredMixin,
     DocumentVisibilityQuerysetMixin,
@@ -849,15 +854,103 @@ def calculer_agregation_indicateur(
     return None
 
 
+def calculer_fenetre_12_mois_glissants(
+    indicateur: Indicateur,
+    mois_ref: int,
+    annee_ref: int,
+    mesures_dict: Dict[Tuple[int, int], Decimal]
+) -> Optional[Decimal]:
+    """
+    Calcule l'agrégation automatique pour un mois de référence (mois_ref, annee_ref)
+    en interrogeant les 12 mois consécutifs allant de (annee_ref-1, mois_ref+1) à (annee_ref, mois_ref).
+    """
+    valeurs_fenetre = []
+    for i in range(12):
+        m = mois_ref - i
+        y = annee_ref
+        if m <= 0:
+            m += 12
+            y -= 1
+        val = mesures_dict.get((y, m))
+        if val is not None:
+            valeurs_fenetre.append(val)
+
+    if not valeurs_fenetre:
+        return None
+
+    mode = indicateur.mode_agregation
+
+    if mode == Indicateur.ModeAgregation.SOMME:
+        total = sum(valeurs_fenetre, Decimal("0"))
+        return total.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    elif mode == Indicateur.ModeAgregation.MOYENNE:
+        total = sum(valeurs_fenetre, Decimal("0"))
+        moyenne = total / Decimal(len(valeurs_fenetre))
+        return moyenne.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    elif mode == Indicateur.ModeAgregation.MINIMUM:
+        val_min = min(valeurs_fenetre)
+        return val_min.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    elif mode == Indicateur.ModeAgregation.MAXIMUM:
+        val_max = max(valeurs_fenetre)
+        return val_max.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    elif mode == Indicateur.ModeAgregation.NOMBRE:
+        count_val = Decimal(len(valeurs_fenetre))
+        return count_val.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+    elif mode == Indicateur.ModeAgregation.DERNIERE_VALEUR:
+        return valeurs_fenetre[0]
+
+    return None
+
+
+def consolider_fenetre_12_mois_composante(
+    composante_code: str,
+    indicateur_id: int,
+    mois_ref: int,
+    annee_ref: int,
+    valeurs_comp_dict: Dict[Tuple[str, int, int, int], Decimal],
+    mode_agregation: str = "somme"
+) -> Optional[Decimal]:
+    """
+    Consolide les valeurs d'une composante sur la fenêtre glissante de 12 mois.
+    Conçu de façon extensible pour pouvoir supporter d'autres modes d'agrégation par composante à l'avenir.
+    """
+    valeurs_fenetre = []
+    for i in range(12):
+        m = mois_ref - i
+        y = annee_ref
+        if m <= 0:
+            m += 12
+            y -= 1
+        val = valeurs_comp_dict.get((composante_code, indicateur_id, y, m))
+        if val is not None:
+            valeurs_fenetre.append(val)
+
+    if not valeurs_fenetre:
+        return None
+
+    if mode_agregation == "somme":
+        return sum(valeurs_fenetre, Decimal("0"))
+    elif mode_agregation == "moyenne":
+        return sum(valeurs_fenetre, Decimal("0")) / Decimal(len(valeurs_fenetre))
+    elif mode_agregation == "derniere_valeur":
+        return valeurs_fenetre[0]
+    return sum(valeurs_fenetre, Decimal("0"))
+
+
+
 def evaluer_statut_indicateur(
     indicateur: Indicateur,
     aggregat: Optional[Decimal],
     objectif_val: Optional[Decimal]
 ) -> Dict[str, Any]:
     """
-    Évalue le statut numérique et le taux d'atteinte d'un indicateur.
-    NOTE : Le modèle ne comporte pas de champ de sens de performance. Les comparaisons
-    sont numériques objectives (Réalisé vs Objectif).
+    Évalue le statut numérique et le taux d'atteinte d'un indicateur selon son sens d'objectif
+    (À atteindre / dépasser vs À ne pas dépasser).
     """
     if aggregat is None:
         return {
@@ -879,36 +972,82 @@ def evaluer_statut_indicateur(
             "taux_atteinte": None,
         }
 
-    taux = (aggregat / objectif_val) * Decimal("100")
-    taux_arrondi = taux.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    sens = getattr(indicateur, "sens_objectif", Indicateur.SensObjectif.ATTEINDRE)
 
-    if taux_arrondi >= Decimal("100"):
-        return {
-            "code": "conforme",
-            "label": "Objectif atteint",
-            "css_class": "success",
-            "badge_class": "badge-success",
-            "icon": "fas fa-check-circle",
-            "taux_atteinte": float(taux_arrondi),
-        }
-    elif taux_arrondi >= Decimal("80"):
-        return {
-            "code": "a_surveiller",
-            "label": "À surveiller",
-            "css_class": "warning",
-            "badge_class": "badge-warning",
-            "icon": "fas fa-exclamation-triangle",
-            "taux_atteinte": float(taux_arrondi),
-        }
+    if sens == Indicateur.SensObjectif.NE_PAS_DEPASSER:
+        # Sens : À ne pas dépasser (ex: Taux de fréquence, pannes)
+        if aggregat <= objectif_val:
+            if aggregat <= Decimal("0"):
+                taux_arrondi = Decimal("100.00")
+            else:
+                taux = (objectif_val / aggregat) * Decimal("100")
+                taux_arrondi = taux.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            return {
+                "code": "conforme",
+                "label": "Objectif atteint",
+                "css_class": "success",
+                "badge_class": "badge-success",
+                "icon": "fas fa-check-circle",
+                "taux_atteinte": float(taux_arrondi),
+            }
+        else:
+            # aggregat > objectif_val (dépassement d'un objectif à ne pas dépasser)
+            if aggregat <= Decimal("0"):
+                taux_arrondi = Decimal("0.00")
+            else:
+                taux = (objectif_val / aggregat) * Decimal("100")
+                taux_arrondi = taux.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            if taux_arrondi >= Decimal("80"):
+                return {
+                    "code": "a_surveiller",
+                    "label": "À surveiller",
+                    "css_class": "warning",
+                    "badge_class": "badge-warning",
+                    "icon": "fas fa-exclamation-triangle",
+                    "taux_atteinte": float(taux_arrondi),
+                }
+            else:
+                return {
+                    "code": "non_conforme",
+                    "label": "Objectif non atteint",
+                    "css_class": "danger",
+                    "badge_class": "badge-danger",
+                    "icon": "fas fa-times-circle",
+                    "taux_atteinte": float(taux_arrondi),
+                }
     else:
-        return {
-            "code": "non_conforme",
-            "label": "Objectif non atteint",
-            "css_class": "danger",
-            "badge_class": "badge-danger",
-            "icon": "fas fa-times-circle",
-            "taux_atteinte": float(taux_arrondi),
-        }
+        # Sens : À atteindre / dépasser (défaut)
+        taux = (aggregat / objectif_val) * Decimal("100")
+        taux_arrondi = taux.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        if taux_arrondi >= Decimal("100"):
+            return {
+                "code": "conforme",
+                "label": "Objectif atteint",
+                "css_class": "success",
+                "badge_class": "badge-success",
+                "icon": "fas fa-check-circle",
+                "taux_atteinte": float(taux_arrondi),
+            }
+        elif taux_arrondi >= Decimal("80"):
+            return {
+                "code": "a_surveiller",
+                "label": "À surveiller",
+                "css_class": "warning",
+                "badge_class": "badge-warning",
+                "icon": "fas fa-exclamation-triangle",
+                "taux_atteinte": float(taux_arrondi),
+            }
+        else:
+            return {
+                "code": "non_conforme",
+                "label": "Objectif non atteint",
+                "css_class": "danger",
+                "badge_class": "badge-danger",
+                "icon": "fas fa-times-circle",
+                "taux_atteinte": float(taux_arrondi),
+            }
 
 
 COMPATIBLE_CHART_TYPES = {
@@ -1106,7 +1245,242 @@ def formater_pourcentage_tdb(value):
     if value is None:
         return "—"
 
-    return formater_nombre_tdb(value, max_decimals=2) + "%"
+    return formater_nombre_tdb(value, max_decimals=2) + " %"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# PALETTE GLOBALE DES GRAPHIQUES (source unique des couleurs)
+# Les couleurs de série sont NORMALISÉES par l'application et n'utilisent plus
+# les couleurs du classeur Excel (qui restent la référence pour le type de
+# graphique, les axes, les graduations, les épaisseurs, les marqueurs, les
+# grilles, les espacements et les formats numériques).
+#   Réalisé = bleu  → CHART_COLORS["realized"]
+#   Objectif = rouge → CHART_COLORS["target"]
+# Cette palette est injectée dans le template (`window.CHART_COLORS`) et
+# utilisée par l'export Excel : un seul endroit à modifier pour toute l'app.
+# ─────────────────────────────────────────────────────────────────────────
+
+CHART_COLORS = {
+    "realized": "#4F81BD",
+    "target": "#FF0000",
+    "grid": "#BFBFBF",
+    "axis": "#666666",
+}
+
+# Abréviations des mois (label des graphiques / fenêtres 12 mois glissants).
+MOIS_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"]
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# STYLES GRAPHIQUES EXCEL DE RÉFÉRENCE
+# Source : "2025-Tableau_de_bord_PM02.xlsx" — onglet « Synthèse PM02 2025 ».
+# Chaque propriété est extraite du XML OOXML des graphiques du classeur :
+#   - épaisseur de courbe : <a:ln w="28575">  → 28575 EMU ÷ 12700 = 2,25 pt
+#   - grille majeure      : <c:majorGridlines><a:ln w="9525"> (0,75 pt),
+#                           <a:schemeClr val="tx1"/> = noir automatique du thème
+#   - couleurs de série   : <a:solidFill><a:schemeClr val="accent1..6"> résolus
+#                           depuis xl/theme/theme1.xml (accent1=5B9BD5, accent2=ED7D31,
+#                           accent3=A5A5A5, accent4=FFC000, accent5=4472C4, accent6=70AD47)
+#   - axe des valeurs     : <c:scaling> min/max + <c:majorUnit> (pas de graduation)
+#                           + <c:numFmt formatCode="0%"> (format des graduations)
+#   - barres/colonnes     : <c:gapWidth val="219"> (espace inter-catégories = 219 %
+#                           de la largeur de barre → largeur relative ~31 % du créneau)
+#                           et <c:overlap val="-27"> (séparation des séries)
+#   - marqueurs           : <c:marker><c:symbol>/<c:size> (taille en pt)
+#   - légende             : <c:legend><c:legendPos val="b"> (en bas)
+#   - police              : Calibri 11 (thème Excel), texte noir
+# La configuration centralisée est injectée dans la vue sous le nom
+# `window.excelChartStyle`, puis appliquée par le composant Chart.js.
+# ─────────────────────────────────────────────────────────────────────────
+
+EXCEL_STYLE_BASE = {
+    "chartType": "line",
+    "seriesColors": ["#002060"],
+    "lineWidth": 2.25,
+    "markerStyle": {
+        "enabled": False,
+        "symbol": "none",
+        "size": 5,
+        "fill": None,
+        "borderColor": None,
+        "borderWidth": 0.75,
+    },
+    "targetLineStyle": {"color": "#C00000", "width": 1.5, "dash": []},
+    "yAxisMin": 0,
+    "yAxisMax": None,
+    "yAxisStep": None,
+    "yAxisFormat": "General",
+    "gridStyle": {"enabled": True, "color": "#000000", "width": 0.75},
+    "legendPosition": "bottom",
+    "font": {"family": "Calibri", "size": 11, "color": "#000000"},
+    "barGap": {"barPercentage": 0.31, "categoryPercentage": 1},
+    "overlap": None,
+    "dataLabels": {"enabled": False},
+    "background": None,
+    "smooth": False,
+    "excelLayout": None,
+    "source": None,
+}
+
+
+def _style_excel(**kwargs):
+    style = dict(EXCEL_STYLE_BASE)
+    for key, value in kwargs.items():
+        if value is not None:
+            style[key] = value
+    return style
+
+
+# Courbes sans marqueur — axe % 0→1, pas 0,05 (chart3 « Taux de conformité
+# réglementaire FRANCE/Luxembourg », série bleu marine #002060).
+EXCEL_STYLE_LIGNE_PCT = _style_excel(
+    chartType="line",
+    seriesColors=["#002060"],
+    yAxisMax=1,
+    yAxisStep=0.05,
+    yAxisFormat="percent",
+    source="chart3 « Taux de conformité réglementaire FRANCE/Luxembourg » "
+           "(courbe sans marqueur, axe 0→1 pas 0,05, graduations 0%)",
+)
+
+# Même axe %, série accent1 (bleu Excel des barres/colonnes) pour les taux
+# sans graphique Excel dédié dans le classeur de référence.
+EXCEL_STYLE_LIGNE_PCT_AC1 = _style_excel(
+    chartType="line",
+    seriesColors=["#5B9BD5"],
+    yAxisMax=1,
+    yAxisStep=0.05,
+    yAxisFormat="percent",
+    source="Template % (accent1) — axe identique au chart % de référence",
+)
+
+# Courbe générique — axe valeur naturel (format General).
+EXCEL_STYLE_LIGNE_GENERAL = _style_excel(
+    chartType="line",
+    seriesColors=["#5B9BD5"],
+    source="Template courbe générique (accent1, axe General)",
+)
+
+# Colonnes groupées — accent1, gap 219 %, overlap -27 (chart7
+# « Nombre de réclamations et d'incidents client »).
+EXCEL_STYLE_BARRES = _style_excel(
+    chartType="bar",
+    seriesColors=["#5B9BD5"],
+    overlap=-27,
+    yAxisStep=1,
+    source="chart7 « Nombre de réclamations et d'incidents client » "
+           "(colonnes groupées accent1, gapWidth 219 %, overlap -27)",
+)
+
+# Colonnes « Nombre d'ATA / Nombre d'ATSA » (chart13 : remplissage FF0000 /
+# FFC000, bordure C00000). Graphique Excel d'origine : cascade (chartEx2-6).
+EXCEL_STYLE_BARRES_ATA = _style_excel(
+    chartType="bar",
+    seriesColors=["#FF0000", "#FFC000"],
+    overlap=-27,
+    yAxisStep=1,
+    excelLayout="waterfall",
+    source="chart13 « Nombre d'ATA / Nombre d'ATSA » (FF0000 / FFC000, "
+           "bordure C00000) — Excel d'origine : graphique en cascade",
+)
+
+# Taux de gravité — accent4, axe 0→100 pas 10, format 0.00 (chart4/14/16).
+EXCEL_STYLE_LIGNE_GRAVITE = _style_excel(
+    chartType="line",
+    seriesColors=["#FFC000"],
+    yAxisMax=100,
+    yAxisStep=10,
+    yAxisFormat="decimal2",
+    source="chart4/14/16 « Taux de gravité » (accent4 #FFC000, axe 0→100 pas 10, format 0.00)",
+)
+
+# Taux d'analyse — accent6, axe % 0.00% (chart5).
+EXCEL_STYLE_LIGNE_ANALYSE = _style_excel(
+    chartType="line",
+    seriesColors=["#70AD47"],
+    yAxisFormat="percent2",
+    source="chart5 « Taux d'analyse » (accent6 #70AD47, graduations 0.00%)",
+)
+
+
+# Configuration centralisée par code d'indicateur (sources de vérité Excel).
+EXCEL_CHART_STYLES = {
+    "PM01-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PM01-02": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PM01-03": _style_excel(
+        chartType="bar",
+        seriesColors=["#70AD47"],
+        overlap=-27,
+        yAxisStep=1,
+        source="chart2 « Revues de direction » (série accent6 #70AD47 du graphique en colonnes empilées)",
+    ),
+    "PM02-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PM02-02": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PM02-03": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PM02-04": EXCEL_STYLE_BARRES_ATA,
+    "PR01-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PR01-02": EXCEL_STYLE_BARRES,
+    "PR01-03": _style_excel(
+        chartType="line",
+        seriesColors=["#5B9BD5"],
+        yAxisMin=0,
+        source="Template courbe générique (délai moyen — axe valeur naturel)",
+    ),
+    "PR02-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PR02-02": EXCEL_STYLE_LIGNE_PCT,
+    "PR02-03": EXCEL_STYLE_BARRES,
+    "PS01-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PS01-02": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PS01-03": EXCEL_STYLE_BARRES,
+    "PS02-01": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PS02-02": EXCEL_STYLE_LIGNE_PCT_AC1,
+    "PS02-03": EXCEL_STYLE_BARRES,
+    # Démo temporaire « TF test glissant » : barres pour illustrer la fenêtre
+    # glissante 12 mois traversant deux années (Cumul en tête + labels avec année).
+    "PM01-TFGL": EXCEL_STYLE_BARRES,
+}
+
+
+# Correspondance par mots-clés du nom d'indicateur (ordre = priorité).
+EXCEL_STYLES_PAR_MOTIF = [
+    ("taux de conformit", EXCEL_STYLE_LIGNE_PCT),
+    ("taux de gravit", EXCEL_STYLE_LIGNE_GRAVITE),
+    ("taux d'analyse", EXCEL_STYLE_LIGNE_ANALYSE),
+    ("taux", EXCEL_STYLE_LIGNE_PCT_AC1),
+    ("nombre", EXCEL_STYLE_BARRES),
+    ("delai", EXCEL_STYLE_LIGNE_GENERAL),
+    ("retards", EXCEL_STYLE_BARRES),
+    ("pannes", EXCEL_STYLE_BARRES),
+]
+
+
+def _normaliser_nom_indicateur(nom):
+    """Normalise un nom d'indicateur : minuscules, sans accents, apostrophes espacées."""
+    n = unicodedata.normalize("NFKD", nom or "")
+    n = "".join(c for c in n if not unicodedata.combining(c))
+    n = n.replace("'", " ").replace("’", " ")
+    return n.lower()
+
+
+def resoudre_excel_chart_style(indicateur):
+    """Renvoie la configuration graphique « Excel de référence » pour un indicateur.
+
+    Priorité : 1) code exact ; 2) mots-clés du nom ; 3) famille (taux/nombre) ;
+    4) courbe générique.
+    """
+    code = (indicateur.code or "").strip().upper()
+    if code in EXCEL_CHART_STYLES:
+        return EXCEL_CHART_STYLES[code]
+
+    nom = _normaliser_nom_indicateur(indicateur.nom)
+    for motif, style in EXCEL_STYLES_PAR_MOTIF:
+        if motif in nom:
+            return style
+
+    if "%" in (indicateur.nom or "").lower():
+        return EXCEL_STYLE_LIGNE_PCT_AC1
+
+    return EXCEL_STYLE_LIGNE_GENERAL
 
 
 def determiner_formats_chart_compatibles(indicateur) -> List[str]:
@@ -1218,6 +1592,21 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
     for m in mesures_qs:
         mesures_par_indicateur_annee.setdefault((m.indicateur_id, m.annee), []).append(m)
 
+    realises_consolides_qs = RealiseConsolideIndicateur.objects.filter(
+        indicateur_id__in=indicateur_ids,
+        annee_reference__in=[annee, annee - 1],
+    )
+    realises_consolides_dict = {
+        (r.indicateur_id, r.annee_reference, r.mois_reference): r.valeur
+        for r in realises_consolides_qs
+    }
+
+    mesures_dict_all = {
+        (m.indicateur_id, m.annee, m.mois): m.valeur
+        for m in mesures_qs
+        if m.mois is not None
+    }
+
     objectifs_qs = ObjectifIndicateur.objects.filter(
         indicateur_id__in=indicateur_ids,
         annee__in=[annee, annee - 1],
@@ -1227,6 +1616,23 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
     }
     objectifs_obj_par_indicateur_annee = {
         (obj.indicateur_id, obj.annee): obj for obj in objectifs_qs
+    }
+
+    composantes_qs = ComposanteIndicateur.objects.filter(
+        indicateur_id__in=indicateur_ids
+    )
+    composantes_par_indicateur = {}
+    for comp in composantes_qs:
+        composantes_par_indicateur.setdefault(comp.indicateur_id, []).append(comp)
+
+    valeurs_comp_qs = ValeurComposanteIndicateur.objects.filter(
+        composante__indicateur_id__in=indicateur_ids,
+        annee__in=[annee, annee - 1],
+    ).select_related("composante")
+
+    valeurs_comp_dict_all = {
+        (v.composante.code, v.composante.indicateur_id, v.annee, v.mois): v.valeur
+        for v in valeurs_comp_qs
     }
 
     indicateurs_data = []
@@ -1239,12 +1645,209 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
     donnees_absentes_count = 0
 
     for indicateur in indicateurs:
-        mesures_n = mesures_par_indicateur_annee.get((indicateur.id, annee), [])
-        mesures_periode_n = [m for m in mesures_n if m.mois in mois_filtrer or m.mois is None]
+        is_glissant = indicateur.periodicite == Indicateur.Periodicite.GLISSANT_12_MOIS
+        serie_mensuelle_labels = list(MOIS_ABBR)
 
-        aggregat_decimal = calculer_agregation_indicateur(indicateur, mesures_periode_n, type_periode)
+        if indicateur.mode_calcul == Indicateur.ModeCalcul.MANUEL:
+            # Mode MANUEL : Valeur agrégée et série graphique basées EXCLUSIVEMENT sur RealiseConsolideIndicateur
+            if is_glissant:
+                # MANUEL + GLISSANT_12_MOIS : la série porte sur les 12 derniers mois
+                # terminant au mois de référence (fin de période filtrée). La fenêtre
+                # traverse l'année précédente : lecture (indicateur.id, year, month).
+                # Ex : référence Août 2026 → Sept 2025 … Août 2026.
+                mois_ref = max(mois_filtrer)
+                fenetre_12_mois = []
+                for i in range(12):
+                    m = mois_ref - i
+                    y = annee
+                    if m <= 0:
+                        m += 12
+                        y -= 1
+                    fenetre_12_mois.append((y, m))
+                fenetre_12_mois.reverse()
+
+                serie_mensuelle_dec = [
+                    realises_consolides_dict.get((indicateur.id, y, m))
+                    for (y, m) in fenetre_12_mois
+                ]
+                if any(y != annee for (y, _m) in fenetre_12_mois) or type_periode == "mois":
+                    serie_mensuelle_labels = [
+                        f"{MOIS_ABBR[m - 1]} {y}" for (y, m) in fenetre_12_mois
+                    ]
+                else:
+                    serie_mensuelle_labels = list(MOIS_ABBR)
+
+                non_null_rc = [
+                    (i + 1, v) for i, v in enumerate(serie_mensuelle_dec, start=1)
+                    if v is not None
+                ]
+                aggregat_decimal = non_null_rc[-1][1] if non_null_rc else None
+            else:
+                serie_mensuelle_dec = [
+                    realises_consolides_dict.get((indicateur.id, annee, m))
+                    for m in range(1, 13)
+                ]
+                serie_mensuelle_labels = list(MOIS_ABBR)
+                non_null_rc = [
+                    (m, v) for m, v in enumerate(serie_mensuelle_dec, start=1)
+                    if m in mois_filtrer and v is not None
+                ]
+
+                if not non_null_rc:
+                    aggregat_decimal = None
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.DERNIERE_VALEUR:
+                    aggregat_decimal = non_null_rc[-1][1]
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.SOMME:
+                    aggregat_decimal = sum((v for _, v in non_null_rc), Decimal("0"))
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MOYENNE:
+                    tot = sum((v for _, v in non_null_rc), Decimal("0"))
+                    aggregat_decimal = tot / Decimal(len(non_null_rc))
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MINIMUM:
+                    aggregat_decimal = min(v for _, v in non_null_rc)
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MAXIMUM:
+                    aggregat_decimal = max(v for _, v in non_null_rc)
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.NOMBRE:
+                    aggregat_decimal = Decimal(len(non_null_rc))
+                else:
+                    aggregat_decimal = non_null_rc[-1][1]
+
+            if aggregat_decimal is not None and isinstance(aggregat_decimal, Decimal):
+                aggregat_decimal = aggregat_decimal.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+            serie_mensuelle = [float(v) if v is not None else None for v in serie_mensuelle_dec]
+            mesures_par_mois = {
+                m: v for m, v in enumerate(serie_mensuelle_dec, start=1)
+                if v is not None
+            }
+        elif indicateur.mode_calcul == Indicateur.ModeCalcul.FORMULE:
+            # Mode FORMULE : Calcul dynamique à partir des composantes et de la formule déclarée
+            comps = composantes_par_indicateur.get(indicateur.id, [])
+            formule_str = indicateur.formule or ""
+
+            if is_glissant:
+                serie_mensuelle_dec = []
+                mois_avec_donnees_annee = []
+
+                for m in range(1, 13):
+                    vars_m = {}
+                    for comp in comps:
+                        sum_comp = consolider_fenetre_12_mois_composante(
+                            comp.code, indicateur.id, m, annee, valeurs_comp_dict_all, mode_agregation="somme"
+                        )
+                        vars_m[comp.code] = sum_comp
+
+                    if any((comp.code, indicateur.id, annee, m) in valeurs_comp_dict_all for comp in comps):
+                        mois_avec_donnees_annee.append(m)
+
+                    val_m = evaluer_formule_securisee(formule_str, vars_m)
+                    if val_m is not None and isinstance(val_m, Decimal):
+                        val_m = val_m.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                    serie_mensuelle_dec.append(val_m)
+
+                if mois_avec_donnees_annee:
+                    dernier_mois = max(mois_avec_donnees_annee)
+                    aggregat_decimal = serie_mensuelle_dec[dernier_mois - 1]
+                else:
+                    non_null_glissant = [v for v in serie_mensuelle_dec if v is not None]
+                    aggregat_decimal = non_null_glissant[-1] if non_null_glissant else None
+
+                # Chaque point i est la fenêtre glissante de 12 mois terminant en (annee, i+1).
+                serie_mensuelle_labels = [
+                    f"{MOIS_ABBR[m - 1]} {annee}" for m in range(1, 13)
+                ]
+                serie_mensuelle = [float(v) if v is not None else None for v in serie_mensuelle_dec]
+                mesures_par_mois = {
+                    m: v for m, v in enumerate(serie_mensuelle_dec, start=1)
+                    if v is not None
+                }
+            else:
+                serie_mensuelle_dec = []
+                for m in range(1, 13):
+                    vars_m = {
+                        comp.code: valeurs_comp_dict_all.get((comp.code, indicateur.id, annee, m))
+                        for comp in comps
+                    }
+                    val_m = evaluer_formule_securisee(formule_str, vars_m)
+                    if val_m is not None and isinstance(val_m, Decimal):
+                        val_m = val_m.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+                    serie_mensuelle_dec.append(val_m)
+
+                non_null_f = [
+                    (m, v) for m, v in enumerate(serie_mensuelle_dec, start=1)
+                    if m in mois_filtrer and v is not None
+                ]
+                if not non_null_f:
+                    aggregat_decimal = None
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.DERNIERE_VALEUR:
+                    aggregat_decimal = non_null_f[-1][1]
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.SOMME:
+                    aggregat_decimal = sum((v for _, v in non_null_f), Decimal("0"))
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MOYENNE:
+                    tot = sum((v for _, v in non_null_f), Decimal("0"))
+                    aggregat_decimal = tot / Decimal(len(non_null_f))
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MINIMUM:
+                    aggregat_decimal = min(v for _, v in non_null_f)
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.MAXIMUM:
+                    aggregat_decimal = max(v for _, v in non_null_f)
+                elif indicateur.mode_agregation == Indicateur.ModeAgregation.NOMBRE:
+                    aggregat_decimal = Decimal(len(non_null_f))
+                else:
+                    aggregat_decimal = non_null_f[-1][1]
+
+                if aggregat_decimal is not None and isinstance(aggregat_decimal, Decimal):
+                    aggregat_decimal = aggregat_decimal.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+                serie_mensuelle = [float(v) if v is not None else None for v in serie_mensuelle_dec]
+                mesures_par_mois = {
+                    m: v for m, v in enumerate(serie_mensuelle_dec, start=1)
+                    if v is not None
+                }
+        else:
+            # Mode AUTOMATIQUE : Calcul depuis les composantes mensuelles MesureIndicateur
+            if is_glissant:
+                serie_mensuelle_dec = []
+                mois_avec_donnees_annee = []
+
+                for m in range(1, 13):
+                    ind_mesures_map = {
+                        (y_k, m_k): v
+                        for (ind_k, y_k, m_k), v in mesures_dict_all.items()
+                        if ind_k == indicateur.id
+                    }
+                    val_m = calculer_fenetre_12_mois_glissants(indicateur, m, annee, ind_mesures_map)
+                    if (indicateur.id, annee, m) in mesures_dict_all:
+                        mois_avec_donnees_annee.append(m)
+
+                    serie_mensuelle_dec.append(val_m)
+
+                if mois_avec_donnees_annee:
+                    dernier_mois = max(mois_avec_donnees_annee)
+                    aggregat_decimal = serie_mensuelle_dec[dernier_mois - 1]
+                else:
+                    non_null_glissant = [v for v in serie_mensuelle_dec if v is not None]
+                    aggregat_decimal = non_null_glissant[-1] if non_null_glissant else None
+
+                # Chaque point i est la fenêtre glissante de 12 mois terminant en (annee, i+1).
+                serie_mensuelle_labels = [
+                    f"{MOIS_ABBR[m - 1]} {annee}" for m in range(1, 13)
+                ]
+                serie_mensuelle = [float(v) if v is not None else None for v in serie_mensuelle_dec]
+                mesures_par_mois = {
+                    m: v for m, v in enumerate(serie_mensuelle_dec, start=1)
+                    if v is not None
+                }
+            else:
+                mesures_n = mesures_par_indicateur_annee.get((indicateur.id, annee), [])
+                mesures_periode_n = [m for m in mesures_n if m.mois in mois_filtrer or m.mois is None]
+                aggregat_decimal = calculer_agregation_indicateur(indicateur, mesures_periode_n, type_periode)
+
+                mesures_par_mois = {m.mois: m.valeur for m in mesures_n if m.mois is not None}
+                serie_mensuelle = [
+                    float(mesures_par_mois[m]) if m in mesures_par_mois else None
+                    for m in range(1, 13)
+                ]
+
         objectif_decimal = objectifs_par_indicateur_annee.get((indicateur.id, annee))
-
         statut = evaluer_statut_indicateur(indicateur, aggregat_decimal, objectif_decimal)
 
         if statut_filtre and statut["code"] != statut_filtre:
@@ -1260,15 +1863,13 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
         elif statut["code"] == "donnee_absente":
             donnees_absentes_count += 1
 
-        mesures_par_mois = {m.mois: m.valeur for m in mesures_n if m.mois is not None}
+        mesures_n = mesures_par_indicateur_annee.get((indicateur.id, annee), [])
         mesure_annuelle = next((m.valeur for m in mesures_n if m.mois is None), None)
+        if mesure_annuelle is None:
+            mesure_annuelle = aggregat_decimal
 
-        serie_mensuelle = [
-            float(mesures_par_mois[m]) if m in mesures_par_mois else None
-            for m in range(1, 13)
-        ]
         serie_mensuelle_json = json.dumps(
-            [int(v) if v is not None and v.is_integer() else v for v in serie_mensuelle]
+            [int(v) if v is not None and type(v) in (int, float) and float(v).is_integer() else v for v in serie_mensuelle]
         )
 
         formats_raw = indicateur.formats_chart_disponibles
@@ -1299,12 +1900,30 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
         }
         mesures_dict_json = json.dumps(mesures_dict)
 
+        is_pct = "%" in indicateur.nom.lower() or "taux" in indicateur.nom.lower() or "pourcentage" in indicateur.nom.lower()
+        objectif_affichage = (
+            formater_pourcentage_tdb(objectif_decimal)
+            if (objectif_decimal is not None and is_pct)
+            else formater_nombre_tdb(objectif_decimal)
+        )
+        agregat_affichage = (
+            formater_pourcentage_tdb(aggregat_decimal)
+            if (aggregat_decimal is not None and is_pct)
+            else formater_nombre_tdb(aggregat_decimal)
+        )
+
+        excel_style = resoudre_excel_chart_style(indicateur)
+        excel_style_json = json.dumps(excel_style, ensure_ascii=False)
+
         item_data = {
             "indicateur": indicateur,
             "cumul": aggregat_decimal,
+            "cumul_valeur_raw": (f"{aggregat_decimal:g}" if isinstance(aggregat_decimal, Decimal) else str(aggregat_decimal)) if aggregat_decimal is not None else "",
             "agregat": aggregat_decimal,
             "agregat_formate": formater_nombre_tdb(aggregat_decimal),
             "objectif": objectif_decimal,
+            "objectif_affichage": objectif_affichage,
+            "agregat_affichage": agregat_affichage,
             "objectif_valeur_raw": (f"{objectif_decimal:g}" if isinstance(objectif_decimal, Decimal) else str(objectif_decimal)) if objectif_decimal is not None else "",
             "objectif_formate": formater_nombre_tdb(objectif_decimal),
             "ecart": ecart,
@@ -1313,6 +1932,8 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
             "statut_taux_formate": statut_taux_formate,
             "serie_mensuelle": serie_mensuelle,
             "serie_mensuelle_json": serie_mensuelle_json,
+            "serie_mensuelle_labels": serie_mensuelle_labels,
+            "serie_mensuelle_labels_json": json.dumps(serie_mensuelle_labels, ensure_ascii=False),
             "mesures_par_mois": mesures_par_mois,
             "mesures_dict": mesures_dict,
             "mesures_dict_json": mesures_dict_json,
@@ -1324,6 +1945,8 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
             "can_edit_measurements": True,
             "formats_chart": [opt["value"] for opt in chart_options],
             "chart_options": chart_options,
+            "excel_style": excel_style,
+            "excel_style_json": excel_style_json,
         }
         indicateurs_data.append(item_data)
 
@@ -1547,6 +2170,8 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
             "donnees_absentes": donnees_absentes_count,
         },
         "objectives_chart_payload": objectives_chart_payload,
+        "chart_colors": CHART_COLORS,
+        "chart_colors_json": json.dumps(CHART_COLORS),
     }
 
 
@@ -1563,6 +2188,12 @@ class TdbDashboardView(TdbAccesRequiredMixin, TemplateView):
             kwargs_processus_id=self.kwargs.get("processus_id")
         )
         context.update(dashboard_data)
+        # Si une précédente tentative de modification a échoué, on conserve les
+        # valeurs saisies pour réafficher la modal pré-remplie.
+        form_erreur = self.request.session.pop("tdb_indicateur_form_erreur", None)
+        if form_erreur:
+            context["indicateur_form_erreur"] = form_erreur
+            context["indicateur_form_erreur_json"] = json.dumps(form_erreur, ensure_ascii=False)
         return context
 
 
@@ -1576,7 +2207,6 @@ def tdb_export_excel(request):
     Prend en compte dynamiquement les types de graphiques (Courbe, Barres, Aires) sélectionnés dans l'interface web.
     Consomme EXCLUSIVEMENT `obtenir_donnees_tableau_de_bord` sans aucune duplication de logique métier.
     """
-    import json
     from openpyxl import Workbook
     from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -1860,8 +2490,8 @@ def tdb_export_excel(request):
 
 
         # -----------------------------------------------
-        # Table source : Mois | Réalisé  (rows: +5..+17)
-        # row_start+5  → en-têtes "Mois" / "Réalisé"
+        # Table source : Mois | Réalisé | Objectif  (rows: +5..+17)
+        # row_start+5  → en-têtes "Mois" / "Réalisé" / "Objectif"
         # row_start+6  → Jan
         # row_start+17 → Déc
         # -----------------------------------------------
@@ -1870,13 +2500,19 @@ def tdb_export_excel(request):
         data_last_row  = row_start + 17   # 12 mois
         month_col  = col_start       # colonne A du bloc
         value_col  = col_start + 1   # colonne B du bloc
+        obj_col    = col_start + 2   # colonne C du bloc
 
         ws2.cell(row=data_hdr_row, column=month_col,  value="Mois").font    = Font(bold=True, size=8)
         ws2.cell(row=data_hdr_row, column=value_col, value="Réalisé").font = Font(bold=True, size=8)
+        ws2.cell(row=data_hdr_row, column=obj_col,   value="Objectif").font = Font(bold=True, size=8)
+
+        has_obj = item["objectif"] is not None
+        o_val_num = float(item["objectif"]) if has_obj else None
 
         for m_idx in range(12):
             r_row = data_first_row + m_idx
-            ws2.cell(row=r_row, column=month_col, value=mois_abbr[m_idx]).font = Font(size=8)
+            labels_mois_excel = item.get("serie_mensuelle_labels") or mois_abbr
+            ws2.cell(row=r_row, column=month_col, value=labels_mois_excel[m_idx]).font = Font(size=8)
 
             raw_v = item["serie_mensuelle"][m_idx]
             if raw_v is not None:
@@ -1892,6 +2528,11 @@ def tdb_export_excel(request):
             if v_m is not None:
                 vm_cell.number_format = "#,##0.00"
 
+            om_cell = ws2.cell(row=r_row, column=obj_col, value=o_val_num)
+            om_cell.font = Font(size=8)
+            if o_val_num is not None:
+                om_cell.number_format = "#,##0.00"
+
         # -----------------------------------------------
         # Graphique — ancré SOUS la table
         # -----------------------------------------------
@@ -1901,6 +2542,9 @@ def tdb_export_excel(request):
             or chart_types.get(str(ind.pk))
             or default_chart_type
         )
+        c_type_clean = str(c_type).lower().strip()
+        is_bar_chart = c_type_clean in ["bar", "barres", "column"]
+
         chart = creer_chart_excel(c_type)
 
         raw_title = f"{ind.code} - {ind.nom}"
@@ -1909,14 +2553,6 @@ def tdb_export_excel(request):
         chart.width  = 13
         chart.height = 8   # hauteur suffisante pour que les labels soient visibles
 
-        # data Reference inclut la ligne d'en-tête → légende = "Réalisé"
-        chart_data_ref = Reference(
-            ws2,
-            min_col=value_col,
-            max_col=value_col,
-            min_row=data_hdr_row,   # inclut "Réalisé" → titles_from_data
-            max_row=data_last_row,
-        )
         # categories Reference = uniquement les 12 mois (sans en-tête)
         chart_cats_ref = Reference(
             ws2,
@@ -1926,8 +2562,65 @@ def tdb_export_excel(request):
             max_row=data_last_row,    # Déc
         )
 
-        chart.add_data(chart_data_ref, titles_from_data=True)
-        chart.set_categories(chart_cats_ref)
+        if is_bar_chart and has_obj:
+            # Graphique combiné : BarChart pour Réalisé + LineChart (ligne rouge) pour Objectif
+            chart_data_ref = Reference(
+                ws2,
+                min_col=value_col,
+                max_col=value_col,
+                min_row=data_hdr_row,
+                max_row=data_last_row,
+            )
+            chart.add_data(chart_data_ref, titles_from_data=True)
+            chart.set_categories(chart_cats_ref)
+
+            realized_hex = CHART_COLORS["realized"].lstrip("#")
+            target_hex = CHART_COLORS["target"].lstrip("#")
+            if chart.series:
+                s_real = chart.series[0]
+                if hasattr(s_real, "graphicalProperties") and hasattr(s_real.graphicalProperties, "solidFill"):
+                    s_real.graphicalProperties.solidFill = realized_hex
+
+            line_chart = LineChart()
+            obj_data_ref = Reference(
+                ws2,
+                min_col=obj_col,
+                max_col=obj_col,
+                min_row=data_hdr_row,
+                max_row=data_last_row,
+            )
+            line_chart.add_data(obj_data_ref, titles_from_data=True)
+            line_chart.set_categories(chart_cats_ref)
+            if line_chart.series:
+                s_obj = line_chart.series[0]
+                if hasattr(s_obj, "graphicalProperties") and hasattr(s_obj.graphicalProperties, "line"):
+                    s_obj.graphicalProperties.line.solidFill = target_hex
+
+            chart += line_chart
+        else:
+            # Graphique simple ou LineChart avec 2 séries
+            max_c = obj_col if has_obj else value_col
+            chart_data_ref = Reference(
+                ws2,
+                min_col=value_col,
+                max_col=max_c,
+                min_row=data_hdr_row,
+                max_row=data_last_row,
+            )
+            chart.add_data(chart_data_ref, titles_from_data=True)
+            chart.set_categories(chart_cats_ref)
+
+            realized_hex = CHART_COLORS["realized"].lstrip("#")
+            target_hex = CHART_COLORS["target"].lstrip("#")
+            if chart.series:
+                s_real = chart.series[0]
+                if hasattr(s_real, "graphicalProperties") and hasattr(s_real.graphicalProperties, "line"):
+                    s_real.graphicalProperties.line.solidFill = realized_hex
+
+            if has_obj and len(chart.series) > 1:
+                s_obj = chart.series[1]
+                if hasattr(s_obj, "graphicalProperties") and hasattr(s_obj.graphicalProperties, "line"):
+                    s_obj.graphicalProperties.line.solidFill = target_hex
 
         # ── Axe X (catégories = mois) ──────────────────────────────────────
         chart.x_axis.title     = None
@@ -2396,22 +3089,15 @@ def tdb_saisie_mesures(request, processus_id: int, annee: int, mois: int):
             "mesure": mesure_obj,
         })
 
-    return render(
-        request,
-        "gestion_documentaire/tdb_saisie_mesures.html",
-        {
-            "processus": processus,
-            "annee": annee,
-            "mois": mois,
-            "lignes_saisie": lignes_saisie,
-        },
+    return redirect(
+        f"{reverse('gestion_documentaire:tdb_dashboard_processus', kwargs={'processus_id': processus.pk})}?annee={annee}"
     )
 
 
 @login_required
 @tdb_acces_required
 def tdb_saisie_mesures_indicateur(request, indicateur_id: int, annee: int):
-    """Saisie / chargement des mesures mensuelles et de l'objectif annuel pour un indicateur."""
+    """Saisie / chargement des mesures mensuelles, des réalisés consolidés et de l'objectif pour un indicateur."""
     indicateur = get_object_or_404(Indicateur, pk=indicateur_id)
 
     if request.method == "GET":
@@ -2424,8 +3110,41 @@ def tdb_saisie_mesures_indicateur(request, indicateur_id: int, annee: int):
             str(m.mois): formater_nombre_tdb(m.valeur)
             for m in mesures_qs
         }
+        realises_qs = RealiseConsolideIndicateur.objects.filter(
+            indicateur=indicateur,
+            annee_reference=annee,
+        )
+        realises_dict = {
+            str(r.mois_reference): formater_nombre_tdb(r.valeur)
+            for r in realises_qs
+        }
+
+        composantes_qs = ComposanteIndicateur.objects.filter(indicateur=indicateur)
+        valeurs_comp_qs = ValeurComposanteIndicateur.objects.filter(
+            composante__indicateur=indicateur,
+            annee=annee,
+        ).select_related("composante")
+
+        valeurs_comp_dict = {}
+        for vc in valeurs_comp_qs:
+            valeurs_comp_dict.setdefault(vc.composante.code, {})[str(vc.mois)] = formater_nombre_tdb(vc.valeur)
+
         data = {
             "mesures": mesures_dict,
+            "realises_consolides": realises_dict,
+            "mode_calcul": indicateur.mode_calcul,
+            "periodicite": indicateur.periodicite,
+            "formule": indicateur.formule or "",
+            "composantes": [
+                {
+                    "id": c.pk,
+                    "code": c.code,
+                    "libelle": c.libelle,
+                    "ordre": c.ordre,
+                }
+                for c in composantes_qs
+            ],
+            "valeurs_composantes": valeurs_comp_dict,
         }
         try:
             obj = ObjectifIndicateur.objects.get(indicateur=indicateur, annee=annee)
@@ -2442,7 +3161,34 @@ def tdb_saisie_mesures_indicateur(request, indicateur_id: int, annee: int):
 
     try:
         with transaction.atomic():
-            # 1. Traitement des 12 mois de mesures
+            # 1. Traitement des composantes (Mode Formule)
+            if indicateur.mode_calcul == Indicateur.ModeCalcul.FORMULE:
+                for comp in indicateur.composantes.all():
+                    for m in range(1, 13):
+                        field_name = f"comp_{comp.code}_mois_{m}"
+                        if field_name in request.POST:
+                            raw_val = request.POST.get(field_name, "").strip()
+                            if raw_val != "":
+                                try:
+                                    val_decimal = Decimal(raw_val.replace(",", "."))
+                                    ValeurComposanteIndicateur.objects.update_or_create(
+                                        composante=comp,
+                                        annee=annee,
+                                        mois=m,
+                                        defaults={
+                                            "valeur": val_decimal,
+                                            "saisie_par": request.user,
+                                        },
+                                    )
+                                    modifications += 1
+                                except (InvalidOperation, ValueError):
+                                    erreurs.append(f"Valeur invalide pour {comp.libelle} (mois {m}).")
+                            else:
+                                ValeurComposanteIndicateur.objects.filter(
+                                    composante=comp, annee=annee, mois=m
+                                ).delete()
+
+            # 2. Traitement des 12 mois de mesures simples
             for m in range(1, 13):
                 field_name = f"mois_{m}"
                 if field_name in request.POST:
@@ -2467,7 +3213,31 @@ def tdb_saisie_mesures_indicateur(request, indicateur_id: int, annee: int):
                             indicateur=indicateur, annee=annee, mois=m
                         ).delete()
 
-            # 2. Traitement de l'objectif annuel
+                # Traitement des réalisés consolidés (mode manuel 12 mois glissants)
+                rc_field = f"realise_consolide_{m}"
+                if rc_field in request.POST:
+                    raw_rc = request.POST.get(rc_field, "").strip()
+                    if raw_rc != "":
+                        try:
+                            rc_decimal = Decimal(raw_rc.replace(",", "."))
+                            RealiseConsolideIndicateur.objects.update_or_create(
+                                indicateur=indicateur,
+                                annee_reference=annee,
+                                mois_reference=m,
+                                defaults={
+                                    "valeur": rc_decimal,
+                                    "saisie_par": request.user,
+                                },
+                            )
+                            modifications += 1
+                        except (InvalidOperation, ValueError):
+                            erreurs.append(f"Valeur de réalisé consolidé invalide pour le mois {m}.")
+                    else:
+                        RealiseConsolideIndicateur.objects.filter(
+                            indicateur=indicateur, annee_reference=annee, mois_reference=m
+                        ).delete()
+
+            # 3. Traitement de l'objectif annuel
             if "valeur_objectif" in request.POST:
                 raw_obj = request.POST.get("valeur_objectif", "").strip()
                 if raw_obj != "":
@@ -2519,7 +3289,6 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
 
     model = Processus
     form_class = ProcessusForm
-    template_name = "gestion_documentaire/tdb_processus_create.html"
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -2528,6 +3297,9 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
         if not request.user.is_superuser:
             raise PermissionDenied("Seuls les administrateurs peuvent créer un processus.")
         return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return redirect(reverse("gestion_documentaire:tdb_dashboard") + "?open_modal=processus")
 
     def get_success_url(self):
         next_url = self.request.GET.get("next") or self.request.POST.get("next")
@@ -2549,6 +3321,7 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
             nom = self.request.POST.get(nom_key, "").strip()
             periodicite = self.request.POST.get(f"ind_periodicite_{ind_index}", "mensuel").strip()
             agregation = self.request.POST.get(f"ind_agregation_{ind_index}", "somme").strip()
+            sens_obj = self.request.POST.get(f"ind_sens_{ind_index}", "atteindre").strip()
             if nom:
                 try:
                     code = generer_code_indicateur(processus, extra_offset=indicateurs_crees)
@@ -2558,6 +3331,7 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
                         nom=nom,
                         periodicite=periodicite,
                         mode_agregation=agregation,
+                        sens_objectif=sens_obj,
                         is_active=True,
                     )
                     indicateurs_crees += 1
@@ -2594,7 +3368,6 @@ class IndicateurCreateView(LoginRequiredMixin, CreateView):
 
     model = Indicateur
     form_class = IndicateurForm
-    template_name = "gestion_documentaire/tdb_indicateur_create.html"
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -2603,6 +3376,13 @@ class IndicateurCreateView(LoginRequiredMixin, CreateView):
         if not user_peut_utiliser_indicateurs_smqs(request.user):
             raise PermissionDenied("Accès réservé aux RS, RO et CE.")
         return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        proc_id = request.GET.get("processus", "")
+        url = reverse("gestion_documentaire:tdb_dashboard") + "?open_modal=indicateur"
+        if proc_id:
+            url += f"&processus={proc_id}"
+        return redirect(url)
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -2627,8 +3407,42 @@ class IndicateurCreateView(LoginRequiredMixin, CreateView):
         # Générer le code automatiquement si non renseigné
         if not indicateur.code:
             indicateur.code = generer_code_indicateur(indicateur.processus)
+
+        # Mode formule : valider la formule + les composantes avant la sauvegarde
+        comps_to_create = []
+        if indicateur.mode_calcul == Indicateur.ModeCalcul.FORMULE:
+            formule_val = self.request.POST.get("formule", "").strip()
+            comp_codes, comp_libelles = _post_composantes_formule(self.request)
+            if not formule_val:
+                messages.error(self.request, "La formule est obligatoire pour le mode de calcul automatique par formule.")
+                return redirect(self.get_success_url())
+            try:
+                comps_to_create, codes_clean = _normaliser_composantes_formule(comp_codes, comp_libelles)
+            except ValueError as err:
+                messages.error(self.request, str(err))
+                return redirect(self.get_success_url())
+            # Normaliser la casse de la formule pour correspondre aux codes de
+            # composantes (stockés en minuscules) — ex : Accidents -> accidents.
+            formule_val = formule_val.lower()
+            valide, msg_err = valider_formule_securisee(formule_val, codes_clean)
+            if not valide:
+                messages.error(self.request, f"Formule invalide : {msg_err}")
+                return redirect(self.get_success_url())
+            indicateur.formule = formule_val
+
         indicateur.save()
         form.save_m2m()
+
+        # Créer les composantes en mode formule
+        if indicateur.mode_calcul == Indicateur.ModeCalcul.FORMULE and comps_to_create:
+            with transaction.atomic():
+                for ordre_idx, (c_code, c_lib) in enumerate(comps_to_create, start=1):
+                    ComposanteIndicateur.objects.create(
+                        indicateur=indicateur,
+                        code=c_code,
+                        libelle=c_lib,
+                        ordre=ordre_idx,
+                    )
 
         # Créer l'objectif initial si fourni
         raw_val = self.request.POST.get("valeur_objectif", "").strip()
@@ -2656,15 +3470,11 @@ class IndicateurCreateView(LoginRequiredMixin, CreateView):
         return redirect(self.get_success_url())
 
     def form_invalid(self, form):
-        next_url = self.request.GET.get("next") or self.request.POST.get("next")
-        if next_url:
-            for field, errors in form.errors.items():
-                field_label = form.fields[field].label if field in form.fields else field
-                for error in errors:
-                    messages.error(self.request, f"{field_label} : {error}")
-            return redirect(next_url)
-        messages.error(self.request, "Veuillez corriger les erreurs dans le formulaire.")
-        return super().form_invalid(form)
+        for field, errors in form.errors.items():
+            field_label = form.fields[field].label if field in form.fields else field
+            for error in errors:
+                messages.error(self.request, f"{field_label} : {error}")
+        return redirect(self.get_success_url())
 
 
 @login_required
@@ -2737,6 +3547,101 @@ def tdb_processus_delete(request, processus_id: int):
 
 @login_required
 @tdb_acces_required
+def tdb_indicateur_detail_json(request, indicateur_id: int):
+    """Retourne les détails d'un indicateur au format JSON (formule et composantes)."""
+    indicateur = get_object_or_404(Indicateur, pk=indicateur_id)
+    comps = list(indicateur.composantes.all().values("id", "code", "libelle", "ordre"))
+    data = {
+        "id": indicateur.pk,
+        "code": indicateur.code,
+        "nom": indicateur.nom,
+        "periodicite": indicateur.periodicite,
+        "mode_agregation": indicateur.mode_agregation,
+        "sens_objectif": indicateur.sens_objectif,
+        "mode_calcul": indicateur.mode_calcul,
+        "formule": indicateur.formule or "",
+        "composantes": comps,
+        "is_active": indicateur.is_active,
+    }
+    return JsonResponse(data)
+
+
+def _post_composantes_formule(request):
+    """Lit les composantes (code/libellé) depuis le POST, avec repli sur les champs numérotés."""
+    comp_codes = request.POST.getlist("comp_code")
+    comp_libelles = request.POST.getlist("comp_libelle")
+    if not comp_codes:
+        idx = 1
+        while f"comp_code_{idx}" in request.POST:
+            c_code = request.POST.get(f"comp_code_{idx}", "").strip()
+            c_lib = request.POST.get(f"comp_libelle_{idx}", "").strip()
+            if c_code:
+                comp_codes.append(c_code)
+                comp_libelles.append(c_lib or c_code)
+            idx += 1
+    return comp_codes, comp_libelles
+
+
+def _normaliser_composantes_formule(comp_codes, comp_libelles):
+    """Normalise les composantes d'une formule et renvoie (comps_to_create, codes_clean)."""
+    import re
+    comps_to_create = []
+    codes_clean = set()
+    for i, c_code in enumerate(comp_codes):
+        c_clean = c_code.strip().lower()
+        c_lib = comp_libelles[i].strip() if i < len(comp_libelles) else c_clean
+        if c_clean:
+            if not re.match(r"^[a-z0-9_]+$", c_clean):
+                raise ValueError(f"Code de composante invalide « {c_clean} ». Utilisez uniquement des lettres minuscules, chiffres et underscores.")
+            codes_clean.add(c_clean)
+            comps_to_create.append((c_clean, c_lib or c_clean))
+    return comps_to_create, codes_clean
+
+
+def _synchroniser_composantes_indicateur(indicateur, comps_to_create):
+    """Crée/met à jour les composantes d'un indicateur et supprime celles qui ne sont plus listées."""
+    with transaction.atomic():
+        existing_comps = {c.code: c for c in indicateur.composantes.all()}
+        kept_codes = set()
+        for ordre_idx, (c_code, c_lib) in enumerate(comps_to_create, start=1):
+            kept_codes.add(c_code)
+            if c_code in existing_comps:
+                comp_obj = existing_comps[c_code]
+                comp_obj.libelle = c_lib
+                comp_obj.ordre = ordre_idx
+                comp_obj.save()
+            else:
+                ComposanteIndicateur.objects.create(
+                    indicateur=indicateur,
+                    code=c_code,
+                    libelle=c_lib,
+                    ordre=ordre_idx,
+                )
+        indicateur.composantes.exclude(code__in=kept_codes).delete()
+
+
+def _stocker_formulaire_indicateur_erreur(request, indicateur, nom):
+    """Conserve les valeurs saisies afin de réafficher la modal avec les données en cas d'erreur."""
+    request.session["tdb_indicateur_form_erreur"] = {
+        "indicateur_id": indicateur.pk,
+        "code": indicateur.code,
+        "nom": nom,
+        "periodicite": request.POST.get("periodicite", "").strip(),
+        "mode_agregation": request.POST.get("mode_agregation", "").strip(),
+        "sens_objectif": request.POST.get("sens_objectif", "").strip(),
+        "mode_calcul": request.POST.get("mode_calcul", "").strip(),
+        "is_active": request.POST.get("is_active") == "true" or "is_active" in request.POST,
+        "formule": request.POST.get("formule", "").strip(),
+        "type_formule": request.POST.get("type_formule", "").strip(),
+        "comp_code": request.POST.getlist("comp_code"),
+        "comp_libelle": request.POST.getlist("comp_libelle"),
+        "valeur_objectif": request.POST.get("valeur_objectif", "").strip(),
+        "objectif_annee": request.POST.get("objectif_annee", "").strip(),
+    }
+
+
+@login_required
+@tdb_acces_required
 @require_POST
 def tdb_indicateur_update(request, indicateur_id: int):
     """Modification d'un indicateur depuis la modal du tableau de bord."""
@@ -2744,7 +3649,10 @@ def tdb_indicateur_update(request, indicateur_id: int):
     nom = request.POST.get("nom", "").strip()
     periodicite = request.POST.get("periodicite", "").strip()
     agregation = request.POST.get("mode_agregation", "").strip()
+    sens_objectif = request.POST.get("sens_objectif", "").strip()
+    mode_calcul = request.POST.get("mode_calcul", "").strip()
     is_active = request.POST.get("is_active") == "true" or "is_active" in request.POST
+    next_url = request.POST.get("next") or reverse("gestion_documentaire:tdb_dashboard")
 
     if nom:
         indicateur.nom = nom
@@ -2752,8 +3660,41 @@ def tdb_indicateur_update(request, indicateur_id: int):
             indicateur.periodicite = periodicite
         if agregation:
             indicateur.mode_agregation = agregation
+        if sens_objectif:
+            indicateur.sens_objectif = sens_objectif
+        if mode_calcul:
+            indicateur.mode_calcul = mode_calcul
         indicateur.is_active = is_active
+
+        # Traitement du mode formule et des composantes
+        if mode_calcul == Indicateur.ModeCalcul.FORMULE:
+            formule_val = request.POST.get("formule", "").strip()
+            comp_codes, comp_libelles = _post_composantes_formule(request)
+            if not formule_val:
+                _stocker_formulaire_indicateur_erreur(request, indicateur, nom)
+                messages.error(request, "La formule est obligatoire pour le mode de calcul automatique par formule.")
+                return redirect(next_url)
+            try:
+                comps_to_create, codes_clean = _normaliser_composantes_formule(comp_codes, comp_libelles)
+            except ValueError as err:
+                _stocker_formulaire_indicateur_erreur(request, indicateur, nom)
+                messages.error(request, str(err))
+                return redirect(next_url)
+            # Normaliser la casse de la formule pour correspondre aux codes de
+            # composantes (stockés en minuscules) — ex : Accidents -> accidents.
+            formule_val = formule_val.lower()
+            valide, msg_err = valider_formule_securisee(formule_val, codes_clean)
+            if not valide:
+                _stocker_formulaire_indicateur_erreur(request, indicateur, nom)
+                messages.error(request, f"Formule invalide : {msg_err}")
+                return redirect(next_url)
+
+            indicateur.formule = formule_val
+
         indicateur.save()
+
+        if mode_calcul == Indicateur.ModeCalcul.FORMULE:
+            _synchroniser_composantes_indicateur(indicateur, comps_to_create)
 
         # Traitement de l'objectif initial / cible si renseigné
         raw_val = request.POST.get("valeur_objectif", "").strip()
@@ -2779,7 +3720,6 @@ def tdb_indicateur_update(request, indicateur_id: int):
     else:
         messages.error(request, "Veuillez saisir un nom valide pour l'indicateur.")
 
-    next_url = request.POST.get("next") or reverse("gestion_documentaire:tdb_dashboard")
     return redirect(next_url)
 
 

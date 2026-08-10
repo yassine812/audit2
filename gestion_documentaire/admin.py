@@ -13,6 +13,7 @@ from .models import (
     ObjectifIndicateur,
     Processus,
     ProcessusService,
+    RealiseConsolideIndicateur,
     ValidationDocument,
     VersionDocument,
 )
@@ -186,8 +187,8 @@ class ProcessusAdmin(admin.ModelAdmin):
 
 @admin.register(Indicateur)
 class IndicateurAdmin(admin.ModelAdmin):
-    list_display = ("code", "nom", "processus", "periodicite", "mode_agregation", "is_active")
-    list_filter = ("processus", "periodicite", "is_active")
+    list_display = ("code", "nom", "processus", "periodicite", "mode_agregation", "sens_objectif", "mode_calcul", "is_active")
+    list_filter = ("processus", "periodicite", "sens_objectif", "mode_calcul", "is_active")
     search_fields = ("code", "nom")
 
 
@@ -201,6 +202,13 @@ class ObjectifIndicateurAdmin(admin.ModelAdmin):
 class MesureIndicateurAdmin(admin.ModelAdmin):
     list_display = ("indicateur", "annee", "mois", "valeur", "saisie_par")
     list_filter = ("annee", "mois")
+    search_fields = ("indicateur__code", "indicateur__nom")
+
+
+@admin.register(RealiseConsolideIndicateur)
+class RealiseConsolideIndicateurAdmin(admin.ModelAdmin):
+    list_display = ("indicateur", "annee_reference", "mois_reference", "valeur", "saisie_par", "updated_at")
+    list_filter = ("annee_reference", "mois_reference")
     search_fields = ("indicateur__code", "indicateur__nom")
 
 
