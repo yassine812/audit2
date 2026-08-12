@@ -500,6 +500,7 @@ def get_all_filtered_calls(request):
         } for call in calls]
     }, safe=False)
 
+@login_required
 @require_GET
 def get_calls_by_date(request):
     date_str = request.GET.get('date')
@@ -1339,6 +1340,7 @@ def call_details(request, call_id):
     
     return JsonResponse(data)
 
+@login_required
 def send_call_details_email(request):
     if request.method == 'POST':
         try:
@@ -2042,6 +2044,7 @@ def action_details(request, action_id):
     
     return JsonResponse(data)
 
+@login_required
 @require_GET
 def get_events_by_date(request, typeEvent):
     date_str = request.GET.get('date')
@@ -2506,6 +2509,7 @@ def get_all_filtered_emails(request):
         } for email in emails]
     }, safe=False)
 
+@login_required
 @require_GET
 def get_emails_by_date(request):
     date_str = request.GET.get('date')
@@ -3034,6 +3038,7 @@ def email_details(request, email_id):
     
     return JsonResponse(data)
 
+@login_required
 def send_email_details_pdf(request):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Méthode de demande invalide'})
@@ -3790,6 +3795,7 @@ def get_all_filtered_rvs(request):
         } for rv in rvs]
     }, safe=False)
 
+@login_required
 @require_GET
 def get_rvs_by_date(request):
     date_str = request.GET.get('date')
@@ -4234,6 +4240,7 @@ def rv_details(request, rv_id):
     
     return JsonResponse(data)
 
+@login_required
 def send_appoitment_details_pdf(request):
     if request.method == 'POST':
         try:
@@ -4373,6 +4380,35 @@ def delete_societe(request, id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
                                                                 
+def _can_manage_utilisateurs(user):
+    return user.is_superuser or getattr(user, 'is_RO', False) or (getattr(user, 'is_RC', False) and getattr(user, 'societe', None))
+
+
+def _manageable_utilisateurs(user):
+    if user.is_superuser:
+        return Utilisateur.objects.all()
+    if getattr(user, 'is_RO', False):
+        societe_ids = list(user.societes.values_list('id', flat=True))
+        if not societe_ids:
+            return Utilisateur.objects.none()
+        return Utilisateur.objects.filter(
+            Q(societe_id__in=societe_ids) | (Q(is_RO=True) & Q(societes__id__in=societe_ids))
+        ).exclude(is_superuser=True).distinct()
+    if getattr(user, 'is_RC', False) and getattr(user, 'societe', None):
+        return Utilisateur.objects.filter(societe=user.societe, is_RO=False).exclude(is_superuser=True)
+    return Utilisateur.objects.none()
+
+
+def _manageable_societes(user):
+    if user.is_superuser:
+        return Societe.objects.all()
+    if getattr(user, 'is_RO', False):
+        return user.societes.all()
+    if getattr(user, 'is_RC', False) and getattr(user, 'societe', None):
+        return Societe.objects.filter(id=user.societe.id)
+    return Societe.objects.none()
+
+
 #user
 @login_required
 def liste_utilisateurs(request):
@@ -4466,6 +4502,8 @@ def liste_utilisateurs(request):
     
 @login_required
 def ajouter_utilisateur(request):
+    if not _can_manage_utilisateurs(request.user):
+        return JsonResponse({'error': 'Accès non autorisé'}, status=403)
     if request.method == 'POST':
         errors = {}
         
@@ -4531,15 +4569,19 @@ def ajouter_utilisateur(request):
 
             # Validate selected societes
             societe = None
+            manageable_ids = list(_manageable_societes(request.user).values_list('id', flat=True))
             if is_RO:
-                # Ensure all ids exist
-                valid_ids = list(Societe.objects.filter(id__in=societes_ids).values_list('id', flat=True)) if societes_ids else []
-                missing = set(societes_ids) - set(str(x) for x in valid_ids)
-                if missing:
-                    errors['societes'] = 'Filiale(s) introuvable(s)'
+                if not (request.user.is_superuser or getattr(request.user, 'is_RO', False)):
+                    errors['societes'] = "Vous ne pouvez pas créer un administrateur de filiale"
+                else:
+                    # Ensure all ids exist
+                    valid_ids = list(Societe.objects.filter(id__in=societes_ids).filter(id__in=manageable_ids).values_list('id', flat=True)) if societes_ids else []
+                    missing = set(societes_ids) - set(str(x) for x in valid_ids)
+                    if missing:
+                        errors['societes'] = 'Filiale(s) introuvable(s) ou hors de votre périmètre'
             else:
                 try:
-                    societe = Societe.objects.get(id=societe_id)
+                    societe = Societe.objects.get(id=societe_id, id__in=manageable_ids)
                 except Societe.DoesNotExist:
                     errors['societe'] = 'Filiale introuvable'
 
@@ -4612,7 +4654,9 @@ def ajouter_utilisateur(request):
 
 @login_required
 def modifier_utilisateur(request, id):
-    utilisateur = get_object_or_404(Utilisateur, id=id)
+    if not _can_manage_utilisateurs(request.user):
+        return JsonResponse({'error': 'Accès non autorisé'}, status=403)
+    utilisateur = get_object_or_404(_manageable_utilisateurs(request.user), id=id)
     
     if request.method == 'POST':
         errors = {}
@@ -4664,14 +4708,17 @@ def modifier_utilisateur(request, id):
         if password1 and password1 != password2:
             errors['password2'] = 'Les mots de passe ne correspondent pas'
         # Societe requirements: admin needs at least one M2M; non-admin needs FK
+        manageable_ids = list(_manageable_societes(request.user).values_list('id', flat=True))
         if is_RO:
-            if not societes_ids:
+            if not (request.user.is_superuser or getattr(request.user, 'is_RO', False)):
+                errors['role'] = "Seul un administrateur de filiale peut attribuer ce rôle"
+            elif not societes_ids:
                 errors['societes'] = 'Au moins une filiale est requise pour un administrateur'
             else:
-                valid_ids = list(Societe.objects.filter(id__in=societes_ids).values_list('id', flat=True))
+                valid_ids = list(Societe.objects.filter(id__in=societes_ids).filter(id__in=manageable_ids).values_list('id', flat=True))
                 missing = set(societes_ids) - set(str(x) for x in valid_ids)
                 if missing:
-                    errors['societes'] = 'Filiale(s) introuvable(s)'
+                    errors['societes'] = 'Filiale(s) introuvable(s) ou hors de votre périmètre'
         else:
             if not societe_id:
                 errors['societe'] = 'La filiale est requise'
@@ -4688,7 +4735,7 @@ def modifier_utilisateur(request, id):
             utilisateur.societe = None
         else:
             try:
-                utilisateur.societe = Societe.objects.get(id=societe_id)
+                utilisateur.societe = Societe.objects.get(id=societe_id, id__in=manageable_ids)
             except Societe.DoesNotExist:
                 errors['societe'] = 'Filiale introuvable'
                 return JsonResponse({'errors': errors}, status=200)
@@ -4733,9 +4780,11 @@ def modifier_utilisateur(request, id):
 
 @login_required
 def activer_utilisateur(request, id):
+    if not _can_manage_utilisateurs(request.user):
+        return JsonResponse({'error': 'Accès non autorisé'}, status=403)
     if request.method == 'POST':
         try:
-            utilisateur = get_object_or_404(Utilisateur, id=id)
+            utilisateur = get_object_or_404(_manageable_utilisateurs(request.user), id=id)
             username = utilisateur.username
             utilisateur.is_active = True
             utilisateur.save()
@@ -4755,9 +4804,11 @@ def activer_utilisateur(request, id):
 
 @login_required
 def supprimer_utilisateur(request, id):
+    if not _can_manage_utilisateurs(request.user):
+        return JsonResponse({'error': 'Accès non autorisé'}, status=403)
     if request.method == 'POST':
         try:
-            utilisateur = get_object_or_404(Utilisateur, id=id)
+            utilisateur = get_object_or_404(_manageable_utilisateurs(request.user), id=id)
             username = utilisateur.username
             utilisateur.is_active = False
             utilisateur.save()
@@ -5508,6 +5559,7 @@ def questions(request):
     context = {'questions': page_obj, 'page_obj': page_obj, 'filter_question': q, 'filter_type': t, 'filter_obligatoire': o, 'stats': stats, 'users': users, 'clients': clients, 'societes': societes}
     return render(request, 'adminlte/sales/sales/enquetes/questions.html', context)
 
+@login_required
 def question_stats(request, question_id):
     try:
         question = Question.objects.get(id=question_id)
@@ -5758,6 +5810,7 @@ def question_stats(request, question_id):
         'language': language
     })
     
+@login_required
 def add_question(request):
     if request.method == 'POST':
         try:
@@ -6303,6 +6356,7 @@ def get_enquete_data(enquete):
         ]
     }
 
+@login_required
 def detail_enquete(request, enquete_id):
     e = get_object_or_404(Enquete, id=enquete_id)
     data = {
@@ -6606,10 +6660,12 @@ def download_enquete_excel(request, enquete_id):
     wb.save(response)
     return response
 
+@login_required
 def export_enquete_pdf(request, enquete_id):
     # Wrapper pour compatibilité avec les URLs existantes
     return download_enquete_pdf(request, enquete_id)
 
+@login_required
 def export_enquete_excel(request, enquete_id):
     # Wrapper pour compatibilité avec les URLs existantes
     return download_enquete_excel(request, enquete_id)
@@ -6779,6 +6835,7 @@ def reponse_ok(request):
 
 @csrf_exempt
 @require_POST
+@login_required
 def send_email_enquete(request):
     """
     Vue pour envoyer un email d'enquête ou de rappel avec personnalisation
@@ -8889,6 +8946,7 @@ def trigger_prospect_research(request, entreprise_id: int):
 
 @require_http_methods(["GET"])
 @csrf_exempt
+@login_required
 def loadSwotData(request):
     try:
         concurrent_id = request.GET.get('concurrent_id')

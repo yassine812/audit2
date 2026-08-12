@@ -977,11 +977,7 @@ def evaluer_statut_indicateur(
     if sens == Indicateur.SensObjectif.NE_PAS_DEPASSER:
         # Sens : À ne pas dépasser (ex: Taux de fréquence, pannes)
         if aggregat <= objectif_val:
-            if aggregat <= Decimal("0"):
-                taux_arrondi = Decimal("100.00")
-            else:
-                taux = (objectif_val / aggregat) * Decimal("100")
-                taux_arrondi = taux.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            taux_arrondi = Decimal("100.00")
             return {
                 "code": "conforme",
                 "label": "Objectif atteint",
@@ -1781,7 +1777,25 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
                 elif indicateur.mode_agregation == Indicateur.ModeAgregation.DERNIERE_VALEUR:
                     aggregat_decimal = non_null_f[-1][1]
                 elif indicateur.mode_agregation == Indicateur.ModeAgregation.SOMME:
-                    aggregat_decimal = sum((v for _, v in non_null_f), Decimal("0"))
+                    # Pour un mode FORMULE, consolider les composantes sur la période
+                    # afin d'évaluer le ratio global (ex: TF) au lieu d'additionner des ratios mensuels.
+                    vars_total = {}
+                    for comp in comps:
+                        comp_vals = [
+                            valeurs_comp_dict_all.get((comp.code, indicateur.id, annee, m))
+                            for m in mois_filtrer
+                        ]
+                        non_null_comp = [v for v in comp_vals if v is not None]
+                        if non_null_comp:
+                            vars_total[comp.code] = sum(non_null_comp, Decimal("0"))
+                        else:
+                            vars_total[comp.code] = None
+
+                    val_total = evaluer_formule_securisee(formule_str, vars_total)
+                    if val_total is not None:
+                        aggregat_decimal = val_total
+                    else:
+                        aggregat_decimal = sum((v for _, v in non_null_f), Decimal("0"))
                 elif indicateur.mode_agregation == Indicateur.ModeAgregation.MOYENNE:
                     tot = sum((v for _, v in non_null_f), Decimal("0"))
                     aggregat_decimal = tot / Decimal(len(non_null_f))

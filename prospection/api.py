@@ -1209,6 +1209,7 @@ def create_prospect(request):
             status=status.HTTP_400_BAD_REQUEST
         )
         
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def add_swot(request):
@@ -1293,6 +1294,7 @@ def get_swot_count(request):
     except Exception as e:
         return JsonResponse({'success': False, 'message': str(e)})
     
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_swot_axes(request):
     try:
@@ -1490,6 +1492,7 @@ def _resolve_contact(contact_raw, societe):
     # Sinon on crée depuis l'API distante
     return _get_or_create_client_by_numero(contact_raw, societe)
 
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @csrf_exempt
 def generate_report_view(request):

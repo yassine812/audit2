@@ -275,7 +275,7 @@ class ChapitreNormeDeleteView(LoginRequiredMixin, SuperuserOnlyMixin, Deactivate
     success_url = reverse_lazy("audit:chapitre-list")
 
 
-class ChapitreNormeDetailView(LoginRequiredMixin, View):
+class ChapitreNormeDetailView(LoginRequiredMixin, SuperuserOnlyMixin, View):
     """Page de consultation d’un chapitre de norme avec son PDF."""
 
     def get(self, request, pk):
@@ -376,6 +376,7 @@ class ThemeCreateView(LoginRequiredMixin, SuperuserOnlyMixin, SafeDbOperationMix
         context['preuves_proto'] = proto_html
         return context
 
+@login_required_fn
 @require_POST
 def ajax_create_chapitre(request):
     """AJAX endpoint to create a ChapitreNorme (and optionally a NormeDocument).
@@ -421,6 +422,7 @@ def ajax_create_chapitre(request):
     return JsonResponse({"ok": True, "id": chapitre.pk, "text": f"{chapitre.reference} - {chapitre.intitule}"})
 
 
+@login_required_fn
 @require_POST
 def ajax_create_theme(request):
     """Module-level AJAX: create Theme (validates with ThemeForm). Optionally create Norme/Chapitre and attach.
@@ -456,6 +458,7 @@ def ajax_create_theme(request):
     return JsonResponse({"ok": True, "id": theme.pk, "edit_url": edit_url})
 
 
+@login_required_fn
 @require_POST
 def ajax_add_criteres(request):
     """Module-level AJAX: manage criteres for an existing theme.
@@ -971,8 +974,11 @@ class NiveauxAttendusDeleteView(LoginRequiredMixin, SuperuserOnlyMixin, Deactiva
 # ============== Formulaires d'audit ==============
 
 
+@login_required_fn
 def ajax_formulaire_theme_data(request):
     """Return JSON data for all themes with critères, preuves, normes and chapitres."""
+    if not (request.user.is_superuser or getattr(request.user, "is_auditeur", False)):
+        return JsonResponse({"ok": False, "error": "Accès non autorisé."}, status=403)
 
     themes = Theme.objects.prefetch_related(
         "criteres__preuves_attendues__type_preuve",
@@ -1218,6 +1224,8 @@ class LigneFormulaireDeleteView(LoginRequiredMixin, SuperuserOrAuditeurMixin, De
 @require_POST
 def ajax_reorder_lignes(request):
     """Reorder LigneFormulaire by receiving an ordered list of IDs."""
+    if not (request.user.is_superuser or getattr(request.user, "is_auditeur", False)):
+        return JsonResponse({'ok': False, 'error': 'Accès non autorisé.'}, status=403)
     import json as _json
     try:
         data = _json.loads(request.body)
@@ -1439,6 +1447,9 @@ class AuditCreateView(LoginRequiredMixin, CreateView):
             )
 
     def form_valid(self, form):
+        formulaire = form.cleaned_data.get("formulaire")
+        if formulaire and not user_can_create_audit(self.request.user, formulaire.type_audit):
+            return render(self.request, "403.html", {"message": "Accès non autorisé à la création de cet audit."}, status=403)
         form.instance.cree_par = self.request.user
         form.instance.statut = AuditStatut.EN_COURS
         try:
@@ -1618,6 +1629,9 @@ def ajax_copy_formulaire(request):
 
     if not all([source_id, new_section_id, new_type, new_titre]):
         return JsonResponse({'ok': False, 'error': 'Tous les champs sont requis.'}, status=400)
+
+    if not user_can_create_audit(request.user, new_type):
+        return JsonResponse({'ok': False, 'error': 'Accès non autorisé.'}, status=403)
 
     try:
         source = FormulaireAudit.objects.get(pk=source_id)
@@ -2168,6 +2182,8 @@ def audit_pdf(request, pk):
         ),
         pk=pk,
     )
+    if not user_can_use_audit(request.user, audit.formulaire.type_audit):
+        return render(request, "403.html", {"message": "Accès non autorisé."}, status=403)
     resultat, _ = ResultatAudit.objects.get_or_create(audit=audit)
 
     lignes = list(audit.formulaire.lignes.select_related(
