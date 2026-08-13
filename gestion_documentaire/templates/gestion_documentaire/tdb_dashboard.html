@@ -294,8 +294,8 @@
   /* Print Styling (Optimisé A4 SMQS - 4 Parties Séparées, Mois Compacts & Graphiques Intacts) */
   @media print {
     @page {
-      size: A4 portrait;
-      margin: 10mm;
+      size: A4 landscape;
+      margin: 8mm;
     }
 
     .screen-only {
@@ -395,7 +395,7 @@
       max-width: 100% !important;
     }
 
-    /* Séparation stricte des 4 grandes parties du PDF : chaque partie commence sur une nouvelle page */
+    /* Séparation stricte des 4 grandes parties du PDF (uniquement en impression globale) */
     .print-part {
       display: block !important;
       visibility: visible !important;
@@ -407,7 +407,7 @@
       page-break-inside: auto !important;
     }
 
-    .print-part:not(:last-child) {
+    body:not(.print-custom-active) .print-part:not(:last-child) {
       break-after: page !important;
       page-break-after: always !important;
     }
@@ -803,6 +803,90 @@
       border: 1px solid rgba(0, 0, 0, 0.15) !important;
       padding: 0.2rem 0.4rem !important;
     }
+
+    /* Mode Impression Personnalisée SMQS */
+    body.print-custom-active .print-part-1,
+    body.print-custom-active .print-part-3,
+    body.print-custom-active .print-part-4 {
+      display: none !important;
+      height: 0 !important;
+      overflow: hidden !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      break-after: auto !important;
+      page-break-after: auto !important;
+    }
+
+    body.print-custom-active #tab-graphiques,
+    body.print-custom-active .print-part-2 {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 100% !important;
+      break-after: auto !important;
+      page-break-after: auto !important;
+    }
+
+    body.print-custom-active .indicator-print-block.print-exclude {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    body.print-custom-active .indicator-print-block.print-keep {
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      flex: 0 0 100% !important;
+      float: none !important;
+      clear: both !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      margin-bottom: 25px !important;
+    }
+
+    body.print-custom-active .indicator-print-block.print-keep .indicator-chart-wrapper {
+      display: block !important;
+      width: 100% !important;
+      height: 320px !important;
+      min-height: 320px !important;
+      max-height: 350px !important;
+    }
+
+    body.print-custom-active .indicator-print-block.print-keep canvas,
+    body.print-custom-active .indicator-print-block.print-keep .print-chart-image {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: 310px !important;
+      max-height: 320px !important;
+      object-fit: contain !important;
+      display: block !important;
+      margin: 0 auto !important;
+    }
+
+    /* Mode "Sans les tableaux de données" */
+    body.print-no-tables table,
+    body.print-no-tables .table-responsive,
+    body.print-no-tables #syntheseTableWrapper,
+    body.print-no-tables #synthese-table,
+    body.print-no-tables #objectives-comparative-table,
+    body.print-no-tables .summary-cards-container,
+    body.print-no-tables .audit-cards-container,
+    body.print-no-tables .indicator-card .row.text-center,
+    body.print-no-tables .print-part-1,
+    body.print-no-tables .print-part-3,
+    body.print-no-tables .print-part-4 {
+      display: none !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
   }
 
   /* ── Responsive ── */
@@ -946,6 +1030,12 @@
       <button type="button" class="btn tdb-header-btn tdb-header-btn--print" onclick="printDashboard()">
         <i class="fas fa-print" aria-hidden="true"></i>
         <span>Imprimer</span>
+      </button>
+
+      <button type="button" class="btn tdb-header-btn tdb-header-btn--custom-print ms-2" onclick="openPrintCustomModal()"
+        title="Imprimer un ou plusieurs graphiques avec ou sans les tableaux de données">
+        <i class="fas fa-sliders-h" aria-hidden="true"></i>
+        <span>Impression personnalisée</span>
       </button>
 
       <button type="button" class="btn tdb-header-btn tdb-header-btn--excel ms-2" id="exportExcelBtn"
@@ -1293,7 +1383,13 @@
                     Périodicité : {{ item.indicateur.get_periodicite_display }} | Agrégation : {{ item.indicateur.get_mode_agregation_display }}
                   </div>
                 </div>
-                <div class="no-print">
+                <div class="no-print d-flex align-items-center gap-1">
+                  <button type="button" class="btn btn-sm btn-outline-secondary js-print-single-chart me-1"
+                    data-indicator-id="{{ item.indicateur.pk }}"
+                    onclick="openPrintCustomModal('{{ item.indicateur.pk }}')"
+                    title="Imprimer cet indicateur">
+                    <i class="fas fa-print"></i>
+                  </button>
                   <select class="form-select form-select-sm js-chart-type-selector chart-type-select"
                     data-indicator-id="{{ item.indicateur.pk }}" data-indicator-code="{{ item.indicateur.code }}">
                     <option value="line" {% if item.excel_style.chartType == 'line' %}selected{% endif %}>Courbe</option>
@@ -1617,6 +1713,82 @@
       </div>
     </div>
 
+<!-- Modal Impression Personnalisée SMQS -->
+<div class="modal fade no-print" id="printCustomModal" tabindex="-1" aria-labelledby="printCustomModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-primary text-white" style="background: #2563eb !important;">
+        <h5 class="modal-title font-weight-bold text-white mb-0" id="printCustomModalLabel">
+          <i class="fas fa-sliders-h me-2"></i>Impression personnalisée du Tableau de Bord
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- 1. Sélection des graphiques -->
+        <div class="mb-4">
+          <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <label class="font-weight-bold text-dark mb-0" style="font-size: 0.95rem;">
+              <i class="fas fa-chart-line text-primary me-2"></i>Graphiques à imprimer
+            </label>
+            <div class="btn-group btn-group-sm">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleAllPrintCheckboxes(true)">
+                <i class="fas fa-check-square me-1"></i>Tout sélectionner
+              </button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllPrintCheckboxes(false)">
+                <i class="fas fa-square me-1"></i>Tout désélectionner
+              </button>
+            </div>
+          </div>
+          <div class="border rounded p-3 bg-light" style="max-height: 260px; overflow-y: auto;">
+            {% for item in indicateurs_data %}
+            <div class="form-check mb-2">
+              <input class="form-check-input js-print-chart-checkbox" type="checkbox" value="{{ item.indicateur.pk }}" id="print-check-{{ item.indicateur.pk }}" checked>
+              <label class="form-check-label text-dark font-weight-bold ms-1" for="print-check-{{ item.indicateur.pk }}">
+                <span class="badge bg-secondary me-1">{{ item.indicateur.code }}</span>
+                {{ item.indicateur.nom }}
+              </label>
+            </div>
+            {% empty %}
+            <p class="text-muted m-0 small"><i class="fas fa-info-circle me-1"></i>Aucun indicateur disponible.</p>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- 2. Option Tableaux de données -->
+        <div class="mb-3">
+          <label class="font-weight-bold text-dark mb-2" style="font-size: 0.95rem;">
+            <i class="fas fa-table text-primary me-2"></i>Tableaux de données
+          </label>
+          <div class="d-flex flex-column flex-sm-row gap-3 p-3 border rounded bg-white">
+            <div class="form-check me-4">
+              <input class="form-check-input" type="radio" name="printTableOption" id="printOptWithTables" value="with_tables" checked>
+              <label class="form-check-label font-weight-bold text-dark ms-1" for="printOptWithTables">
+                <i class="fas fa-check-circle text-success me-1"></i>Avec les tableaux de données
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="printTableOption" id="printOptWithoutTables" value="without_tables">
+              <label class="form-check-label font-weight-bold text-dark ms-1" for="printOptWithoutTables">
+                <i class="fas fa-times-circle text-danger me-1"></i>Sans les tableaux de données
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message d'erreur si aucun graphique sélectionné -->
+        <div id="printModalAlert" class="alert alert-danger d-none py-2 px-3 mb-0 font-weight-bold" style="font-size: 0.85rem;">
+          <i class="fas fa-exclamation-triangle me-1"></i>Veuillez sélectionner au moins un graphique à imprimer.
+        </div>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-dismiss="modal">
+          Annuler
+        </button>
+        <button type="button" class="btn btn-primary font-weight-bold px-4" onclick="submitCustomPrint()">
+          <i class="fas fa-print me-1"></i>Imprimer la sélection
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4769,8 +4941,95 @@
     }
   });
 
+  // ── Helper de préparation et conversion robuste des canvas Chart.js ──
+  window.prepareChartsForPrint = async function (targetCanvases) {
+    // Force DOM reflow
+    void document.body.offsetHeight;
+
+    if (typeof Chart !== "undefined" && Chart.instances) {
+      Object.values(Chart.instances).forEach(function (chart) {
+        try {
+          chart.options.animation = false;
+          chart.resize();
+          chart.update("none");
+          if (typeof chart.render === "function") chart.render();
+        } catch (e) { }
+      });
+    }
+
+    await new Promise(function (resolve) {
+      requestAnimationFrame(function () {
+        requestAnimationFrame(resolve);
+      });
+    });
+    await new Promise(function (resolve) { setTimeout(resolve, 350); });
+
+    const createdImages = [];
+    (targetCanvases || []).forEach(function (canvas) {
+      try {
+        if (!canvas) return;
+        const chartInstance = typeof Chart !== "undefined" && Chart.getChart ? Chart.getChart(canvas) : null;
+        if (chartInstance) {
+          chartInstance.options.animation = false;
+          chartInstance.resize();
+          chartInstance.update("none");
+          if (typeof chartInstance.render === "function") chartInstance.render();
+        }
+
+        if (canvas.width === 0 || canvas.height === 0) {
+          canvas.width = canvas.offsetWidth || 600;
+          canvas.height = canvas.offsetHeight || 300;
+          if (chartInstance) {
+            chartInstance.resize();
+            if (typeof chartInstance.render === "function") chartInstance.render();
+          }
+        }
+
+        if (canvas.width > 0 && canvas.height > 0) {
+          const dataUrl = canvas.toDataURL("image/png", 1.0);
+          if (dataUrl && dataUrl.length > 500) {
+            const isPie = canvas.id === "chart-statut-pie" || canvas.id === "chart-audit-pie" || (canvas.closest && canvas.closest(".doughnut-chart-container"));
+            const isCustomPrint = document.body.classList.contains("print-custom-active");
+
+            const img = document.createElement("img");
+            img.src = dataUrl;
+            img.className = "print-chart-image " + (isPie ? "print-chart-image-pie " : "") + "d-none d-print-block";
+
+            if (isCustomPrint && !isPie) {
+              img.style.width = "100%";
+              img.style.maxWidth = "100%";
+              img.style.maxHeight = "320px";
+              img.style.height = "auto";
+            } else if (isPie) {
+              img.style.maxWidth = "280px";
+              img.style.maxHeight = "220px";
+              img.style.height = "auto";
+              img.style.margin = "0 auto";
+            } else {
+              img.style.maxWidth = "100%";
+              img.style.maxHeight = "240px";
+              img.style.height = "auto";
+              img.style.margin = "0 auto";
+            }
+            img.style.display = "block";
+
+            canvas.classList.add("chart-has-print-image");
+            canvas.parentNode.insertBefore(img, canvas);
+            createdImages.push({ img: img, canvas: canvas });
+          }
+        }
+      } catch (err) {
+        console.warn("Erreur conversion canvas d'impression :", err);
+      }
+    });
+
+    await new Promise(function (resolve) { setTimeout(resolve, 200); });
+    return createdImages;
+  };
+
   // ── Impression globale des 4 sections du Tableau de Bord SMQS ──
   window.printDashboard = async function () {
+    document.body.classList.remove("print-custom-active", "print-no-tables");
     document.body.classList.add("print-all-tabs");
 
     // 1. Déplier et rendre temporairement visibles tous les 4 onglets
@@ -4780,6 +5039,9 @@
       pane.style.visibility = "visible";
       pane.style.opacity = "1";
     });
+
+    // Force DOM reflow
+    void document.body.offsetHeight;
 
     // 2. Déclencher le rendu de tous les graphiques sur tous les onglets
     try {
@@ -4799,48 +5061,14 @@
       console.warn("Rendu des graphiques d'impression :", err);
     }
 
-    // 3. Attendre les boucles d'animation et le layout Chart.js
-    await new Promise(function (resolve) {
-      requestAnimationFrame(function () {
-        requestAnimationFrame(resolve);
-      });
-    });
-    await new Promise(function (resolve) { setTimeout(resolve, 350); });
+    // 3. Convertir les canvas en images
+    const allCanvases = Array.from(document.querySelectorAll("#tdbTabsContent canvas"));
+    const createdImages = await window.prepareChartsForPrint(allCanvases);
 
-    // 4. Convertir chaque canvas Chart.js en image PNG temporaire pour l'impression/PDF
-    const createdImages = [];
-    const canvases = document.querySelectorAll("#tdbTabsContent canvas");
-
-    canvases.forEach(function (canvas) {
-      try {
-        if (canvas.width > 0 && canvas.height > 0) {
-          const dataUrl = canvas.toDataURL("image/png", 1.0);
-          if (dataUrl && dataUrl !== "data:,") {
-            const isPie = canvas.id === "chart-statut-pie" || canvas.id === "chart-audit-pie" || (canvas.closest && canvas.closest(".doughnut-chart-container"));
-            const img = document.createElement("img");
-            img.src = dataUrl;
-            img.className = "print-chart-image " + (isPie ? "print-chart-image-pie " : "") + "d-none d-print-block";
-            img.style.maxWidth = isPie ? "280px" : "100%";
-            img.style.maxHeight = "210px";
-            img.style.height = "auto";
-            img.style.margin = "0 auto";
-
-            canvas.classList.add("chart-has-print-image");
-            canvas.parentNode.insertBefore(img, canvas);
-            createdImages.push({ img: img, canvas: canvas });
-          }
-        }
-      } catch (err) {
-        console.warn("Erreur conversion canvas d'impression :", err);
-      }
-    });
-
-    await new Promise(function (resolve) { setTimeout(resolve, 200); });
-
-    // 5. Lancer l'impression
+    // 4. Lancer l'impression
     window.print();
 
-    // 6. Nettoyage après impression
+    // 5. Nettoyage après impression
     const cleanup = function () {
       document.body.classList.remove("print-all-tabs");
       tabPanes.forEach(function (pane) {
@@ -4860,10 +5088,13 @@
     };
 
     window.addEventListener("afterprint", cleanup, { once: true });
+    setTimeout(cleanup, 4000);
   };
 
   window.addEventListener("beforeprint", function () {
-    document.body.classList.add("print-all-tabs");
+    if (!document.body.classList.contains("print-custom-active")) {
+      document.body.classList.add("print-all-tabs");
+    }
     if (typeof Chart !== "undefined" && Chart.instances) {
       Object.values(Chart.instances).forEach(function (chart) {
         try {
@@ -4876,8 +5107,149 @@
   });
 
   window.addEventListener("afterprint", function () {
-    document.body.classList.remove("print-all-tabs");
+    if (!document.body.classList.contains("print-custom-active")) {
+      document.body.classList.remove("print-all-tabs");
+    }
   });
+
+  // ── Impression Personnalisée SMQS (Sélection de graphiques + option Tableaux) ──
+  window.toggleAllPrintCheckboxes = function (selectAll) {
+    const checkboxes = document.querySelectorAll(".js-print-chart-checkbox");
+    checkboxes.forEach(function (cb) {
+      cb.checked = !!selectAll;
+    });
+    const alertEl = document.getElementById("printModalAlert");
+    if (alertEl && selectAll) {
+      alertEl.classList.add("d-none");
+    }
+  };
+
+  window.openPrintCustomModal = function (preselectedPk) {
+    const alertEl = document.getElementById("printModalAlert");
+    if (alertEl) alertEl.classList.add("d-none");
+
+    if (preselectedPk) {
+      window.toggleAllPrintCheckboxes(false);
+      const targetCb = document.getElementById("print-check-" + preselectedPk);
+      if (targetCb) targetCb.checked = true;
+    }
+
+    if (window.jQuery && $('#printCustomModal').modal) {
+      $('#printCustomModal').modal('show');
+    } else if (window.bootstrap && bootstrap.Modal) {
+      var modalEl = document.getElementById('printCustomModal');
+      var modalInst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+      modalInst.show();
+    }
+  };
+
+  window.submitCustomPrint = async function () {
+    const checkedBoxes = document.querySelectorAll(".js-print-chart-checkbox:checked");
+    const selectedPks = Array.from(checkedBoxes).map(function (cb) { return cb.value; });
+    const alertEl = document.getElementById("printModalAlert");
+
+    if (selectedPks.length === 0) {
+      if (alertEl) {
+        alertEl.classList.remove("d-none");
+      } else {
+        alert("Veuillez sélectionner au moins un graphique à imprimer.");
+      }
+      return;
+    }
+
+    if (alertEl) alertEl.classList.add("d-none");
+
+    const includeTables = document.getElementById("printOptWithTables") ? document.getElementById("printOptWithTables").checked : true;
+
+    // Fermeture de la modale
+    if (window.jQuery && $('#printCustomModal').modal) {
+      $('#printCustomModal').modal('hide');
+    } else if (window.bootstrap && bootstrap.Modal) {
+      var modalEl = document.getElementById('printCustomModal');
+      var modalInst = bootstrap.Modal.getInstance(modalEl);
+      if (modalInst) modalInst.hide();
+    }
+
+    await window.executeCustomPrint(selectedPks, includeTables);
+  };
+
+  window.executeCustomPrint = async function (selectedPks, includeTables) {
+    document.body.classList.remove("print-all-tabs");
+    document.body.classList.add("print-custom-active");
+    if (!includeTables) {
+      document.body.classList.add("print-no-tables");
+    }
+
+    // 1. Déplier et rendre visible uniquement l'onglet Vue Graphique
+    const tabPanes = document.querySelectorAll("#tdbTabsContent > .tab-pane, .tab-pane");
+    tabPanes.forEach(function (pane) {
+      if (pane.id === "tab-graphiques") {
+        pane.style.display = "block";
+        pane.style.visibility = "visible";
+        pane.style.opacity = "1";
+      } else {
+        pane.style.display = "none";
+      }
+    });
+
+    // 2. Marquer les blocs cartes d'indicateurs selon la sélection
+    const indicatorBlocks = document.querySelectorAll(".indicator-print-block, [id^='indicator-card-']");
+    const targetCanvases = [];
+
+    indicatorBlocks.forEach(function (block) {
+      const cardId = block.id || "";
+      const pk = cardId.replace("indicator-card-", "");
+      if (selectedPks.includes(pk)) {
+        block.classList.add("print-keep");
+        block.classList.remove("print-exclude");
+        const canvas = document.getElementById("indicator-chart-" + pk);
+        if (canvas) targetCanvases.push(canvas);
+      } else {
+        block.classList.add("print-exclude");
+        block.classList.remove("print-keep");
+      }
+    });
+
+    // 3. Forcer le rendu des graphiques sélectionnés
+    try {
+      if (typeof window.renderAllVisibleIndicatorCharts === "function") {
+        window.renderAllVisibleIndicatorCharts();
+      }
+    } catch (err) {
+      console.warn("Erreur rendu graphiques personnalisés:", err);
+    }
+
+    // 4. Conversion canvas -> images pour les indicateurs sélectionnés
+    const createdImages = await window.prepareChartsForPrint(targetCanvases);
+
+    // 5. Lancer l'impression
+    window.print();
+
+    // 6. Nettoyage après impression
+    const cleanupCustom = function () {
+      document.body.classList.remove("print-custom-active", "print-no-tables");
+      tabPanes.forEach(function (pane) {
+        pane.style.display = "";
+        pane.style.visibility = "";
+        pane.style.opacity = "";
+      });
+      indicatorBlocks.forEach(function (block) {
+        block.classList.remove("print-keep", "print-exclude");
+      });
+      createdImages.forEach(function (item) {
+        if (item.img && item.img.parentNode) {
+          item.img.parentNode.removeChild(item.img);
+        }
+        if (item.canvas) {
+          item.canvas.classList.remove("chart-has-print-image");
+        }
+      });
+      window.removeEventListener("afterprint", cleanupCustom);
+    };
+
+    window.addEventListener("afterprint", cleanupCustom, { once: true });
+    setTimeout(cleanupCustom, 4000);
+  };
 
   // ── Garde : formule obligatoire en mode « formule » ──
   function showFormulaError(ctx, message) {
@@ -5052,6 +5424,18 @@
   .tdb-header-btn--print:hover {
     background-color: #5a6268;
     border-color: #545b62;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--custom-print {
+    background-color: #2563eb;
+    border-color: #2563eb;
+    color: #ffffff !important;
+  }
+
+  .tdb-header-btn--custom-print:hover {
+    background-color: #1d4ed8;
+    border-color: #1e40af;
     color: #ffffff !important;
   }
 
@@ -5388,11 +5772,69 @@
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    border-radius: 0.25rem;
-    position: relative !important;
-    z-index: 15 !important;
-    pointer-events: auto !important;
     cursor: pointer !important;
+  }
+
+  /* ── Neutralisation absolue des boutons et colonnes d'actions à l'impression ── */
+  @media print {
+    .no-print,
+    .process-actions,
+    .tdb-process-actions,
+    .actions-cell,
+    .actions-buttons,
+    .tdb-row-actions,
+    .tdb-action-btn,
+    .actions-col,
+    .actions-column,
+    th.actions-col,
+    td.actions-col,
+    th.actions-column,
+    td.actions-column,
+    #synthese-table th.actions-column,
+    #synthese-table td.actions-column,
+    #synthese-table th.actions-col,
+    #synthese-table td.actions-col,
+    #objectives-comparative-table th.actions-column,
+    #objectives-comparative-table td.actions-column,
+    .js-edit-process,
+    .js-delete-process,
+    .js-open-measure-modal,
+    .js-open-indicator-chart,
+    .js-open-indicator-objective,
+    .js-edit-indicator,
+    .js-delete-indicator {
+      display: none !important;
+      width: 0 !important;
+      max-width: 0 !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+    }
+
+    #synthese-table {
+      display: table !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      table-layout: fixed !important;
+      border-collapse: collapse !important;
+    }
+
+    #synthese-table th.indicator-column,
+    #synthese-table td.indicator-column {
+      width: 20% !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      font-size: 11px !important;
+    }
+
+    #synthese-table th.month-column,
+    #synthese-table td.month-column {
+      width: 4% !important;
+      text-align: center !important;
+      font-size: 10px !important;
+      padding: 3px 1px !important;
+    }
   }
 </style>
 
