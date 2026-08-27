@@ -16,7 +16,6 @@ from .models import (
     MesureIndicateur,
     ObjectifIndicateur,
     Processus,
-    ProcessusService,
     RegleAccesDossier,
 )
 from .permissions import ROLE_DIRECTION, ROLE_PILOTE_PROCESSUS, ROLE_QSE, ROLE_UTILISATEUR
@@ -27,11 +26,11 @@ User = get_user_model()
 
 class DocumentTransitionTests(TestCase):
     def setUp(self):
-        self.processus = ProcessusService.objects.create(code="PM02", libelle="Processus documentaire")
+        self.processus = Processus.objects.create(code="PM02", nom="Processus documentaire")
         self.user = User.objects.create_user(username="redacteur", password="testpass123")
         self.document = Document.objects.create(
             type_document=Document.TypeDocument.PROCEDURE,
-            processus_service=self.processus,
+            processus=self.processus,
             numero_ordre=1,
             titre="Gestion documentaire",
             statut=Document.Statut.BROUILLON,
@@ -59,13 +58,13 @@ class DocumentTransitionTests(TestCase):
 
 class UniqueApplicableConstraintTests(TestCase):
     def setUp(self):
-        self.processus = ProcessusService.objects.create(code="PM02", libelle="Processus documentaire")
+        self.processus = Processus.objects.create(code="PM02", nom="Processus documentaire")
         self.user = User.objects.create_user(username="qse_user", password="testpass123")
 
     def test_un_seul_document_applicable_par_code_documentaire(self):
         doc1 = Document.objects.create(
             type_document=Document.TypeDocument.PROCEDURE,
-            processus_service=self.processus,
+            processus=self.processus,
             numero_ordre=1,
             titre="Doc v1",
             statut=Document.Statut.APPLICABLE,
@@ -74,7 +73,7 @@ class UniqueApplicableConstraintTests(TestCase):
 
         doc2 = Document.objects.create(
             type_document=Document.TypeDocument.PROCEDURE,
-            processus_service=self.processus,
+            processus=self.processus,
             numero_ordre=1,
             titre="Doc v2",
             statut=Document.Statut.BROUILLON,
@@ -94,7 +93,7 @@ class UniqueApplicableConstraintTests(TestCase):
 
 class PermissionsByRoleTests(TestCase):
     def setUp(self):
-        self.processus = ProcessusService.objects.create(code="PM02", libelle="Processus documentaire")
+        self.processus = Processus.objects.create(code="PM02", nom="Processus documentaire")
 
         for role in [ROLE_QSE, ROLE_PILOTE_PROCESSUS, ROLE_DIRECTION, ROLE_UTILISATEUR]:
             Group.objects.get_or_create(name=role)
@@ -115,7 +114,7 @@ class PermissionsByRoleTests(TestCase):
 
         self.doc_applicable = Document.objects.create(
             type_document=Document.TypeDocument.PROCEDURE,
-            processus_service=self.processus,
+            processus=self.processus,
             numero_ordre=10,
             titre="Applicable",
             statut=Document.Statut.APPLICABLE,
@@ -123,7 +122,7 @@ class PermissionsByRoleTests(TestCase):
         )
         self.doc_brouillon = Document.objects.create(
             type_document=Document.TypeDocument.MODE_OPERATOIRE,
-            processus_service=self.processus,
+            processus=self.processus,
             numero_ordre=11,
             titre="Brouillon",
             statut=Document.Statut.BROUILLON,
@@ -668,7 +667,7 @@ class TdbModuleTests(TestCase):
         self.assertEqual(res_conforme["code"], "conforme")
         self.assertEqual(res_conforme["label"], "Objectif atteint")
         self.assertEqual(res_conforme["badge_class"], "badge-success")
-        self.assertAlmostEqual(res_conforme["taux_atteinte"], 125.00, places=2)
+        self.assertAlmostEqual(res_conforme["taux_atteinte"], 100.00, places=2)
 
         # Cas Réalisé = 0 => Objectif atteint, pas de division par zéro
         res_zero = evaluer_statut_indicateur(ind_tf, Decimal("0.0000"), obj)

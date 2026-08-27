@@ -12,7 +12,6 @@ from .models import (
     MesureIndicateur,
     ObjectifIndicateur,
     Processus,
-    ProcessusService,
     RealiseConsolideIndicateur,
     ValidationDocument,
     VersionDocument,
@@ -39,26 +38,19 @@ class ValidationDocumentInline(admin.TabularInline):
     can_delete = False
 
 
-@admin.register(ProcessusService)
-class ProcessusServiceAdmin(admin.ModelAdmin):
-    list_display = ("code", "libelle", "actif", "date_modification")
-    list_filter = ("actif",)
-    search_fields = ("code", "libelle")
-
-
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
     list_display = (
         "code_documentaire",
         "titre",
         "type_document",
-        "processus_service",
+        "processus",
         "statut",
         "date_application",
         "date_retrait",
         "est_supprime",
     )
-    list_filter = ("type_document", "statut", "processus_service", "est_supprime")
+    list_filter = ("type_document", "statut", "processus", "est_supprime")
     search_fields = ("code_documentaire", "titre", "reference_documentaire")
     readonly_fields = ("code_documentaire", "date_creation", "date_modification", "date_suppression")
     inlines = [VersionDocumentInline, ValidationDocumentInline]

@@ -30,7 +30,7 @@
       </div>
       <div class="col-12 col-md-3 mb-2">
         <div class="small text-muted text-uppercase">Processus</div>
-        <div class="font-weight-bold">{% if document.processus_service %}{{ document.processus_service.code }} - {{ document.processus_service.libelle }}{% else %}-{% endif %}</div>
+        <div class="font-weight-bold">{% if document.processus %}{{ document.processus.code }} - {{ document.processus.nom }}{% else %}-{% endif %}</div>
       </div>
       <div class="col-12 col-md-3 mb-2">
         <div class="small text-muted text-uppercase">Rédacteur initial</div>

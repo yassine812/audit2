@@ -11,25 +11,6 @@ from django.utils import timezone
 from django.utils.text import get_valid_filename
 
 
-class ProcessusService(models.Model):
-    """Référentiel des processus/services (PM02, PS01, PR04...)."""
-
-    code = models.CharField(max_length=10, unique=True, verbose_name="Code")
-    libelle = models.CharField(max_length=255, verbose_name="Libellé")
-    description = models.TextField(blank=True, verbose_name="Description")
-    actif = models.BooleanField(default=True, verbose_name="Actif")
-    date_creation = models.DateTimeField(auto_now_add=True, verbose_name="Date de création")
-    date_modification = models.DateTimeField(auto_now=True, verbose_name="Date de modification")
-
-    class Meta:
-        ordering = ["code"]
-        verbose_name = "Processus / Service"
-        verbose_name_plural = "Processus / Services"
-
-    def __str__(self) -> str:
-        return f"{self.code} - {self.libelle}"
-
-
 class DossierDocumentaire(models.Model):
     """Dossier hiérarchique de classement de la bibliothèque documentaire."""
 
@@ -260,13 +241,13 @@ class Document(models.Model):
         choices=TypeDocument.choices,
         verbose_name="Type de document",
     )
-    processus_service = models.ForeignKey(
-        ProcessusService,
+    processus = models.ForeignKey(
+        "Processus",
         on_delete=models.PROTECT,
         related_name="documents",
         null=True,
         blank=True,
-        verbose_name="Processus / Service",
+        verbose_name="Processus",
     )
     dossier = models.ForeignKey(
         DossierDocumentaire,
@@ -382,13 +363,13 @@ class Document(models.Model):
     def generer_code_documentaire(self) -> str:
         numero = f"{self.numero_ordre:03d}"
         if self.type_document in {self.TypeDocument.PROCEDURE, self.TypeDocument.MODE_OPERATOIRE}:
-            if not self.processus_service_id:
-                raise ValidationError("Le processus/service est obligatoire pour ce type de document.")
-            return f"{self.code_prefixe}-{self.processus_service.code}-{numero}"
+            if not self.processus_id:
+                raise ValidationError("Le processus est obligatoire pour ce type de document.")
+            return f"{self.code_prefixe}-{self.processus.code}-{numero}"
         if self.type_document in {self.TypeDocument.FORMULAIRE, self.TypeDocument.ENREGISTREMENT}:
             return f"DOC-{numero}"
-        if self.processus_service_id:
-            return f"ASSOC-{self.processus_service.code}-{numero}"
+        if self.processus_id:
+            return f"ASSOC-{self.processus.code}-{numero}"
         return f"ASSOC-{numero}"
 
     def can_transition_to(self, nouveau_statut: str) -> bool:
@@ -444,11 +425,11 @@ class Document(models.Model):
         super().clean()
 
         if self.type_document in {self.TypeDocument.PROCEDURE, self.TypeDocument.MODE_OPERATOIRE}:
-            if not self.processus_service_id:
-                raise ValidationError({"processus_service": "Ce champ est obligatoire pour PROC/MO."})
+            if not self.processus_id:
+                raise ValidationError({"processus": "Ce champ est obligatoire pour PROC/MO."})
 
-        if self.type_document in {self.TypeDocument.FORMULAIRE, self.TypeDocument.ENREGISTREMENT} and self.processus_service_id:
-            raise ValidationError({"processus_service": "Les DOC (Formulaire/Enregistrement) utilisent le format DOC-NNN."})
+        if self.type_document in {self.TypeDocument.FORMULAIRE, self.TypeDocument.ENREGISTREMENT} and self.processus_id:
+            raise ValidationError({"processus": "Les DOC (Formulaire/Enregistrement) utilisent le format DOC-NNN."})
 
         if self.statut == self.Statut.SUPPRIME and not self.est_supprime:
             raise ValidationError({"est_supprime": "Le drapeau de suppression logique est obligatoire."})

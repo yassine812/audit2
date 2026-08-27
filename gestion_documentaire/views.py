@@ -401,7 +401,7 @@ class DocumentDetailView(ModuleDocumentaireRequiredMixin, DocumentVisibilityQuer
         return (
             super()
             .get_queryset()
-            .select_related("processus_service", "cree_par")
+            .select_related("processus", "cree_par")
             .prefetch_related("versions__redacteur", "validations__utilisateur")
         )
 

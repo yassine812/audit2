@@ -11,7 +11,7 @@ from .models import (
     DossierDocumentaire,
     FichierBibliotheque,
     RegleAccesDossier,
-    ProcessusService,
+    Processus,
     VersionDocument,
 )
 
@@ -190,9 +190,9 @@ class DocumentFilterForm(forms.Form):
     q = forms.CharField(required=False, label="Recherche")
     type_document = forms.ChoiceField(required=False, label="Type")
     processus = forms.ModelChoiceField(
-        queryset=ProcessusService.objects.filter(actif=True).order_by("code"),
+        queryset=Processus.objects.filter(is_active=True).order_by("code"),
         required=False,
-        label="Processus / service",
+        label="Processus",
     )
     statut = forms.ChoiceField(required=False, label="Statut")
 
@@ -221,7 +221,7 @@ class DocumentForm(forms.ModelForm):
         fields = [
             "type_document",
             "dossier",
-            "processus_service",
+            "processus",
             "numero_ordre",
             "titre",
             "objet",
