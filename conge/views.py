@@ -1,20 +1,32 @@
 """Vues du module Gestion des Congés."""
 
 import base64
-import logging
-import os
+import datetime
 from datetime import date
 from io import BytesIO
+import logging
+import os
 
+from django.conf import settings as django_settings
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.core.mail import send_mail
+from django.contrib.staticfiles import finders as _finders
+from django.core.mail import EmailMessage, send_mail
 from django.core.paginator import Paginator
 from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.clickjacking import xframe_options_exempt
+
+try:
+    from weasyprint import HTML as WeasyprintHTML, HTML
+except Exception:
+    WeasyprintHTML = None
+    HTML = None
+
+from accounts.models import Section
 
 from .forms import DemandeCongeForm, ValidationCongeForm
 from .models import DemandeConge
@@ -29,6 +41,7 @@ from .validation import (
     _societe_q,
 )
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 
@@ -43,10 +56,6 @@ def _generer_pdf_demande(demande, exemplaire: str, request=None) -> bytes:
     Utilise un base_url basé sur le système de fichiers (file://) pour éviter
     les requêtes HTTP internes — fiable en développement comme en production.
     """
-    from django.conf import settings as django_settings
-    from django.contrib.staticfiles import finders as _finders
-    from weasyprint import HTML as WeasyprintHTML
-
     # Résolution du logo : finders → STATIC_ROOT → assets/ à la racine
     logo_b64 = ""
     logo_path = _finders.find("dist/img/abserveLogo.png")
@@ -158,9 +167,6 @@ def _notifier_responsables(demande, request) -> None:
     - Autre    → is_RO + is_assistante de la même société
     + Superadmin : toujours inclus dans toutes les alertes
     """
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
     demandeur = demande.demandeur
 
     # ── Destinataires spécifiques selon le rôle ───────────────────────────────
@@ -244,8 +250,6 @@ def _notifier_demandeur(demande, request) -> None:
     """
     if not demande.demandeur.email:
         return
-
-    from django.core.mail import EmailMessage
 
     is_valide = demande.is_valide
     template  = (
@@ -511,9 +515,7 @@ def telecharger_pdf(request, pk: int, exemplaire: str = "demandeur"):
         messages.error(request, "Le PDF n'est disponible qu'après validation de la demande.")
         return redirect("conge:detail", pk=pk)
 
-    try:
-        from weasyprint import HTML  # noqa: F401 — vérifie la disponibilité
-    except ImportError:
+    if WeasyprintHTML is None:
         messages.error(request, "WeasyPrint n'est pas disponible. Impossible de générer le PDF.")
         return redirect("conge:detail", pk=pk)
 
@@ -590,8 +592,6 @@ def dashboard_conge(request):
     ]
 
     # Filtres pour superadmin (section, année)
-    from django.contrib.auth import get_user_model
-    from accounts.models import Section
     sections_disponibles = Section.objects.all() if user.is_superuser else []
     filtre_section = request.GET.get("section", "").strip()
     filtre_annee   = request.GET.get("annee", "").strip()
@@ -613,7 +613,6 @@ def dashboard_conge(request):
         except (ValueError, TypeError):
             pass
 
-    import datetime
     current_year = datetime.date.today().year
     annees = list(range(current_year, current_year - 5, -1))
 

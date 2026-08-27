@@ -2,24 +2,47 @@
 
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+import io
+import json
+import re
+import traceback
+import unicodedata
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.base import ContentFile
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Q, Sum
-import json
-import unicodedata
-
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.text import slugify
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, TemplateView, UpdateView, View
+
+try:
+    from weasyprint import HTML
+except Exception:
+    HTML = None
+
+from openpyxl import Workbook
+from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference
+try:
+    from openpyxl.chart import DoughnutChart
+except (ImportError, AttributeError):
+    DoughnutChart = None
+from openpyxl.chart.legend import Legend
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+
+from accounts.models import Societe
 
 from .forms import (
     DocumentFilterForm,
@@ -27,14 +50,14 @@ from .forms import (
     DossierDocumentaireForm,
     DossierParametresForm,
     FichierBibliothequeForm,
+    IndicateurForm,
     NouvelleRegleAccesFormSet,
+    ProcessusForm,
     RegleAccesDossierFormSet,
     VersionDocumentForm,
-    ProcessusForm,
 )
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-
 from .models import (
+    ComposanteIndicateur,
     Document,
     DossierDocumentaire,
     FichierBibliotheque,
@@ -45,35 +68,34 @@ from .models import (
     RealiseConsolideIndicateur,
     RegleAccesDossier,
     ValidationDocument,
-    VersionDocument,
-    ComposanteIndicateur,
     ValeurComposanteIndicateur,
+    VersionDocument,
 )
-from .utils_formule import evaluer_formule_securisee, valider_formule_securisee
 from .permissions import (
     DirectionOuHabiliteRequiredMixin,
     DocumentVisibilityQuerysetMixin,
+    ModificationBibliothequeRequiredMixin,
+    ModuleDocumentaireRequiredMixin,
     PiloteOuQSERequiredMixin,
     QSERequiredMixin,
-    ModuleDocumentaireRequiredMixin,
-    ModificationBibliothequeRequiredMixin,
     TdbAccesRequiredMixin,
     direction_ou_habilite_required,
     filter_documents_for_user,
     is_direction_ou_habilite,
     is_pilote_ou_qse,
     is_qse,
-    pilote_ou_qse_required,
     modification_bibliotheque_required,
     module_documentaire_required,
     peut_modifier_bibliotheque,
-    qse_required,
-    tdb_acces_required,
+    pilote_ou_qse_required,
     processus_dans_perimetre_smqs,
     processus_perimetre_smqs_qs,
+    qse_required,
+    tdb_acces_required,
     user_peut_utiliser_indicateurs_smqs,
     user_peut_voir_tdb,
 )
+from .utils_formule import evaluer_formule_securisee, valider_formule_securisee
 
 
 def _get_latest_version(document: Document):
@@ -711,9 +733,7 @@ def exporter_document_pdf(request, pk):
     </html>
     """
 
-    try:
-        from weasyprint import HTML
-    except Exception:
+    if HTML is None:
         return HttpResponse("WeasyPrint est requis pour l'export PDF.", status=500)
 
     pdf_bytes = HTML(string=html).write_pdf(pdf_version="1.4")
@@ -1140,9 +1160,6 @@ def generer_options_chart_compatibles(indicateur) -> List[Dict[str, str]]:
     return chart_options
 
 
-from django.utils.text import slugify
-
-
 def generer_code_processus_depuis_nom(nom: str) -> str:
     """
     Génère un code court de processus à partir des initiales/mots du nom.
@@ -1492,8 +1509,6 @@ def obtenir_donnees_tableau_de_bord(user, request_params, kwargs_processus_id=No
     """
     tous_processus_qs = processus_perimetre_smqs_qs(user)
     tous_processus_qs = tous_processus_qs.select_related("societe").prefetch_related("RO", "RS", "CE").order_by("code")
-
-    from accounts.models import Societe
 
     # 1. Société / périmètre
     societes_disponibles_qs = Societe.objects.filter(
@@ -2221,11 +2236,6 @@ def tdb_export_excel(request):
     Prend en compte dynamiquement les types de graphiques (Courbe, Barres, Aires) sélectionnés dans l'interface web.
     Consomme EXCLUSIVEMENT `obtenir_donnees_tableau_de_bord` sans aucune duplication de logique métier.
     """
-    from openpyxl import Workbook
-    from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from openpyxl.utils import get_column_letter
-
     # Extraire les filtres et les types de graphiques sélectionnés (support GET et POST)
     req_params = request.GET.copy()
     chart_types = {}
@@ -2271,8 +2281,6 @@ def tdb_export_excel(request):
             return c
 
     data = obtenir_donnees_tableau_de_bord(request.user, req_params)
-
-    import io
 
     annee = data["annee"]
     processus_filtered = data["processus"]
@@ -2952,11 +2960,13 @@ def tdb_export_excel(request):
         nc.border = thin_border
 
     # ── 7. DoughnutChart (donut) ──────────────────────────────────────────────
-    try:
-        from openpyxl.chart import DoughnutChart
-        donut = DoughnutChart()
-        donut.holeSize = 60   # trou plus large = donut moins écrasé
-    except (ImportError, AttributeError):
+    if DoughnutChart is not None:
+        try:
+            donut = DoughnutChart()
+            donut.holeSize = 60   # trou plus large = donut moins écrasé
+        except Exception:
+            donut = PieChart()
+    else:
         donut = PieChart()
 
     donut.title  = "Répartition globale de conformité d'audit"
@@ -2977,7 +2987,6 @@ def tdb_export_excel(request):
     donut.set_categories(chart_labels_ref)
 
     # Légende à droite, toujours créée
-    from openpyxl.chart.legend import Legend
     donut.legend = Legend()
     donut.legend.position = "r"   # droite
     donut.legend.overlay  = False  # ne pas superposer au plot
@@ -3018,10 +3027,8 @@ def tdb_export_excel(request):
         return response
 
     except Exception as exc:
-        import traceback
-        from django.http import JsonResponse as _JsonResponse
         print("EXCEL EXPORT ERROR:\n", traceback.format_exc())
-        return _JsonResponse(
+        return JsonResponse(
             {"error": str(exc), "traceback": traceback.format_exc()},
             status=500,
         )
@@ -3306,7 +3313,6 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
             return redirect_to_login(request.get_full_path())
         if not request.user.is_superuser:
             raise PermissionDenied("Seuls les administrateurs peuvent créer un processus.")
@@ -3363,20 +3369,6 @@ class ProcessusCreateView(LoginRequiredMixin, CreateView):
         messages.error(self.request, "Veuillez corriger les erreurs dans le formulaire de création du processus.")
         return redirect(self.get_success_url())
 
-from .forms import (
-    DocumentFilterForm,
-    DocumentForm,
-    DossierDocumentaireForm,
-    DossierParametresForm,
-    FichierBibliothequeForm,
-    IndicateurForm,
-    NouvelleRegleAccesFormSet,
-    ProcessusForm,
-    RegleAccesDossierFormSet,
-    VersionDocumentForm,
-)
-
-
 class IndicateurCreateView(LoginRequiredMixin, CreateView):
     """Vue de création d'un nouvel indicateur SMQS."""
 
@@ -3385,7 +3377,6 @@ class IndicateurCreateView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
-            from django.contrib.auth.views import redirect_to_login
             return redirect_to_login(request.get_full_path())
         if not user_peut_utiliser_indicateurs_smqs(request.user):
             raise PermissionDenied("Accès réservé aux RS, RO et CE.")
@@ -3598,7 +3589,6 @@ def _post_composantes_formule(request):
 
 def _normaliser_composantes_formule(comp_codes, comp_libelles):
     """Normalise les composantes d'une formule et renvoie (comps_to_create, codes_clean)."""
-    import re
     comps_to_create = []
     codes_clean = set()
     for i, c_code in enumerate(comp_codes):

@@ -4,7 +4,13 @@ Backend principal : OpenAI. Repli automatique : Google Gemini.
 """
 import logging
 from typing import Optional
+import requests
 from django.conf import settings
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +25,7 @@ def _openai_key_valid() -> bool:
 
 def _get_client():
     """Retourne un client OpenAI configuré."""
-    try:
-        from openai import OpenAI
-    except ImportError:
+    if OpenAI is None:
         raise ImportError(
             "Le package 'openai' n'est pas installé. "
             "Ajoutez 'openai' à requirements.txt et relancez pip install."
@@ -38,7 +42,6 @@ def _get_client():
 
 def _generate_with_gemini(prompt: str, system_instruction: Optional[str] = None) -> str:
     """Génère du texte via l'API REST Google Gemini (repli)."""
-    import requests
 
     api_key = getattr(settings, 'GEMINI_API_KEY', '') or ''
     if not api_key:

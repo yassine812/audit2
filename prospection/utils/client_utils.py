@@ -1,5 +1,7 @@
 """Résolution de la base Sage (WebServices100) pour une société donnée."""
 import unicodedata
+from django.conf import settings
+from accounts.models import Societe
 
 
 def _normalize(name: str) -> str:
@@ -27,7 +29,6 @@ def get_base_url(societe_id):
         return None
 
     try:
-        from accounts.models import Societe
         societe = Societe.objects.filter(id=societe_id).first()
     except Exception:
         return None

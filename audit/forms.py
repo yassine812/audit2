@@ -1,11 +1,13 @@
 """Formulaires du module audit (Bootstrap/AdminLTE)."""
 
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet, inlineformset_factory
 
 from .models import (
     Audit,
+    AuditType,
     BaremeCotation,
     ChapitreNorme,
     CritereEvaluation,
@@ -148,7 +150,6 @@ class AuditForm(BootstrapModelForm):
             self.fields["statut"].widget = forms.HiddenInput()
             self.fields["statut"].required = False
         # Responsable: show all users with a full name
-        from django.contrib.auth import get_user_model
         User = get_user_model()
         self.fields["responsable_audit"].queryset = User.objects.filter(is_active=True).order_by("last_name", "first_name")
         self.fields["responsable_audit"].required = False
@@ -252,7 +253,6 @@ class NiveauxAttendusForm(BootstrapModelForm):
             })
 
         # Provide a multiple-choice field to allow creating one instance per selected type
-        from .models import AuditType
         self.fields['type_audit_multiple'] = forms.MultipleChoiceField(
             choices=AuditType.choices,
             required=False,

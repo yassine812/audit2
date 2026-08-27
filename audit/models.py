@@ -212,7 +212,6 @@ class FormulaireAudit(models.Model):
         verbose_name_plural = "Formulaires d'audit"
 
     def clean(self):
-        from django.core.exceptions import ValidationError
         if self.section and self.type_audit and self.type_audit not in self.MULTI_FORMULAIRE_TYPES:
             qs = FormulaireAudit.objects.filter(section=self.section, type_audit=self.type_audit)
             if self.pk:

@@ -9,6 +9,13 @@ import logging
 from typing import Dict, List, Any, Optional
 from django.conf import settings
 
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+from .openai_utils import _openai_key_valid, _generate_with_gemini
+
 OPENAI_MODEL = getattr(settings, 'OPENAI_MODEL', 'gpt-4o-mini')
 
 logger = logging.getLogger(__name__)
@@ -20,9 +27,7 @@ URL_REGEX = re.compile(r"https?://[^\s)]+")
 
 def _get_client():
     """Retourne un client OpenAI configuré."""
-    try:
-        from openai import OpenAI
-    except ImportError:
+    if OpenAI is None:
         raise ImportError("Le package 'openai' n'est pas installé.")
 
     api_key = getattr(settings, 'OPENAI_API_KEY', None)
@@ -33,7 +38,6 @@ def _get_client():
 
 def _call_ai(prompt: str, system_msg: str, timeout: int = 60) -> str:
     """Appelle OpenAI si configuré, sinon Gemini en repli. Retourne le texte brut."""
-    from .openai_utils import _openai_key_valid, _generate_with_gemini
 
     if not _openai_key_valid():
         logger.info("Clé OpenAI absente ou invalide — repli Gemini pour la recherche prospect.")

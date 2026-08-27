@@ -1,3 +1,4 @@
+import io
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -7,8 +8,13 @@ from django.db import transaction
 from django.test import TestCase
 from django.urls import reverse
 
+from openpyxl import load_workbook
+
+from accounts.models import Societe
+
 from .forms import VersionDocumentForm
 from .models import (
+    ComposanteIndicateur,
     Document,
     DossierDocumentaire,
     FichierBibliotheque,
@@ -16,9 +22,19 @@ from .models import (
     MesureIndicateur,
     ObjectifIndicateur,
     Processus,
+    RealiseConsolideIndicateur,
     RegleAccesDossier,
+    ValeurComposanteIndicateur,
 )
 from .permissions import ROLE_DIRECTION, ROLE_PILOTE_PROCESSUS, ROLE_QSE, ROLE_UTILISATEUR
+from .utils_formule import evaluer_formule_securisee
+from .views import (
+    calculer_fenetre_12_mois_glissants,
+    evaluer_statut_indicateur,
+    generer_code_indicateur,
+    generer_code_processus_depuis_nom,
+    obtenir_donnees_tableau_de_bord,
+)
 
 
 User = get_user_model()
@@ -343,8 +359,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(res.status_code, 403)
 
     def test_perimetre_processus_par_societe(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
-
         societe_b = Societe.objects.create(nom="Société B TdB")
 
         proc_a2 = Processus.objects.create(
@@ -479,8 +493,6 @@ class TdbModuleTests(TestCase):
         res = self.client.post(url_export)
         self.assertEqual(res.status_code, 200)
 
-        import io
-        from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(res.content))
         self.assertEqual(len(wb.sheetnames), 4)
 
@@ -513,7 +525,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(somme_t1, Decimal("2.0000"))
 
     def test_valeur_annuelle_repli_sur_agregat_sans_mesure_stockee(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         MesureIndicateur.objects.create(
             indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
         )
@@ -534,7 +545,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(ind_item["valeur_annuelle_formatee"], "5")
 
     def test_valeur_annuelle_priorite_mesure_stockee(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         MesureIndicateur.objects.create(
             indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
         )
@@ -559,7 +569,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(ind_item["valeur_annuelle_formatee"], "7")
 
     def test_valeur_annuelle_zero_stockee_preservee(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         MesureIndicateur.objects.create(
             indicateur=self.ind_somme, annee=2026, mois=1, valeur=Decimal("2.0000"), saisie_par=self.ro_user
         )
@@ -579,7 +588,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(ind_item["valeur_annuelle_formatee"], "0")
 
     def test_valeur_annuelle_absente_sans_agregat(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         ind_sans = Indicateur.objects.create(
             processus=self.processus,
             code="IND99",
@@ -699,8 +707,6 @@ class TdbModuleTests(TestCase):
         res = self.client.post(url_export, data='{"chart_type": "bar"}', content_type="application/json")
         self.assertEqual(res.status_code, 200)
 
-        import io
-        from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(res.content))
         ws2 = wb["Vue graphique"]
         # Vérification des en-têtes de la table source (Mois, Réalisé, Objectif)
@@ -710,7 +716,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(len(ws2._charts), 2)  # au moins 2 graphiques présents
 
     def test_indicateur_mode_calcul_et_realise_consolide(self):
-        from gestion_documentaire.models import RealiseConsolideIndicateur
         ind_glissant = Indicateur.objects.create(
             processus=self.processus,
             code="PM02-TF",
@@ -737,7 +742,6 @@ class TdbModuleTests(TestCase):
         self.assertEqual(ind_item["statut"]["code"], "non_conforme")  # 19.26 > 15 pour ne_pas_depasser
 
     def test_mode_manuel_indicateur_mensuel_exclusivite_realise_consolide(self):
-        from gestion_documentaire.models import RealiseConsolideIndicateur
         ind_mensuel_manuel = Indicateur.objects.create(
             processus=self.processus,
             code="PM02-MAN",
@@ -794,7 +798,6 @@ class TdbModuleTests(TestCase):
         ])
 
     def test_preservation_donnees_basculement_mode(self):
-        from gestion_documentaire.models import RealiseConsolideIndicateur
         ind = Indicateur.objects.create(
             processus=self.processus,
             code="PM02-SW",
@@ -816,7 +819,6 @@ class TdbModuleTests(TestCase):
 
 class TdbCrudAndCodeGenerationTests(TestCase):
     def setUp(self):
-        from accounts.models import Societe
         self.admin_user = User.objects.create_superuser(
             username="admin_test", email="admin@test.com", password="adminpassword123"
         )
@@ -833,7 +835,6 @@ class TdbCrudAndCodeGenerationTests(TestCase):
         )
 
     def test_generer_code_processus_depuis_nom(self):
-        from .views import generer_code_processus_depuis_nom
         code_ce = generer_code_processus_depuis_nom("Contrôle outil")
         self.assertTrue(code_ce.startswith("CE"))
 
@@ -844,7 +845,6 @@ class TdbCrudAndCodeGenerationTests(TestCase):
         self.assertEqual(code_mq, "MQ")
 
     def test_generer_code_indicateur_format(self):
-        from .views import generer_code_indicateur
         proc = Processus.objects.create(code="TEST", nom="Processus test code", societe=self.societe)
         code1 = generer_code_indicateur(proc)
         self.assertEqual(code1, "TEST01")
@@ -1005,8 +1005,6 @@ class TdbCrudAndCodeGenerationTests(TestCase):
 
 class TdbExportExcelTest(TestCase):
     def setUp(self):
-        from accounts.models import Societe
-        from django.contrib.auth import get_user_model
         User = get_user_model()
         self.user = User.objects.create_superuser("excel_user", "excel@test.com", "pass123")
         self.societe = Societe.objects.create(nom="Société Test Excel")
@@ -1014,8 +1012,6 @@ class TdbExportExcelTest(TestCase):
         self.processus.RO.add(self.user)
 
     def test_export_excel_endpoint(self):
-        import io
-        from openpyxl import load_workbook
         url = reverse("gestion_documentaire:tdb_export_excel")
         self.client.force_login(self.user)
         response = self.client.get(url)
@@ -1037,8 +1033,6 @@ class TdbExportExcelTest(TestCase):
         self.assertIn("Audits et conformité", sheet_names)
 
     def test_export_excel_post_chart_types(self):
-        import io
-        from openpyxl import load_workbook
         url = reverse("gestion_documentaire:tdb_export_excel")
         self.client.force_login(self.user)
         payload = {
@@ -1051,9 +1045,6 @@ class TdbExportExcelTest(TestCase):
 
     def test_export_excel_labels_glissants_avec_annee(self):
         """Un indicateur GLISSANT_12_MOIS doit inscrire ses labels roulants (mois + année) dans le classeur."""
-        import io
-        from openpyxl import load_workbook
-
         ind_glissant = Indicateur.objects.create(
             processus=self.processus,
             code="PM01-GL",
@@ -1091,7 +1082,6 @@ class TdbExportExcelTest(TestCase):
 
 class NouvelIndicateurSansMesuresTests(TestCase):
     def setUp(self):
-        from accounts.models import Societe
         self.user = User.objects.create_superuser("admin_no_m", "admin_no_m@test.com", "pass123")
         self.societe = Societe.objects.create(nom="Société Test")
         self.processus = Processus.objects.create(code="PM01", nom="Pilotage", societe=self.societe)
@@ -1118,7 +1108,6 @@ class NouvelIndicateurSansMesuresTests(TestCase):
         )
 
     def test_nouvel_indicateur_sans_mesures_affiche_12_mois_vides(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         donnees = obtenir_donnees_tableau_de_bord(self.user, {"annee": "2026"})
 
         items_b = [
@@ -1135,7 +1124,6 @@ class NouvelIndicateurSansMesuresTests(TestCase):
         self.assertEqual(item_b["serie_mensuelle"], [None] * 12)
 
     def test_calculer_fenetre_12_mois_glissants_multi_annees(self):
-        from gestion_documentaire.views import calculer_fenetre_12_mois_glissants
         ind = Indicateur.objects.create(
             processus=self.processus,
             code="PM01-03",
@@ -1155,7 +1143,6 @@ class NouvelIndicateurSansMesuresTests(TestCase):
 
 class IndicateurFormuleTests(TestCase):
     def setUp(self):
-        from accounts.models import Societe
         self.user = User.objects.create_superuser("admin_formule", "formula@test.com", "pass123")
         self.societe = Societe.objects.create(nom="Société Formule")
         self.processus, _ = Processus.objects.get_or_create(code="PM02_TEST_FORMULA", defaults={"nom": "Sécurité & Qualité", "societe": self.societe})
@@ -1178,7 +1165,6 @@ class IndicateurFormuleTests(TestCase):
         )
 
     def test_formula_simple_tf_evaluation(self):
-        from gestion_documentaire.utils_formule import evaluer_formule_securisee
         res = evaluer_formule_securisee("(accidents * 1000000) / heures", {
             "accidents": Decimal("3"),
             "heures": Decimal("200000"),
@@ -1186,7 +1172,6 @@ class IndicateurFormuleTests(TestCase):
         self.assertEqual(res, Decimal("15"))
 
     def test_formula_division_by_zero_returns_none(self):
-        from gestion_documentaire.utils_formule import evaluer_formule_securisee
         res = evaluer_formule_securisee("(accidents * 1000000) / heures", {
             "accidents": Decimal("3"),
             "heures": Decimal("0"),
@@ -1194,7 +1179,6 @@ class IndicateurFormuleTests(TestCase):
         self.assertIsNone(res)
 
     def test_formula_glissant_12_mois_consolidation(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         # Saisies sur 12 mois (ex: Avril 2025 à Mars 2026)
         # 3 accidents au total (1 en Mai 2025, 1 en Nov 2025, 1 en Fév 2026)
         ValeurComposanteIndicateur.objects.create(
@@ -1239,7 +1223,6 @@ class IndicateurFormuleTests(TestCase):
         ])
 
     def test_tf_monthly_and_12m_consolidation_exact_user_spec(self):
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
         # Nettoyer les valeurs de composantes pour ce test
         ValeurComposanteIndicateur.objects.filter(composante__in=[self.comp_accidents, self.comp_heures]).delete()
 
@@ -1311,7 +1294,6 @@ class IndicateurFormuleTests(TestCase):
         self.assertEqual(Decimal(str(tf_glissant_item["cumul_valeur_raw"])), Decimal("13.3333"))
 
     def test_evaluer_statut_indicateur_ne_pas_depasser_5_cases(self):
-        from gestion_documentaire.views import evaluer_statut_indicateur
         self.ind_tf.sens_objectif = Indicateur.SensObjectif.NE_PAS_DEPASSER
 
         # Cas 1: objectif=90, réalisé=25.1852 => taux=100.00 %, conforme
@@ -1568,9 +1550,6 @@ class ModeManuelGlissantTests(TestCase):
     """
 
     def setUp(self):
-        from accounts.models import Societe
-        from .models import RealiseConsolideIndicateur
-
         self.user = User.objects.create_superuser("admin_glissant", "glissant@test.com", "pass123")
         self.societe = Societe.objects.create(nom="Société Glissant")
         self.processus = Processus.objects.create(code="PM02", nom="Sécurité & Qualité", societe=self.societe)
@@ -1601,8 +1580,6 @@ class ModeManuelGlissantTests(TestCase):
 
     def test_fenetre_12_mois_traverse_les_annees_manuelle(self):
         """Référence Août 2026 : la série couvre Sept 2025 → Août 2026."""
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
-
         donnees = obtenir_donnees_tableau_de_bord(
             self.user,
             {"annee": "2026", "type_periode": "mois", "periode": "8"},
@@ -1629,8 +1606,6 @@ class ModeManuelGlissantTests(TestCase):
 
     def test_annee_complete_garde_janvier_decembre(self):
         """Année complète : la fenêtre reste Janvier → Décembre (comportement inchangé)."""
-        from gestion_documentaire.views import obtenir_donnees_tableau_de_bord
-
         donnees = obtenir_donnees_tableau_de_bord(self.user, {"annee": "2026"})
         item = next(
             it for group in donnees["processus_groups"]

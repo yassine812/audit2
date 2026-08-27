@@ -11,9 +11,14 @@ from django.db import transaction, IntegrityError
 from django.urls import reverse
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
-import re
+import base64
 import json
+import re
+import traceback
+from urllib.parse import urlparse
 import dateparser
+
+from django.test import RequestFactory
 from .utils.openai_utils import generate_report
 from .utils.prospect_ai import research_prospect
 from django.utils.timesince import timesince
@@ -23,6 +28,19 @@ import pandas as pd
 import requests
 from rest_framework.views import APIView
 from rest_framework.response import Response
+
+try:
+    from openpyxl.drawing.image import Image as XLImage
+except Exception:
+    XLImage = None
+
+try:
+    from reportlab.graphics import renderPM
+    from reportlab.graphics.shapes import Drawing, String, Rect
+    from reportlab.graphics.charts.piecharts import Pie
+    from reportlab.lib import colors
+except Exception:
+    renderPM = Drawing = String = Rect = Pie = colors = None
 
 from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm, PasswordChangeForm
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetCompleteView
@@ -6502,8 +6520,7 @@ def download_enquete_excel(request, enquete_id):
     # Logo
     try:
         _logo_abs = (finders.find('dist/img/abserveLogo.png') or finders.find('dist/img/logo.png'))
-        if _logo_abs:
-            from openpyxl.drawing.image import Image as XLImage  # local import to avoid hard dependency
+        if _logo_abs and XLImage is not None:
             img = XLImage(_logo_abs)
             img.width = 90
             img.height = 90
@@ -7171,11 +7188,11 @@ def _min_mm_segments(segments, total_mm, min_mm=3.0):
 
 def _png_data_uri_from_drawing(drawing):
     try:
-        from reportlab.graphics import renderPM
+        if renderPM is None:
+            return None
         png_bytes = renderPM.drawToString(drawing, fmt='PNG')
         if not png_bytes:
             return None
-        import base64
         b64 = base64.b64encode(png_bytes).decode('ascii')
         return f'data:image/png;base64,{b64}'
     except Exception:
@@ -7184,9 +7201,8 @@ def _png_data_uri_from_drawing(drawing):
 
 def _make_pie_chart_data_uri(labels, values, colors_hex, width=520, height=220):
     try:
-        from reportlab.graphics.shapes import Drawing, String, Rect
-        from reportlab.graphics.charts.piecharts import Pie
-        from reportlab.lib import colors
+        if Drawing is None or Pie is None or colors is None:
+            return None
 
         d = Drawing(width, height)
         pie = Pie()
@@ -7223,8 +7239,8 @@ def _make_pie_chart_data_uri(labels, values, colors_hex, width=520, height=220):
 
 def _make_hbar_chart_data_uri(labels, values, colors_hex, width=520, height=220, max_value=None):
     try:
-        from reportlab.graphics.shapes import Drawing, Rect, String
-        from reportlab.lib import colors
+        if Drawing is None or colors is None:
+            return None
 
         d = Drawing(width, height)
         pad_l = 140
@@ -9020,13 +9036,11 @@ def enquete_details_ajax(request, enquete_id):
         # Récupérer les questions et la dernière réponse du client (si définie) pour chaque question
         questions_payload = []
         client = enquete.client
-        from .models import Reponse  # import local pour éviter cycles
 
         # Base questions: prefer M2M; if empty, derive from responses linked to this enquete
         questions_qs = enquete.questions.all()
         if not questions_qs.exists():
-            from .models import Question, Reponse as _Resp
-            qids = list(_Resp.objects.filter(enquete=enquete).values_list('question_id', flat=True).distinct())
+            qids = list(Reponse.objects.filter(enquete=enquete).values_list('question_id', flat=True).distinct())
             questions_qs = Question.objects.filter(id__in=qids)
 
         for q in questions_qs:
@@ -9090,7 +9104,6 @@ def send_response_pdf_email(request):
                 return JsonResponse({'error': 'Au moins un destinataire est requis'}, status=400)
 
             try:
-                from django.test import RequestFactory
                 rf = RequestFactory()
                 internal_request = rf.get(f'/enquetes/export/pdf/{enquete.id}/')
                 internal_request.user = request.user
@@ -9100,8 +9113,6 @@ def send_response_pdf_email(request):
                 return JsonResponse({'error': f"Erreur lors de la génération du PDF via l'endpoint existant: {str(e)}"}, status=500)
             
             pdf_filename = f"Reponses_Enquete_{enquete.client.nom.replace(' ', '_')}_{enquete.date_reponse.strftime('%Y%m%d') if enquete.date_reponse else 'inconnu'}.pdf"
-            
-            from django.core.mail import EmailMessage
             
             email = EmailMessage(
                 subject=email_subject,
@@ -9119,7 +9130,6 @@ def send_response_pdf_email(request):
             })
             
         except Exception as e:
-            import traceback
             return JsonResponse({
                 'error': f'Erreur lors de l\'envoi de l\'email: {str(e)}',
                 'traceback': traceback.format_exc()

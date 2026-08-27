@@ -8,6 +8,7 @@ Règles de la chaîne (une seule décision suffit) :
   - Superadmin          → reçoit TOUTES les alertes, peut tout valider/refuser
 """
 
+from datetime import date
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
@@ -204,7 +205,6 @@ def marquer_validation(demande, validateur, signature=""):
     """
     Valide la demande. Enregistre le validateur, la date, la signature et le statut.
     """
-    from datetime import date
     demande.validateur            = validateur
     demande.date_validation       = date.today()
     demande.statut                = demande.STATUT_VALIDE
@@ -220,7 +220,6 @@ def marquer_validation(demande, validateur, signature=""):
 
 def refuser_conge(demande, validateur, motif):
     """Refuse la demande et enregistre le validateur et le motif."""
-    from datetime import date
     demande.statut            = demande.STATUT_REFUSE
     demande.validateur        = validateur
     demande.date_validation   = date.today()

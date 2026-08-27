@@ -16,6 +16,7 @@ from unittest.mock import patch, MagicMock
 import requests
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.utils import timezone
@@ -125,7 +126,6 @@ class EntrepriseModelTest(TestCase):
 
     def test_unique_num_compte_par_societe(self):
         make_entreprise(self.societe, is_CLT=True, num_compte="CL002")
-        from django.db import IntegrityError
         with self.assertRaises(IntegrityError):
             make_entreprise(self.societe, is_CLT=True, num_compte="CL002", nom="Other")
 

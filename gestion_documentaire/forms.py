@@ -10,8 +10,9 @@ from .models import (
     Document,
     DossierDocumentaire,
     FichierBibliotheque,
-    RegleAccesDossier,
+    Indicateur,
     Processus,
+    RegleAccesDossier,
     VersionDocument,
 )
 
@@ -351,10 +352,6 @@ class VersionDocumentForm(forms.ModelForm):
         if reference and not reference.name.lower().endswith(".pdf"):
             self.add_error("fichier_reference", "Le fichier de référence doit être au format PDF.")
         return cleaned_data
-#
-
-from .models import Processus, Indicateur
-
 class ProcessusForm(forms.ModelForm):
     """Formulaire de création/modification d'un processus SMQS."""
 

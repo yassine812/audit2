@@ -8,8 +8,10 @@ from typing import Iterable
 from django.contrib.auth.models import Group
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 
 
 ROLE_QSE = "qse"
@@ -348,7 +350,6 @@ def tdb_acces_required(view_func):
     def _wrapped(request, *args, **kwargs):
         user = request.user
         if not getattr(user, "is_authenticated", False):
-            from django.contrib.auth.views import redirect_to_login
             return redirect_to_login(request.get_full_path())
 
         if not user_peut_utiliser_indicateurs_smqs(user):
@@ -362,7 +363,6 @@ def tdb_acces_required(view_func):
                 processus_id = indicateur.processus_id
 
         if processus_id:
-            from django.shortcuts import get_object_or_404
             from .models import Processus
             processus = get_object_or_404(Processus, pk=processus_id)
             if not processus_dans_perimetre_smqs(user, processus):

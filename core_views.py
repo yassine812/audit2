@@ -8,6 +8,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from accounts.models import User as Utilisateur
+
 
 def login_view(request):
     """Page de connexion commune à tous les modules."""
@@ -76,7 +78,6 @@ def update_profile(request):
     new_email = request.POST.get('email')
     new_telephone = request.POST.get('telephone')
 
-    from accounts.models import User as Utilisateur
     if Utilisateur.objects.filter(email=new_email).exclude(pk=user.pk).exists():
         return JsonResponse({
             'success': False,

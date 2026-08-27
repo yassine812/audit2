@@ -9,6 +9,11 @@ import re, os, logging, nltk, warnings, joblib, unicodedata
 from django.utils import timezone
 from nltk.corpus import stopwords
 from nltk.stem import SnowballStemmer
+
+try:
+    from transformers import pipeline  # type: ignore
+except Exception:
+    pipeline = None
  
 
 # Configuration
@@ -49,9 +54,8 @@ class FrenchSentimentAnalyzer:
         # Transformers optionnel
         self.use_hf = os.getenv('USE_HF_SENTIMENT', '0') == '1'
         self._hf_pipeline = None
-        if self.use_hf:
+        if self.use_hf and pipeline is not None:
             try:
-                from transformers import pipeline  # type: ignore
                 self._hf_pipeline = pipeline(
                     'sentiment-analysis',
                     model='cardiffnlp/twitter-xlm-roberta-base-sentiment',
@@ -558,16 +562,15 @@ class ProspectScorer:
 class MultilingualSentimentAnalyzer:
     def __init__(self):
         self._hf_pipeline = None
-        try:
-            from transformers import pipeline  # type: ignore
-            self._hf_pipeline = pipeline(
-                'sentiment-analysis',
-                model='cardiffnlp/twitter-xlm-roberta-base-sentiment',
-                framework='pt'
-            )
-        except Exception:
-            self._hf_pipeline = None
-        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+        if pipeline is not None:
+            try:
+                self._hf_pipeline = pipeline(
+                    'sentiment-analysis',
+                    model='cardiffnlp/twitter-xlm-roberta-base-sentiment',
+                    framework='pt'
+                )
+            except Exception:
+                self._hf_pipeline = None
         self._vader = SentimentIntensityAnalyzer()
 
         try:

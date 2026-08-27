@@ -1,6 +1,7 @@
 """Signaux d'audit automatiques pour enregistrer les actions dans LogEntry."""
 
 import logging
+from django.apps import apps
 from django.contrib.admin.models import LogEntry, ADDITION, CHANGE, DELETION
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save, post_delete
@@ -84,8 +85,6 @@ def register_audit_signal(model_class):
 
 def setup_audit_signals():
     """Connecte automatiquement les signaux d'audit pour tous les modèles métier de tous les modules."""
-    from django.apps import apps
-
     EXCLUDED_APPS = {"contenttypes", "sessions", "admin", "auth", "django_celery_beat", "authtoken"}
     EXCLUDED_MODELS = {"logentry", "session", "permission", "contenttype", "token"}
 
