@@ -320,7 +320,7 @@
             <div class="card card-danger card-outline shadow-xs h-100 border-0" id="card-evolution-container">
                 <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
                     <h5 class="card-title font-weight-bold m-0 text-dark">
-                        <i class="fas fa-chart-line text-danger mr-2"></i><span id="evolution-chart-title">Évolution des signalements — {{ evolution_title_suffix }}</span>
+                        <i class="fas fa-chart-line text-danger mr-2"></i><span id="evolution-chart-title">Évolution des signalements</span>
                     </h5>
                     <form method="get" action="." class="form-inline mb-0" id="form-evolution-period" onsubmit="return false;">
                         {% if selected_type %}<input type="hidden" name="type_signalement" value="{{ selected_type }}">{% endif %}
@@ -959,8 +959,8 @@
             }
 
             var titleEl = document.getElementById('evolution-chart-title');
-            if (titleEl && data.title_suffix) {
-                titleEl.textContent = 'Évolution des signalements — ' + data.title_suffix;
+            if (titleEl) {
+                titleEl.textContent = 'Évolution des signalements';
             }
 
             if (!data.success) {
