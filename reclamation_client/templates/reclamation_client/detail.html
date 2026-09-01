@@ -1,0 +1,543 @@
+{% extends "reclamation_client/base.html" %}
+
+{% block title %}Dossier {{ reclamation.reference }} — {{ reclamation.client_nom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-3">
+    <!-- Header Card -->
+    <div class="card card-outline card-danger shadow-sm">
+        <div class="card-header">
+            <h3 class="card-title font-weight-bold text-dark">
+                <i class="fas fa-folder mr-2 text-danger"></i>Dossier {{ reclamation.reference }} — {{ reclamation.client_nom }}
+                <span class="badge badge-{{ reclamation.statut_badge }} ml-2">{{ reclamation.get_statut_display }}</span>
+            </h3>
+            <div class="card-tools">
+                {% if reclamation.mode_traitement == '8D' %}
+                <a href="{% url 'reclamation:update_8d' reclamation.pk %}" class="btn btn-sm btn-danger font-weight-bold">
+                    <i class="fas fa-edit mr-1"></i> Éditer le Rapport 8D
+                </a>
+                <a href="{% url 'reclamation:export_pdf_8d' reclamation.pk %}" class="btn btn-sm btn-dark" target="_blank">
+                    <i class="fas fa-file-pdf mr-1 text-danger"></i> PDF 8D
+                </a>
+                {% else %}
+                <a href="{% url 'reclamation:update_doc05' reclamation.pk %}" class="btn btn-sm btn-warning font-weight-bold text-dark">
+                    <i class="fas fa-edit mr-1"></i> Éditer Fiche Incident
+                </a>
+                <a href="{% url 'reclamation:export_pdf_doc05' reclamation.pk %}" class="btn btn-sm btn-dark" target="_blank">
+                    <i class="fas fa-file-pdf mr-1 text-danger"></i> PDF Fiche Incident
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card-body">
+            {% if reclamation.mode_traitement != '8D' %}
+            <div class="alert alert-info border-info mb-3">
+                <i class="fas fa-info-circle mr-2"></i>
+                <strong>Support d'analyse : {{ reclamation.get_mode_traitement_display }}</strong> — Ce signalement ({{ reclamation.get_type_signalement_display }}) est géré via une fiche d'incident. L'analyse 8D complète n'est pas requise.
+            </div>
+            {% endif %}
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>N° Réclamation Client :</strong> {{ reclamation.numero_reclamation_client|default:"—" }}<br>
+                    <strong>N° Interne :</strong> {{ reclamation.numero_interne|default:"—" }}<br>
+                    <strong>Société / Site :</strong> {{ reclamation.societe.nom }} / {{ reclamation.site.nom|default:"—" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Type de Signalement :</strong> {{ reclamation.get_type_signalement_display }}<br>
+                    <strong>Support :</strong> {{ reclamation.get_mode_traitement_display }}<br>
+                    <strong>Contact Client :</strong> {{ reclamation.contact_client|default:"—" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Pièce / Prestation :</strong> {{ reclamation.description_piece|default:"—" }}<br>
+                    <strong>Référence Pièce :</strong> {{ reclamation.reference_piece|default:"—" }}<br>
+                    <strong>Quantité Impactée :</strong> {{ reclamation.quantite_impactee }}
+                </div>
+                <div class="col-md-3">
+                    <strong>Date Alerte :</strong> {{ reclamation.date_alerte_client|date:"d/m/Y" }}<br>
+                    <strong>Date Ouverture :</strong> {{ reclamation.date_ouverture|date:"d/m/Y" }}<br>
+                    <strong>Problème Répétitif :</strong> {% if reclamation.est_probleme_repetitif %}<span class="badge badge-warning">OUI</span>{% else %}NON{% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if reclamation.mode_traitement == '8D' %}
+    <!-- Accordion Tabs D1-D8 (Rapport 8D Doc 83) -->
+    <div class="card card-danger card-tabs shadow-sm">
+        <div class="card-header p-0 pt-1">
+            <ul class="nav nav-tabs" id="custom-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="tab-d1-d3-tab" data-toggle="pill" href="#tab-d1-d3" role="tab">D1-D3 : Équipe & Sécurisation</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-d2-tab" data-toggle="pill" href="#tab-d2" role="tab">D2 : QQOQCCP (EST / N'EST PAS)</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-d4-tab" data-toggle="pill" href="#tab-d4" role="tab">D4 : 5 Pourquoi Double Axe</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-d5-d6-tab" data-toggle="pill" href="#tab-d5-d6" role="tab">D5-D6 : Actions Tests & Permanentes</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="tab-d7-d8-tab" data-toggle="pill" href="#tab-d7-d8" role="tab">D7-D8 : Capitalisation & Recevabilité</a>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="custom-tabs-content">
+                <!-- D1-D3 -->
+                <div class="tab-pane fade show active" id="tab-d1-d3" role="tabpanel">
+                    <h5>D1 - Groupe 8D</h5>
+                    <table class="table table-sm table-bordered col-md-8 mb-4">
+                        <thead><tr class="bg-light"><th>Participant</th><th>Fonction</th><th>Pilote</th></tr></thead>
+                        <tbody>
+                            {% for p in participants %}
+                            <tr>
+                                <td>{{ p.user.get_full_name|default:p.nom_externe }}</td>
+                                <td>{{ p.fonction }}</td>
+                                <td>{% if p.est_pilote %}<span class="badge badge-danger">PILOTE</span>{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="text-muted">Aucun participant saisi.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h5>D3 - Mesures Conservatoires ou de Sécurisation</h5>
+                    <table class="table table-sm table-bordered col-md-10">
+                        <thead><tr class="bg-light"><th>Action</th><th>Appliquée ?</th><th>Quantité Triée</th><th>Quantité NOK</th><th>Commentaires</th></tr></thead>
+                        <tbody>
+                            {% for m in mesures_d3 %}
+                            <tr>
+                                <td><strong>{{ m.get_type_mesure_display }}</strong></td>
+                                <td>{% if m.selectionne %}<span class="badge badge-success">OUI</span>{% else %}<span class="badge badge-secondary">NON</span>{% endif %}</td>
+                                <td>{{ m.quantite_triee }}</td>
+                                <td>{{ m.quantite_nok }}</td>
+                                <td>{{ m.commentaires|default:"—" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- D2 QQOQCCP -->
+                <div class="tab-pane fade" id="tab-d2" role="tabpanel">
+                    <h5>D2 - Description du Problème (QQOQCCP)</h5>
+                    <div class="mb-3">
+                        <strong>Description transmis par le client :</strong>
+                        <p class="border p-2 bg-light">{{ qqoqccp.description_client|default:"Non renseigné" }}</p>
+                    </div>
+                    <table class="table table-bordered table-qqoqccp">
+                        <thead class="bg-dark text-white">
+                            <tr><th>Question</th><th>Le problème EST</th><th>Le problème N'EST PAS</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>QUOI ?</strong> (Objet / Défaillance)</td><td>{{ qqoqccp.quoi_est|default:"—" }}</td><td>{{ qqoqccp.quoi_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>QUI ?</strong> (Rencontre le problème)</td><td>{{ qqoqccp.qui_est|default:"—" }}</td><td>{{ qqoqccp.qui_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>OÙ ?</strong> (Secteur, site)</td><td>{{ qqoqccp.ou_est|default:"—" }}</td><td>{{ qqoqccp.ou_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>QUAND ?</strong> (Détecté quand / par qui)</td><td>{{ qqoqccp.quand_est|default:"—" }}</td><td>{{ qqoqccp.quand_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>COMMENT ?</strong> (Se manifeste)</td><td>{{ qqoqccp.comment_est|default:"—" }}</td><td>{{ qqoqccp.comment_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>COMBIEN ?</strong> (Nombre de pièces)</td><td>{{ qqoqccp.combien_est|default:"—" }}</td><td>{{ qqoqccp.combien_nest_pas|default:"—" }}</td></tr>
+                            <tr><td><strong>POURQUOI ?</strong> (Est-ce un problème)</td><td>{{ qqoqccp.pourquoi_est|default:"—" }}</td><td>{{ qqoqccp.pourquoi_nest_pas|default:"—" }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- D4 5 Pourquoi -->
+                <div class="tab-pane fade" id="tab-d4" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card card-info card-outline">
+                                <div class="card-header"><h3 class="card-title">D4.1 - Non Détection</h3></div>
+                                <div class="card-body">
+                                    <strong>Cause principale :</strong>
+                                    <p>{{ analyse_d4.cause_principale_non_detection|default:"—" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card card-danger card-outline">
+                                <div class="card-header"><h3 class="card-title">D4.2 - Cause Technique</h3></div>
+                                <div class="card-body">
+                                    <strong>Cause principale :</strong>
+                                    <p>{{ analyse_d4.cause_principale_technique|default:"—" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- D5-D6 Actions -->
+                <div class="tab-pane fade" id="tab-d5-d6" role="tabpanel">
+                    <h5>D5 - Actions Tests Planifiées</h5>
+                    <table class="table table-sm table-bordered mb-4">
+                        <thead><tr class="bg-light"><th>Action test</th><th>Pilote - Délai</th><th>Conclusion</th></tr></thead>
+                        <tbody>
+                            {% for at in actions_tests %}
+                            <tr><td>{{ at.description_action }}</td><td>{{ at.pilote_delai }}</td><td>{{ at.conclusion|default:"—" }}</td></tr>
+                            {% empty %}<tr><td colspan="3" class="text-muted">Aucune action test.</td></tr>{% endfor %}
+                        </tbody>
+                    </table>
+
+                    <h5>D6 - Actions Correctives / Préventives Permanentes</h5>
+                    <table class="table table-bordered">
+                        <thead class="bg-dark text-white">
+                            <tr><th>Axe</th><th>Action</th><th>Pilote</th><th>Délai</th><th>Réalisation</th><th>Statut</th><th>Efficacité</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for a in actions_permanentes %}
+                            <tr>
+                                <td><span class="badge badge-info">{{ a.get_axe_display }}</span></td>
+                                <td>{{ a.description }}</td>
+                                <td>{{ a.pilote }}</td>
+                                <td>{{ a.delai|date:"d/m/Y"|default:"—" }}</td>
+                                <td>{{ a.date_realisation|date:"d/m/Y"|default:"—" }}</td>
+                                <td><span class="badge badge-secondary">{{ a.get_statut_display }}</span></td>
+                                <td>
+                                    {% if a.efficace is True %}<span class="badge badge-success">Efficace</span>
+                                    {% elif a.efficace is False %}<span class="badge badge-danger">Inefficace</span>
+                                    {% else %}<span class="badge badge-light">En attente</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}<tr><td colspan="7" class="text-muted text-center">Aucune action permanente enregistrée.</td></tr>{% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- D7-D8 -->
+                <div class="tab-pane fade" id="tab-d7-d8" role="tabpanel">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>D7 - Capitalisation Documentaire SMQS</h5>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Doc.01 Instruction de travail
+                                    {% if capitalisation_d7.doc01_instruction %}<span class="badge badge-success">Mis à jour</span>{% else %}<span class="badge badge-secondary">Non concerné</span>{% endif %}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Doc 12 Gamme de travail
+                                    {% if capitalisation_d7.doc12_gammes %}<span class="badge badge-success">Mis à jour</span>{% else %}<span class="badge badge-secondary">Non concerné</span>{% endif %}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Doc.21 Formation Nouvel arrivant
+                                    {% if capitalisation_d7.doc21_formation %}<span class="badge badge-success">Mis à jour</span>{% else %}<span class="badge badge-secondary">Non concerné</span>{% endif %}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Doc 34/38 Habilitations
+                                    {% if capitalisation_d7.doc34_habilitation_indiv or capitalisation_d7.doc38_habilitation_poste %}<span class="badge badge-success">Mis à jour</span>{% else %}<span class="badge badge-secondary">Non concerné</span>{% endif %}
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    Doc 50 OK démarrage
+                                    {% if capitalisation_d7.doc50_ok_demarrage %}<span class="badge badge-success">Mis à jour</span>{% else %}<span class="badge badge-secondary">Non concerné</span>{% endif %}
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>D8 - Statut de Recevabilité</h5>
+                            <div class="card card-outline card-danger">
+                                <div class="card-body">
+                                    <h4>
+                                        Statut : 
+                                        {% if cloture_d8.statut_recevabilite == 'recevable' %}
+                                        <span class="badge badge-success">RECEVABLE</span>
+                                        {% elif cloture_d8.statut_recevabilite == 'non_recevable' %}
+                                        <span class="badge badge-danger">NON RECEVABLE (REFUS)</span>
+                                        {% else %}
+                                        <span class="badge badge-warning">PARTIEL</span>
+                                        {% endif %}
+                                    </h4>
+                                    <strong>Motif de la décision & Défense factuelle :</strong>
+                                    <p class="border p-2 bg-light mt-2">{{ cloture_d8.motif_decision_factuel|default:"Aucun motif rédigé." }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Fiche Doc 05 (Incident Client / Amélioration Interne) -->
+    <div class="card card-warning card-outline shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h3 class="card-title font-weight-bold text-dark mb-0">
+                <i class="fas fa-file-alt text-warning mr-2"></i>
+                Synthèse Fiche — {% if reclamation.type_signalement == 'AI' %}Amélioration (AI){% else %}Incident (I){% endif %}
+            </h3>
+            <div class="card-tools">
+                <a href="{% url 'reclamation:update_doc05' reclamation.pk %}" class="btn btn-sm btn-warning text-dark font-weight-bold">
+                    <i class="fas fa-edit mr-1"></i> Éditer Fiche
+                </a>
+                <a href="{% url 'reclamation:export_pdf_doc05' reclamation.pk %}" class="btn btn-sm btn-dark" target="_blank">
+                    <i class="fas fa-file-pdf text-danger mr-1"></i> PDF Fiche Incident
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+
+            <!-- 1. En-Tête & Évènement -->
+            <div class="mb-4">
+                <h5 class="font-weight-bold text-primary border-bottom pb-2 mb-3">
+                    <i class="fas fa-info-circle mr-1"></i> 1. En-Tête & Évènement Concerné
+                </h5>
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <small class="text-muted d-block font-weight-bold">Rédacteur de la fiche :</small>
+                        <strong>{{ fiche_doc05.redacteur|default:reclamation.created_by.get_full_name|default:"—" }}</strong>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <small class="text-muted d-block font-weight-bold">Date de détection :</small>
+                        <strong>{{ fiche_doc05.date_detection|date:"d/m/Y"|default:reclamation.date_alerte_client|date:"d/m/Y" }}</strong>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <small class="text-muted d-block font-weight-bold">Date d'ouverture :</small>
+                        <strong>{{ fiche_doc05.date_ouverture|date:"d/m/Y"|default:reclamation.date_ouverture|date:"d/m/Y" }}</strong>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <small class="text-muted d-block font-weight-bold">Site Concerné :</small>
+                        <strong>{{ fiche_doc05.site_concerne|default:reclamation.site|default:"—" }}</strong>
+                    </div>
+                </div>
+                <div class="row mt-2 bg-light p-2 rounded border">
+                    <div class="col-12">
+                        <small class="text-muted font-weight-bold mr-3">Évènement :</small>
+                        <span class="badge {% if fiche_doc05.evenement_qualite %}badge-success{% else %}badge-secondary{% endif %} mr-2">
+                            {% if fiche_doc05.evenement_qualite %}<i class="fas fa-check-circle mr-1"></i>{% endif %}Qualité
+                        </span>
+                        <span class="badge {% if fiche_doc05.evenement_securite %}badge-warning text-dark{% else %}badge-secondary{% endif %} mr-2">
+                            {% if fiche_doc05.evenement_securite %}<i class="fas fa-check-circle mr-1"></i>{% endif %}Sécurité
+                        </span>
+                        <span class="badge {% if fiche_doc05.evenement_environnement %}badge-info{% else %}badge-secondary{% endif %}">
+                            {% if fiche_doc05.evenement_environnement %}<i class="fas fa-check-circle mr-1"></i>{% endif %}Environnement
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Méthode QQOQCC -->
+            <div class="mb-4">
+                <h5 class="font-weight-bold text-danger border-bottom pb-2 mb-3">
+                    <i class="fas fa-question-circle mr-1"></i> 2. Description de l'Anomalie (Méthode QQOQCC)
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 15%;">Question</th>
+                                <th style="width: 35%;">Aide à la réflexion</th>
+                                <th style="width: 50%;">Réponse / Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="font-weight-bold text-primary">QUOI ?</td>
+                                <td class="small text-muted">Nature du problème / dysfonctionnement</td>
+                                <td>{{ fiche_doc05.quoi_reponse|default:reclamation.description_piece|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">QUI ?</td>
+                                <td class="small text-muted">Qui rencontre / détecte / subit le problème</td>
+                                <td>{{ fiche_doc05.qui_reponse|default:reclamation.client_nom|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">OÙ ?</td>
+                                <td class="small text-muted">Lieu / site / secteur / poste de détection</td>
+                                <td>{{ fiche_doc05.ou_reponse|default:reclamation.site|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">QUAND ?</td>
+                                <td class="small text-muted">Étape des opérations / processus de détection</td>
+                                <td>{{ fiche_doc05.quand_reponse|default:reclamation.date_alerte_client|date:"d/m/Y"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">COMMENT ?</td>
+                                <td class="small text-muted">Manifestation / méthode de détection</td>
+                                <td>{{ fiche_doc05.comment_reponse|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">COMBIEN ?</td>
+                                <td class="small text-muted">Quantité concernée / fréquence</td>
+                                <td>{{ fiche_doc05.combien_reponse|default:reclamation.quantite_impactee|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary">AUTRE ?</td>
+                                <td class="small text-muted">Informations complémentaires utiles</td>
+                                <td>{{ fiche_doc05.autre_reponse|default:"—"|linebreaksbr }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. Analyse des Causes (5 Pourquoi) & Motif -->
+            <div class="mb-4">
+                <h5 class="font-weight-bold text-dark border-bottom pb-2 mb-3">
+                    <i class="fas fa-search mr-1 text-warning"></i> 3. Recherche des Causes Racines (5 Pourquoi) & Motif
+                </h5>
+                <div class="mb-3 p-3 bg-light rounded border">
+                    <strong class="text-dark mr-2">Motif de la non-conformité :</strong>
+                    <span class="text-danger font-weight-bold">{{ fiche_doc05.motif_non_conformite|default:"Non renseigné" }}</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm text-center">
+                        <thead class="bg-light small font-weight-bold">
+                            <tr>
+                                <th>1er Pourquoi</th>
+                                <th>2ème Pourquoi</th>
+                                <th>3ème Pourquoi</th>
+                                <th>4ème Pourquoi</th>
+                                <th>5ème Pourquoi</th>
+                                <th style="background-color: #28a745; color: white;">Conclusion (Cause Racine)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fiche_doc05.pourquoi_chains %}
+                                {% for chain in fiche_doc05.pourquoi_chains %}
+                                <tr>
+                                    <td>{{ chain.p1|default:"—" }}</td>
+                                    <td>{{ chain.p2|default:"—" }}</td>
+                                    <td>{{ chain.p3|default:"—" }}</td>
+                                    <td>{{ chain.p4|default:"—" }}</td>
+                                    <td>{{ chain.p5|default:"—" }}</td>
+                                    <td class="font-weight-bold text-success" style="background-color: #e2efda;">
+                                        ➔ {{ chain.conclusion|default:"—" }}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-muted py-3">Aucune chaîne 5-Pourquoi saisie pour le moment.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 4. Questions de Contexte & Répétitivité -->
+            <div class="mb-4">
+                <h5 class="font-weight-bold text-info border-bottom pb-2 mb-3">
+                    <i class="fas fa-history mr-1"></i> 4. Analyse du Contexte & Risques
+                </h5>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <strong class="d-block mb-1 small text-muted">Ce problème a-t-il déjà été signalé ?</strong>
+                            {% if fiche_doc05.deja_signale %}
+                                <span class="badge badge-warning">OUI</span>
+                                <small class="d-block mt-1 text-dark">Détails : {{ fiche_doc05.deja_signale_details|default:"—" }}</small>
+                            {% else %}
+                                <span class="badge badge-secondary">NON</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <strong class="d-block mb-1 small text-muted">Particularités / changements intervenus ?</strong>
+                            {% if fiche_doc05.particularites_changements %}
+                                <span class="badge badge-warning">OUI</span>
+                                <small class="d-block mt-1 text-dark">Détails : {{ fiche_doc05.particularites_details|default:"—" }}</small>
+                            {% else %}
+                                <span class="badge badge-secondary">NON</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="p-3 border rounded bg-light h-100">
+                            <strong class="d-block mb-1 small text-muted">Risque similaire sur autre produit/secteur ?</strong>
+                            {% if fiche_doc05.risque_similaire %}
+                                <span class="badge badge-danger">OUI</span>
+                                <small class="d-block mt-1 text-dark">Lieu/Secteur : {{ fiche_doc05.risque_similaire_details|default:"—" }}</small>
+                            {% else %}
+                                <span class="badge badge-secondary">NON</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. Plan d'Action (Mesures Immédiates & Correctives) -->
+            <div class="mb-4">
+                <h5 class="font-weight-bold text-success border-bottom pb-2 mb-3">
+                    <i class="fas fa-tasks mr-1"></i> 5. Plan d'Action & Mesures
+                </h5>
+
+                <!-- Mesures Immédiates -->
+                <h6 class="font-weight-bold text-dark mb-2"><i class="fas fa-bolt text-warning mr-1"></i> Mesures Immédiates</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm">
+                        <thead class="thead-dark small">
+                            <tr>
+                                <th style="width: 45%;">Mesures immédiates</th>
+                                <th style="width: 25%;">Pilote</th>
+                                <th style="width: 15%;">Délais</th>
+                                <th style="width: 15%;">Réalisé le</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fiche_doc05.mesures_immediates %}
+                                {% for m in fiche_doc05.mesures_immediates %}
+                                <tr>
+                                    <td>{{ m.description|default:"—" }}</td>
+                                    <td>{{ m.pilote|default:"—" }}</td>
+                                    <td>{{ m.delai|default:"—" }}</td>
+                                    <td>{{ m.realise_le|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="4" class="text-muted text-center py-2">Aucune mesure immédiate renseignée.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Actions Correctives Retenues -->
+                <h6 class="font-weight-bold text-dark mb-2"><i class="fas fa-shield-alt text-success mr-1"></i> Actions Correctives Retenues</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="thead-dark small">
+                            <tr>
+                                <th style="width: 40%;">Action corrective</th>
+                                <th style="width: 20%;">Pilote</th>
+                                <th style="width: 13%;">Délais</th>
+                                <th style="width: 13%;">Réalisé le</th>
+                                <th style="width: 14%;">Efficacité</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fiche_doc05.actions_correctives %}
+                                {% for a in fiche_doc05.actions_correctives %}
+                                <tr>
+                                    <td>{{ a.description|default:"—" }}</td>
+                                    <td>{{ a.pilote|default:"—" }}</td>
+                                    <td>{{ a.delai|default:"—" }}</td>
+                                    <td>{{ a.realise_le|default:"—" }}</td>
+                                    <td>{{ a.efficacite|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr><td colspan="5" class="text-muted text-center py-2">Aucune action corrective enregistrée.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 6. Clôture -->
+            <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+                <div>
+                    <strong class="text-danger"><i class="fas fa-calendar-check mr-1"></i> Date de Clôture :</strong>
+                    <span class="font-weight-bold text-dark ml-1">{{ fiche_doc05.date_cloture|date:"d/m/Y"|default:"Non clôturé" }}</span>
+                </div>
+                <div>
+                    <a href="{% url 'reclamation:update_doc05' reclamation.pk %}" class="btn btn-warning text-dark font-weight-bold shadow-xs">
+                        <i class="fas fa-edit mr-1"></i> Éditer Fiche
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

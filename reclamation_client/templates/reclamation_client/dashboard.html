@@ -1,0 +1,1211 @@
+{% extends "reclamation_client/base.html" %}
+
+{% block title %}Dashboard Réclamations & Incidents{% endblock %}
+
+{% block content %}
+<style>
+    /* ── Off-Canvas Filter Drawer & Floating Button ────────────────── */
+    .filter-drawer-backdrop {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1050;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    .filter-drawer-backdrop.show {
+        display: block;
+        opacity: 1;
+    }
+
+    .filter-drawer-panel {
+        position: fixed;
+        top: 0;
+        right: -400px;
+        width: min(400px, 92vw);
+        height: 100vh;
+        background: #ffffff;
+        z-index: 1055;
+        overflow-y: auto;
+        transition: right 0.3s ease;
+        box-shadow: -8px 0 25px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+    }
+    .filter-drawer-panel.show {
+        right: 0;
+    }
+
+    .filter-drawer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem 1.25rem;
+        background: #343a40;
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+    .filter-drawer-header .close-btn {
+        background: transparent;
+        border: none;
+        color: #ffffff;
+        font-size: 1.3rem;
+        cursor: pointer;
+        line-height: 1;
+        opacity: 0.85;
+        transition: opacity 0.2s;
+    }
+    .filter-drawer-header .close-btn:hover {
+        opacity: 1;
+    }
+
+    .filter-drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.25rem;
+    }
+
+    .filter-drawer-footer {
+        padding: 1rem 1.25rem;
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        display: flex;
+        gap: 10px;
+    }
+
+    /* Floating Filter Button */
+    .rec-filter-btn-fixed {
+        position: fixed;
+        right: 22px;
+        bottom: 24px;
+        z-index: 1040;
+        width: 52px;
+        height: 52px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #007bff;
+        color: #ffffff;
+        box-shadow: 0 4px 18px rgba(0, 123, 255, 0.45);
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+    .rec-filter-btn-fixed:hover {
+        transform: scale(1.08);
+        background: #0056b3;
+    }
+    .rec-filter-badge {
+        position: absolute;
+        top: 3px;
+        right: 3px;
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #ffc107;
+        border: 2px solid #ffffff;
+    }
+</style>
+
+<div class="container-fluid pt-3 pb-5">
+    <!-- ── Header ──────────────────────────────────────────────────────────── -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
+        <div class="mb-2 mb-md-0">
+            <h1 class="m-0 h3 font-weight-bold text-dark">
+                <i class="fas fa-chart-bar text-danger mr-2"></i>Tableau de Bord Réclamations & Incidents
+            </h1>
+        </div>
+        <div class="d-flex align-items-center justify-content-md-end" style="gap: 8px;">
+            <button type="button" class="btn btn-danger font-weight-bold shadow-sm" id="btn-open-create-modal" data-toggle="modal" data-target="#modal-create-reclamation">
+                <i class="fas fa-plus-circle mr-1"></i> Nouvelle Réclamation
+            </button>
+            <a href="{% url 'reclamation:liste' %}" class="btn btn-secondary font-weight-bold shadow-sm">
+                <i class="fas fa-list mr-1"></i> Registre Réclamations
+            </a>
+        </div>
+    </div>
+
+    <!-- Floating Action Button for Filters -->
+    <button type="button" class="rec-filter-btn-fixed" title="Filtres du Tableau de Bord" id="rec-filter-btn">
+        <i class="fas fa-filter"></i>
+        {% if selected_type or selected_societe or selected_site or selected_statut or selected_periode != "all" %}
+        <span class="rec-filter-badge" title="Filtres actifs"></span>
+        {% endif %}
+    </button>
+
+    <!-- Filter Backdrop Overlay -->
+    <div class="filter-drawer-backdrop" id="rec-filter-backdrop"></div>
+
+    <!-- Filter Drawer Panel Sidebar -->
+    <div class="filter-drawer-panel" id="rec-filter-drawer">
+        <div class="filter-drawer-header">
+            <span><i class="fas fa-filter mr-2 text-warning"></i>FILTRES DU TABLEAU DE BORD</span>
+            <button type="button" class="close-btn js-filter-close" aria-label="Fermer">&times;</button>
+        </div>
+        <form method="get" action="." class="d-flex flex-column h-100 mb-0">
+            <div class="filter-drawer-body">
+                <!-- Période -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-calendar-alt text-muted mr-1"></i>Période globale :</label>
+                    <select name="periode" class="form-control custom-select">
+                        <option value="all" {% if selected_periode == "all" %}selected{% endif %}>Toutes les dates</option>
+                        <option value="30d" {% if selected_periode == "30d" %}selected{% endif %}>Derniers 30 jours</option>
+                        <option value="90d" {% if selected_periode == "90d" %}selected{% endif %}>Derniers 90 jours</option>
+                        <option value="year" {% if selected_periode == "year" %}selected{% endif %}>Année en cours</option>
+                    </select>
+                </div>
+
+                <!-- Type -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-tag text-muted mr-1"></i>Type de signalement :</label>
+                    <select name="type_signalement" class="form-control custom-select">
+                        <option value="">Tous les types</option>
+                        <option value="R" {% if selected_type == "R" %}selected{% endif %}>Réclamation (R)</option>
+                        <option value="I" {% if selected_type == "I" %}selected{% endif %}>Incident (I)</option>
+                        <option value="AI" {% if selected_type == "AI" %}selected{% endif %}>Amélioration (AI)</option>
+                    </select>
+                </div>
+
+                <!-- Société -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-building text-muted mr-1"></i>Société :</label>
+                    <select name="societe_id" class="form-control custom-select">
+                        <option value="">Toutes les sociétés</option>
+                        {% for soc in societes %}
+                        <option value="{{ soc.id }}" {% if selected_societe == soc.id|stringformat:"s" %}selected{% endif %}>{{ soc.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Site -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-map-marker-alt text-muted mr-1"></i>Site concerné :</label>
+                    <select name="site_id" class="form-control custom-select">
+                        <option value="">Tous les sites</option>
+                        {% for s in sites %}
+                        <option value="{{ s.id }}" {% if selected_site == s.id|stringformat:"s" %}selected{% endif %}>{{ s.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Statut -->
+                <div class="form-group mb-3">
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-tasks text-muted mr-1"></i>Statut du dossier :</label>
+                    <select name="statut" class="form-control custom-select">
+                        <option value="">Tous les statuts</option>
+                        {% for st_val, st_lbl in statut_choices %}
+                        <option value="{{ st_val }}" {% if selected_statut == st_val %}selected{% endif %}>{{ st_lbl }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="filter-drawer-footer">
+                <button type="submit" class="btn btn-primary font-weight-bold flex-fill shadow-xs">
+                    <i class="fas fa-filter mr-1"></i> Appliquer les filtres
+                </button>
+                <a href="{% url 'reclamation:dashboard' %}" class="btn btn-outline-secondary font-weight-bold px-3">
+                    <i class="fas fa-undo"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- ── 1. KPI CARDS (8 Metrics) ──────────────────────────────────────── -->
+    <div class="row">
+        <!-- KPI 1 : Total Signalements -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="small-box bg-info shadow-xs rounded">
+                <div class="inner">
+                    <h3>{{ total_reclamations }}</h3>
+                    <p class="font-weight-bold mb-0">Total Signalements</p>
+                    <small class="opacity-75">Réclamations, Incidents & AI</small>
+                </div>
+                <div class="icon"><i class="fas fa-layer-group"></i></div>
+            </div>
+        </div>
+        <!-- KPI 2 : Réclamations Qualité (R) -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="small-box bg-danger shadow-xs rounded">
+                <div class="inner">
+                    <h3>{{ nb_type_r }}</h3>
+                    <p class="font-weight-bold mb-0">Réclamations (R)</p>
+                    <small class="opacity-75">{{ pct_type_r }}% du total des signalements</small>
+                </div>
+                <div class="icon"><i class="fas fa-file-contract"></i></div>
+            </div>
+        </div>
+        <!-- KPI 3 : Incidents Client (I) -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="small-box bg-warning shadow-xs rounded">
+                <div class="inner text-dark">
+                    <h3 class="text-dark">{{ nb_type_i }}</h3>
+                    <p class="font-weight-bold mb-0 text-dark">Incidents (I)</p>
+                    <small class="text-dark opacity-75">{{ pct_type_i }}% du total des signalements</small>
+                </div>
+                <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
+            </div>
+        </div>
+        <!-- KPI 4 : Améliorations Internes (AI) -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="small-box bg-teal shadow-xs rounded" style="background-color: #20c997; color: white;">
+                <div class="inner">
+                    <h3>{{ nb_type_ai }}</h3>
+                    <p class="font-weight-bold mb-0">Améliorations (AI)</p>
+                    <small class="opacity-75">{{ pct_type_ai }}% du total des signalements</small>
+                </div>
+                <div class="icon"><i class="fas fa-lightbulb"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- KPI 5 : Dossiers Ouverts -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="info-box bg-light shadow-xs border-0 rounded">
+                <span class="info-box-icon bg-warning text-dark"><i class="fas fa-folder-open"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text text-muted font-weight-bold">Dossiers Ouverts</span>
+                    <span class="info-box-number text-dark h4 font-weight-bold mb-0">{{ reclamations_ouvertes }}</span>
+                    <small class="text-muted">En cours de traitement</small>
+                </div>
+            </div>
+        </div>
+        <!-- KPI 6 : Dossiers Clôturés -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="info-box bg-light shadow-xs border-0 rounded">
+                <span class="info-box-icon bg-success"><i class="fas fa-check-circle"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text text-muted font-weight-bold">Dossiers Clôturés</span>
+                    <span class="info-box-number text-success h4 font-weight-bold mb-0">{{ reclamations_cloturees }}</span>
+                    <small class="text-muted">Traités & archivés</small>
+                </div>
+            </div>
+        </div>
+        <!-- KPI 7 : Actions en Cours -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="info-box bg-light shadow-xs border-0 rounded">
+                <span class="info-box-icon bg-primary"><i class="fas fa-tasks"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text text-muted font-weight-bold">Actions en Cours</span>
+                    <span class="info-box-number text-primary h4 font-weight-bold mb-0">{{ actions_en_cours }}</span>
+                    <small class="text-muted">Plan d'actions actif</small>
+                </div>
+            </div>
+        </div>
+        <!-- KPI 8 : Actions en Retard -->
+        <div class="col-xl-3 col-md-6 col-12 mb-3">
+            <div class="info-box bg-light shadow-xs border-0 rounded">
+                <span class="info-box-icon bg-danger"><i class="fas fa-clock"></i></span>
+                <div class="info-box-content">
+                    <span class="info-box-text text-muted font-weight-bold">Actions en Retard</span>
+                    <span class="info-box-number text-danger h4 font-weight-bold mb-0">{{ actions_en_retard }}</span>
+                    <small class="text-danger font-weight-bold">Échéance dépassée</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 2. CHARTS ROW 1 : Evolution & Type Distribution ───────────────── -->
+    <div class="row">
+        <!-- Graphique 1 : Évolution des Signalements -->
+        <div class="col-lg-8 mb-4">
+            <div class="card card-danger card-outline shadow-xs h-100 border-0" id="card-evolution-container">
+                <div class="card-header bg-white py-2 px-3 border-bottom d-flex flex-wrap justify-content-between align-items-center" style="gap: 8px;">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-chart-line text-danger mr-2"></i><span id="evolution-chart-title">Évolution des signalements — {{ evolution_title_suffix }}</span>
+                    </h5>
+                    <form method="get" action="." class="form-inline mb-0" id="form-evolution-period" onsubmit="return false;">
+                        {% if selected_type %}<input type="hidden" name="type_signalement" value="{{ selected_type }}">{% endif %}
+                        {% if selected_societe %}<input type="hidden" name="societe_id" value="{{ selected_societe }}">{% endif %}
+                        {% if selected_site %}<input type="hidden" name="site_id" value="{{ selected_site }}">{% endif %}
+                        {% if selected_statut %}<input type="hidden" name="statut" value="{{ selected_statut }}">{% endif %}
+                        {% if selected_periode %}<input type="hidden" name="periode" value="{{ selected_periode }}">{% endif %}
+
+                        <div class="input-group input-group-sm align-items-center" style="gap: 4px;">
+                            <span class="font-weight-bold text-muted small mr-1"><i class="fas fa-calendar-alt mr-1"></i>Période :</span>
+                            <select name="evolution_periode" class="form-control form-control-sm border-secondary custom-select custom-select-sm" id="select-evolution-periode">
+                                <option value="7d" {% if evolution_periode == "7d" %}selected{% endif %}>7 derniers jours</option>
+                                <option value="30d" {% if evolution_periode == "30d" %}selected{% endif %}>30 derniers jours</option>
+                                <option value="3m" {% if evolution_periode == "3m" %}selected{% endif %}>3 derniers mois</option>
+                                <option value="6m" {% if evolution_periode == "6m" %}selected{% endif %}>6 derniers mois</option>
+                                <option value="12m" {% if evolution_periode == "12m" or not evolution_periode %}selected{% endif %}>12 derniers mois</option>
+                                <option value="year" {% if evolution_periode == "year" %}selected{% endif %}>Cette année</option>
+                                <option value="custom" {% if evolution_periode == "custom" %}selected{% endif %}>Personnalisée</option>
+                            </select>
+
+                            <div id="custom-date-container" class="{% if evolution_periode == 'custom' %}d-inline-flex{% else %}d-none{% endif %} align-items-center ml-1" style="gap: 4px;">
+                                <input type="date" name="date_debut" id="input-date-debut" value="{{ date_debut_val }}" class="form-control form-control-sm" max="{{ today|date:'Y-m-d' }}" style="width: 135px;">
+                                <span class="small text-muted">→</span>
+                                <input type="date" name="date_fin" id="input-date-fin" value="{{ date_fin_val }}" class="form-control form-control-sm" max="{{ today|date:'Y-m-d' }}" style="width: 135px;">
+                                <button type="button" id="btn-submit-custom-dates" class="btn btn-sm btn-danger font-weight-bold px-2 py-0">OK</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-body position-relative">
+                    <!-- Subtle Loading Overlay -->
+                    <div id="evolution-loading-overlay" class="position-absolute w-100 h-100 d-none justify-content-center align-items-center" style="top: 0; left: 0; background: rgba(255,255,255,0.75); z-index: 10;">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="sr-only">Chargement...</span>
+                        </div>
+                    </div>
+
+                    <div id="evolution-error-alert" class="alert alert-danger mb-3 font-weight-bold small py-2 {% if not evolution_error %}d-none{% endif %}">
+                        <i class="fas fa-exclamation-circle mr-1"></i><span id="evolution-error-text">{{ evolution_error }}</span>
+                    </div>
+
+                    <div id="evolution-canvas-wrapper" style="position: relative; width: 100%; height: 290px; {% if not has_evolution_data %}display: none;{% endif %}">
+                        <canvas id="chartEvolution"></canvas>
+                    </div>
+
+                    <div id="evolution-empty-state" class="flex-column align-items-center justify-content-center py-5 text-muted" style="{% if has_evolution_data %}display: none;{% else %}display: flex;{% endif %}">
+                        <i class="fas fa-chart-line fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucun signalement sur cette période.</h6>
+                        <small>Utilisez le sélecteur ci-dessus pour modifier la période d'analyse.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphique 2 : Répartition par Type (R / I / AI) -->
+        <div class="col-lg-4 mb-4">
+            <div class="card card-dark card-outline shadow-xs h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-pie-chart text-dark mr-2"></i>Répartition des signalements
+                    </h5>
+                </div>
+                <div class="card-body d-flex flex-column justify-content-between">
+                    {% if has_type_data %}
+                    <div style="position: relative; width: 100%; height: 180px;" class="mb-3">
+                        <canvas id="chartTypeDistribution"></canvas>
+                    </div>
+                    <div class="border-top pt-2">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small font-weight-bold text-dark"><i class="fas fa-square text-danger mr-1"></i>Réclamations (R)</span>
+                            <span class="badge badge-danger px-2">{{ nb_type_r }} ({{ pct_type_r }}%)</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small font-weight-bold text-dark"><i class="fas fa-square text-warning mr-1"></i>Incidents (I)</span>
+                            <span class="badge badge-warning text-dark px-2">{{ nb_type_i }} ({{ pct_type_i }}%)</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="small font-weight-bold text-dark"><i class="fas fa-square mr-1" style="color: #20c997;"></i>Améliorations (AI)</span>
+                            <span class="badge badge-teal text-white px-2" style="background-color: #20c997;">{{ nb_type_ai }} ({{ pct_type_ai }}%)</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-5 text-muted">
+                        <i class="fas fa-chart-pie fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucun signalement enregistré.</h6>
+                        <small>La répartition R / I / AI sera calculée automatiquement.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 3. PROCESS / WORKFLOW PIPELINE ───────────────────────────────── -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card card-warning card-outline shadow-xs border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-stream text-warning mr-2"></i>Avancement des dossiers dans le processus 8D
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    {% if has_workflow_data %}
+                    <div class="row text-center align-items-center">
+                        <!-- Step 1: D1-D3 -->
+                        <div class="col-md-3 col-6 mb-3 mb-md-0">
+                            <div class="p-3 border rounded bg-light shadow-xs position-relative h-100">
+                                <span class="badge badge-info mb-2 px-3 py-1 font-weight-bold">D1 – D3</span>
+                                <h6 class="font-weight-bold text-dark mb-1">Prise en charge & Sécurisation</h6>
+                                <h3 class="text-info font-weight-bold mb-1">{{ nb_phase_d1_d3 }}</h3>
+                                <small class="text-muted font-weight-bold">{{ pct_phase_d1_d3 }}% des dossiers</small>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar bg-info" style="width: {{ pct_phase_d1_d3 }}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: D4-D6 -->
+                        <div class="col-md-3 col-6 mb-3 mb-md-0">
+                            <div class="p-3 border rounded bg-light shadow-xs position-relative h-100">
+                                <span class="badge badge-primary mb-2 px-3 py-1 font-weight-bold">D4 – D6</span>
+                                <h6 class="font-weight-bold text-dark mb-1">Analyse & Plan d'actions</h6>
+                                <h3 class="text-primary font-weight-bold mb-1">{{ nb_phase_d4_d6 }}</h3>
+                                <small class="text-muted font-weight-bold">{{ pct_phase_d4_d6 }}% des dossiers</small>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar bg-primary" style="width: {{ pct_phase_d4_d6 }}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: D7-D8 -->
+                        <div class="col-md-3 col-6 mb-3 mb-md-0">
+                            <div class="p-3 border rounded bg-light shadow-xs position-relative h-100">
+                                <span class="badge badge-purple mb-2 px-3 py-1 font-weight-bold" style="background-color: #6f42c1; color: white;">D7 – D8</span>
+                                <h6 class="font-weight-bold text-dark mb-1">Capitalisation & Clôture</h6>
+                                <h3 class="font-weight-bold mb-1" style="color: #6f42c1;">{{ nb_phase_d7_d8 }}</h3>
+                                <small class="text-muted font-weight-bold">{{ pct_phase_d7_d8 }}% des dossiers</small>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar" style="width: {{ pct_phase_d7_d8 }}%; background-color: #6f42c1;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Step 4: Clôturé -->
+                        <div class="col-md-3 col-6 mb-3 mb-md-0">
+                            <div class="p-3 border rounded bg-light shadow-xs position-relative h-100">
+                                <span class="badge badge-success mb-2 px-3 py-1 font-weight-bold">Clôturé</span>
+                                <h6 class="font-weight-bold text-dark mb-1">Dossier archivé & validé</h6>
+                                <h3 class="text-success font-weight-bold mb-1">{{ nb_phase_cloture }}</h3>
+                                <small class="text-muted font-weight-bold">{{ pct_phase_cloture }}% des dossiers</small>
+                                <div class="progress mt-2" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: {{ pct_phase_cloture }}%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-tasks fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucun dossier dans le workflow.</h6>
+                        <small>Le suivi du processus s'affichera dès l'ouverture d'une réclamation.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 4. RECEVABILITÉ & ACTIONS ROW ─────────────────────────────────── -->
+    <div class="row">
+        <!-- Recevabilité -->
+        <div class="col-lg-6 mb-4">
+            <div class="card card-secondary card-outline shadow-xs h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-clipboard-check text-secondary mr-2"></i>Répartition des recevabilités (D8)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if has_recevabilite_data %}
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div style="position: relative; width: 100%; height: 180px;">
+                                <canvas id="chartRecevabilite"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-3 mt-md-0">
+                            <ul class="list-group list-group-flush border rounded">
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-check-circle text-success mr-2"></i>Recevable</span>
+                                    <span class="badge badge-success px-2 py-1 font-weight-bold">{{ nb_recevables }} ({{ pct_recevables }}%)</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-times-circle text-danger mr-2"></i>Non recevable</span>
+                                    <span class="badge badge-danger px-2 py-1 font-weight-bold">{{ nb_non_recevables }} ({{ pct_non_recevables }}%)</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-adjust text-warning mr-2"></i>Partiellement recevable</span>
+                                    <span class="badge badge-warning text-dark px-2 py-1 font-weight-bold">{{ nb_partiels }} ({{ pct_partiels }}%)</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-clipboard-check fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucune décision de recevabilité enregistrée.</h6>
+                        <small>La recevabilité est renseignée lors de la clôture D8.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Correctives -->
+        <div class="col-lg-6 mb-4">
+            <div class="card card-primary card-outline shadow-xs h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-check-square text-primary mr-2"></i>Suivi des Actions Correctives
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if has_actions_data %}
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div style="position: relative; width: 100%; height: 180px;">
+                                <canvas id="chartActions"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mt-3 mt-md-0">
+                            <ul class="list-group list-group-flush border rounded">
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-hourglass-start text-secondary mr-2"></i>Non démarrées</span>
+                                    <span class="badge badge-secondary badge-pill font-weight-bold">{{ actions_non_demarrees }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-spinner text-primary mr-2"></i>En cours</span>
+                                    <span class="badge badge-primary badge-pill font-weight-bold">{{ actions_en_cours }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-check text-info mr-2"></i>Réalisées</span>
+                                    <span class="badge badge-info badge-pill font-weight-bold">{{ actions_realisees }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                    <span><i class="fas fa-check-circle text-success mr-2"></i>Vérifiées</span>
+                                    <span class="badge badge-success badge-pill font-weight-bold">{{ actions_verifiees }}</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-2 bg-light">
+                                    <span><i class="fas fa-exclamation-circle text-danger mr-2"></i>En retard</span>
+                                    <span class="badge badge-danger badge-pill font-weight-bold">{{ actions_en_retard }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-check-square fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucune action corrective enregistrée.</h6>
+                        <small>Les actions apparaîtront ici lorsqu'elles seront associées à un dossier.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 5. ATTENTION POINTS & DOSSIER AGING ROW ────────────────────── -->
+    <div class="row">
+        <!-- Attention Points -->
+        <div class="col-lg-6 mb-4">
+            <div class="card card-danger card-outline shadow-xs h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-exclamation-triangle text-danger mr-2"></i>Points nécessitant une attention
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if has_attention_data %}
+                    <ul class="list-group list-group-flush">
+                        {% for item in attention_points %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-3">
+                            <div class="d-flex align-items-center">
+                                <a href="{% url 'reclamation:detail' item.reclamation.pk %}" class="font-weight-bold text-primary mr-3">
+                                    {{ item.reclamation.reference }}
+                                </a>
+                                <div>
+                                    <div class="font-weight-bold text-dark">{{ item.reclamation.client_nom }}</div>
+                                    <small class="text-muted">{{ item.reason }}</small>
+                                </div>
+                            </div>
+                            <span class="badge {{ item.badge_class }} px-3 py-1 font-weight-bold">{{ item.age }}j</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-shield-alt fa-3x mb-3 text-success opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">✓ Aucun point critique détecté.</h6>
+                        <small>Tous les dossiers ouverts sont dans les délais impartis.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Âge des dossiers ouverts -->
+        <div class="col-lg-6 mb-4">
+            <div class="card card-info card-outline shadow-xs h-100 border-0">
+                <div class="card-header bg-white py-3 border-bottom">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-hourglass-half text-info mr-2"></i>Âge des dossiers ouverts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if reclamations_ouvertes > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="font-weight-bold small text-dark"><i class="fas fa-bolt text-success mr-1"></i>0 – 7 jours</span>
+                            <span class="badge badge-success px-2 py-1">{{ age_0_7 }} dossier(s)</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {% if reclamations_ouvertes %}{% widthratio age_0_7 reclamations_ouvertes 100 %}{% else %}0{% endif %}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="font-weight-bold small text-dark"><i class="fas fa-clock text-info mr-1"></i>8 – 30 jours</span>
+                            <span class="badge badge-info px-2 py-1">{{ age_8_30 }} dossier(s)</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-info" role="progressbar" style="width: {% if reclamations_ouvertes %}{% widthratio age_8_30 reclamations_ouvertes 100 %}{% else %}0{% endif %}%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="font-weight-bold small text-dark"><i class="fas fa-exclamation-circle text-warning mr-1"></i>31 – 60 jours</span>
+                            <span class="badge badge-warning text-dark px-2 py-1">{{ age_31_60 }} dossier(s)</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {% if reclamations_ouvertes %}{% widthratio age_31_60 reclamations_ouvertes 100 %}{% else %}0{% endif %}%;"></div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="font-weight-bold small text-dark"><i class="fas fa-calendar-times text-danger mr-1"></i>+ 60 jours</span>
+                            <span class="badge badge-danger px-2 py-1">{{ age_plus_60 }} dossier(s)</span>
+                        </div>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {% if reclamations_ouvertes %}{% widthratio age_plus_60 reclamations_ouvertes 100 %}{% else %}0{% endif %}%;"></div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-folder-minus fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucun dossier ouvert actuellement.</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── 6. RECENT DOSSIERS TABLE ────────────────────────────────────── -->
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card card-dark card-outline shadow-xs border-0">
+                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="card-title font-weight-bold m-0 text-dark">
+                        <i class="fas fa-history text-dark mr-2"></i>Derniers signalements enregistrés
+                    </h5>
+                    <a href="{% url 'reclamation:liste' %}" class="btn btn-sm btn-outline-secondary font-weight-bold">
+                        Voir tous les signalements <i class="fas fa-arrow-right ml-1"></i>
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if has_recent_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle m-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Référence</th>
+                                    <th>Date d'alerte</th>
+                                    <th>Client</th>
+                                    <th>Type</th>
+                                    <th>Support</th>
+                                    <th>Statut</th>
+                                    <th class="text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for r in recent_reclamations %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'reclamation:detail' r.pk %}" class="font-weight-bold text-primary">
+                                            {{ r.reference }}
+                                        </a>
+                                    </td>
+                                    <td>{{ r.date_alerte_client|date:"d/m/Y" }}</td>
+                                    <td class="font-weight-bold text-dark">{{ r.client_nom }}</td>
+                                    <td>
+                                        {% if r.type_signalement == 'R' %}
+                                        <span class="badge badge-danger">Réclamation (R)</span>
+                                        {% elif r.type_signalement == 'I' %}
+                                        <span class="badge badge-warning text-dark">Incident (I)</span>
+                                        {% else %}
+                                        <span class="badge badge-info">Amélioration (AI)</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if r.mode_traitement == '8D' %}
+                                        <span class="badge badge-dark">Rapport 8D</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Fiche d'incident</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-{{ r.statut_badge }}">{{ r.get_statut_display }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'reclamation:detail' r.pk %}" class="btn btn-sm btn-outline-info" title="Consulter la fiche">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                        <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                        <h6 class="font-weight-bold text-dark">Aucun signalement trouvé.</h6>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Quick Creation Modal ────────────────────────────────────────────── -->
+<div class="modal fade" id="modal-create-reclamation" tabindex="-1" role="dialog" aria-labelledby="modalCreateTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document" style="max-width: 850px;">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-danger text-white py-3">
+                <h5 class="modal-title font-weight-bold" id="modalCreateTitle">
+                    <i class="fas fa-plus-circle mr-2"></i>Nouveau Signalement Client
+                </h5>
+                <button type="button" class="close text-white opacity-100" data-dismiss="modal" aria-label="Fermer" id="btn-close-modal-x">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form method="post" action="{% url 'reclamation:create' %}">
+                {% csrf_token %}
+                <div class="modal-body p-4" style="max-height: 78vh; overflow-y: auto;">
+                    {% if create_form.non_field_errors %}
+                    <div class="alert alert-danger mb-3">
+                        {% for err in create_form.non_field_errors %}
+                        <div><i class="fas fa-exclamation-circle mr-1"></i>{{ err }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Type de Signalement *</label>
+                            {{ create_form.type_signalement }}
+                            {% if create_form.type_signalement.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.type_signalement.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Support d'Analyse *</label>
+                            {{ create_form.mode_traitement }}
+                            {% if create_form.mode_traitement.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.mode_traitement.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Société *</label>
+                            {{ create_form.societe }}
+                            {% if create_form.societe.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.societe.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Site Concerné</label>
+                            {{ create_form.site }}
+                            {% if create_form.site.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.site.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Nom du Client *</label>
+                            {{ create_form.client_nom }}
+                            {% if create_form.client_nom.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.client_nom.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Contact chez le Client</label>
+                            {{ create_form.contact_client }}
+                            {% if create_form.contact_client.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.contact_client.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Description Pièce / Prestation</label>
+                            {{ create_form.description_piece }}
+                            {% if create_form.description_piece.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.description_piece.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label class="font-weight-bold text-dark small">Référence Pièce</label>
+                            {{ create_form.reference_piece }}
+                            {% if create_form.reference_piece.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.reference_piece.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3 form-group">
+                            <label class="font-weight-bold text-dark small">Quantité Impactée</label>
+                            {{ create_form.quantite_impactee }}
+                            {% if create_form.quantite_impactee.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.quantite_impactee.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="font-weight-bold text-dark small">Date d'Alerte Client *</label>
+                            {{ create_form.date_alerte_client }}
+                            {% if create_form.date_alerte_client.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.date_alerte_client.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 form-group pt-4">
+                            <div class="form-check">
+                                {{ create_form.accuse_reception_envoye }}
+                                <label class="form-check-label font-weight-bold text-dark small">
+                                    Accusé de réception écrit envoyé au client
+                                </label>
+                            </div>
+                            {% if create_form.accuse_reception_envoye.errors %}
+                            <div class="text-danger small mt-1"><i class="fas fa-exclamation-triangle mr-1"></i>{{ create_form.accuse_reception_envoye.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary font-weight-bold" data-dismiss="modal" id="btn-cancel-modal">
+                        Annuler
+                    </button>
+                    <button type="submit" class="btn btn-danger font-weight-bold shadow-xs">
+                        <i class="fas fa-check-circle mr-1"></i> Enregistrer le Signalement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    var chartEvolutionInstance = null;
+
+    function showEvolutionError(msg) {
+        var errAlert = document.getElementById('evolution-error-alert');
+        var errText = document.getElementById('evolution-error-text');
+        if (errText) errText.textContent = msg;
+        if (errAlert) errAlert.classList.remove('d-none');
+    }
+
+    function hideEvolutionError() {
+        var errAlert = document.getElementById('evolution-error-alert');
+        if (errAlert) errAlert.classList.add('d-none');
+    }
+
+    function fetchEvolutionChartData() {
+        var selectVal = document.getElementById('select-evolution-periode').value;
+        var startInput = document.getElementById('input-date-debut');
+        var endInput = document.getElementById('input-date-fin');
+        var todayStr = '{{ today|date:"Y-m-d" }}';
+
+        if (selectVal === 'custom') {
+            if (!startInput.value || !endInput.value) {
+                showEvolutionError('Veuillez renseigner les dates de début et de fin.');
+                return;
+            }
+            if (startInput.value > todayStr || endInput.value > todayStr) {
+                showEvolutionError("Une date future n'est pas autorisée.");
+                return;
+            }
+            if (startInput.value > endInput.value) {
+                showEvolutionError("La date de début doit être antérieure ou égale à la date de fin.");
+                return;
+            }
+        }
+
+        var overlay = document.getElementById('evolution-loading-overlay');
+        if (overlay) {
+            overlay.classList.remove('d-none');
+            overlay.classList.add('d-flex');
+        }
+
+        var form = document.getElementById('form-evolution-period');
+        var params = new URLSearchParams(new FormData(form));
+        params.set('ajax', '1');
+
+        fetch('{% url "reclamation:dashboard" %}?' + params.toString(), {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (overlay) {
+                overlay.classList.remove('d-flex');
+                overlay.classList.add('d-none');
+            }
+
+            var titleEl = document.getElementById('evolution-chart-title');
+            if (titleEl && data.title_suffix) {
+                titleEl.textContent = 'Évolution des signalements — ' + data.title_suffix;
+            }
+
+            if (!data.success) {
+                showEvolutionError(data.error || 'Erreur lors du chargement des données.');
+                return;
+            }
+
+            hideEvolutionError();
+
+            var wrapper = document.getElementById('evolution-canvas-wrapper');
+            var emptyState = document.getElementById('evolution-empty-state');
+
+            if (!data.has_data) {
+                if (wrapper) wrapper.style.display = 'none';
+                if (emptyState) emptyState.style.display = 'flex';
+            } else {
+                if (emptyState) emptyState.style.display = 'none';
+                if (wrapper) wrapper.style.display = 'block';
+
+                if (chartEvolutionInstance) {
+                    chartEvolutionInstance.data.labels = data.labels;
+                    chartEvolutionInstance.data.datasets[0].data = data.data_r;
+                    chartEvolutionInstance.data.datasets[1].data = data.data_i;
+                    chartEvolutionInstance.data.datasets[2].data = data.data_ai;
+                    chartEvolutionInstance.update();
+                }
+            }
+        })
+        .catch(function(err) {
+            if (overlay) {
+                overlay.classList.remove('d-flex');
+                overlay.classList.add('d-none');
+            }
+            showEvolutionError('Erreur réseau lors de la mise à jour du graphique.');
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        var selectEl = document.getElementById('select-evolution-periode');
+        if (selectEl) {
+            selectEl.addEventListener('change', function(e) {
+                var val = e.target.value;
+                var customContainer = document.getElementById('custom-date-container');
+                if (val === 'custom') {
+                    if (customContainer) {
+                        customContainer.classList.remove('d-none');
+                        customContainer.classList.add('d-inline-flex');
+                    }
+                } else {
+                    if (customContainer) {
+                        customContainer.classList.remove('d-inline-flex');
+                        customContainer.classList.add('d-none');
+                    }
+                    fetchEvolutionChartData();
+                }
+            });
+        }
+
+        var btnCustom = document.getElementById('btn-submit-custom-dates');
+        if (btnCustom) {
+            btnCustom.addEventListener('click', function() {
+                fetchEvolutionChartData();
+            });
+        }
+
+        const labelsEvolution = JSON.parse('{{ chart_labels_json|escapejs }}');
+        const dataR = JSON.parse('{{ chart_data_r_json|escapejs }}');
+        const dataI = JSON.parse('{{ chart_data_i_json|escapejs }}');
+        const dataAI = JSON.parse('{{ chart_data_ai_json|escapejs }}');
+
+        // 1. Graphique Évolution (Période dynamique par type - Grouped Bar Chart)
+        const elEvolution = document.getElementById('chartEvolution');
+        if (elEvolution) {
+            chartEvolutionInstance = new Chart(elEvolution.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labelsEvolution,
+                    datasets: [
+                        {
+                            label: 'Réclamations (R)',
+                            data: dataR,
+                            backgroundColor: '#dc3545',
+                            borderColor: '#b21f2d',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Incidents (I)',
+                            data: dataI,
+                            backgroundColor: '#ffc107',
+                            borderColor: '#d39e00',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Améliorations (AI)',
+                            data: dataAI,
+                            backgroundColor: '#20c997',
+                            borderColor: '#1aa179',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: false },
+                        y: { stacked: false, beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Graphique Répartition par Type (R / I / AI)
+        const elType = document.getElementById('chartTypeDistribution');
+        if (elType) {
+            new Chart(elType.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Réclamation (R)', 'Incident (I)', 'Amélioration (AI)'],
+                    datasets: [{
+                        data: [{{ nb_type_r }}, {{ nb_type_i }}, {{ nb_type_ai }}],
+                        backgroundColor: ['#dc3545', '#ffc107', '#20c997']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // 3. Graphique Recevabilité (D8)
+        const elRecevability = document.getElementById('chartRecevabilite');
+        if (elRecevability) {
+            new Chart(elRecevability.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Recevable', 'Non recevable', 'Partiellement recevable'],
+                    datasets: [{
+                        data: [{{ nb_recevables }}, {{ nb_non_recevables }}, {{ nb_partiels }}],
+                        backgroundColor: ['#28a745', '#dc3545', '#ffc107']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // 4. Graphique Suivi des Actions Correctives
+        const elActions = document.getElementById('chartActions');
+        if (elActions) {
+            new Chart(elActions.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: ['Non démarrées', 'En cours', 'Réalisées', 'Vérifiées', 'En retard'],
+                    datasets: [{
+                        label: 'Nombre d\'actions',
+                        data: [
+                            {{ actions_non_demarrees }},
+                            {{ actions_en_cours }},
+                            {{ actions_realisees }},
+                            {{ actions_verifiees }},
+                            {{ actions_en_retard }}
+                        ],
+                        backgroundColor: ['#6c757d', '#007bff', '#17a2b8', '#28a745', '#dc3545']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // JS Binding for Quick Create Modal: Type -> Support
+        var typeSigSelect = document.getElementById('id_type_signalement');
+        var modeTraitementSelect = document.getElementById('id_mode_traitement');
+        if (typeSigSelect && modeTraitementSelect) {
+            function updateSupportFromType() {
+                var val = typeSigSelect.value;
+                if (val === 'R') {
+                    modeTraitementSelect.value = '8D';
+                } else if (val === 'AI') {
+                    modeTraitementSelect.value = 'DOC05_FAI';
+                } else {
+                    modeTraitementSelect.value = 'DOC05';
+                }
+            }
+            typeSigSelect.addEventListener('change', updateSupportFromType);
+            updateSupportFromType();
+        }
+
+        // ── Filter Sidebar Drawer Logic ──
+        var drawer = document.getElementById('rec-filter-drawer');
+        var backdrop = document.getElementById('rec-filter-backdrop');
+        var triggerBtn = document.getElementById('rec-filter-btn');
+        var closeBtn = drawer ? drawer.querySelector('.js-filter-close') : null;
+
+        function openDrawer() {
+            if (drawer) drawer.classList.add('show');
+            if (backdrop) backdrop.classList.add('show');
+        }
+
+        function closeDrawer() {
+            if (drawer) drawer.classList.remove('show');
+            if (backdrop) backdrop.classList.remove('show');
+        }
+
+        if (triggerBtn) triggerBtn.addEventListener('click', openDrawer);
+        if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+        if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                closeDrawer();
+            }
+        });
+
+        {% if show_create_modal or create_form.errors %}
+        if (typeof $ !== 'undefined' && $('#modal-create-reclamation').modal) {
+            $('#modal-create-reclamation').modal('show');
+        }
+        {% endif %}
+    });
+</script>
+{% endblock %}

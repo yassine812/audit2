@@ -105,6 +105,7 @@
     .icon-red    { background: linear-gradient(135deg, #f7971e, #e74c3c); }
     .icon-teal   { background: linear-gradient(135deg, #43b89c, #1abc9c); }
     .icon-orange { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+    .icon-rose   { background: linear-gradient(135deg, #f43f5e, #be123c); }
     .icon-dark   { background: linear-gradient(135deg, #434343, #000); }
 
     .module-card h3 { font-size: 1.15rem; font-weight: 700; margin: 0; }
@@ -188,6 +189,15 @@
       <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
     </a>
     {% endif %}
+
+    <a href="{% url 'reclamation:dashboard' %}" class="module-card">
+      <div class="module-icon icon-rose">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <h3>Réclamations Clients</h3>
+      <p>Suivi et traitement des réclamations clients, incidents P05 et rapports 8D.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
 
     <a href="{% url 'conge:liste' %}" class="module-card">
       <div class="module-icon icon-teal">

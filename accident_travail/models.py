@@ -625,7 +625,13 @@ class LAP8Jours(models.Model):
 
 
 class ActionCorrective(models.Model):
-    """Action corrective ou préventive liée à un LAP 8 jours."""
+    """Action corrective ou préventive liée à un LAP 8 jours (AT) ou à une Réclamation Client."""
+
+    AXE_CHOICES = [
+        ("technique", "D4.2 - Cause Technique"),
+        ("non_detection", "D4.1 - Non Détection"),
+        ("autre", "Autre"),
+    ]
 
     STATUT_CHOICES = [
         ("non_demarre", "Non démarré"),
@@ -635,10 +641,18 @@ class ActionCorrective(models.Model):
     ]
 
     lap = models.ForeignKey(
-        LAP8Jours, on_delete=models.CASCADE, related_name="actions",
-        verbose_name="LAP 8 jours",
+        LAP8Jours, on_delete=models.CASCADE, null=True, blank=True,
+        related_name="actions", verbose_name="LAP 8 jours",
     )
-    cause_racine = models.TextField(verbose_name="Cause racine")
+    reclamation = models.ForeignKey(
+        "reclamation_client.ReclamationClient", on_delete=models.CASCADE, null=True, blank=True,
+        related_name="actions_correctives", verbose_name="Réclamation Client",
+    )
+    axe = models.CharField(
+        max_length=20, choices=AXE_CHOICES, default="technique",
+        blank=True, verbose_name="Axe d'analyse",
+    )
+    cause_racine = models.TextField(blank=True, verbose_name="Cause racine")
     description = models.TextField(verbose_name="Action corrective / préventive")
     pilote = models.CharField(max_length=200, blank=True, verbose_name="Pilote")
     delai = models.DateField(null=True, blank=True, verbose_name="Délai")
@@ -653,6 +667,7 @@ class ActionCorrective(models.Model):
         verbose_name="Statut",
     )
     efficace = models.BooleanField(null=True, verbose_name="Action efficace")
+    audit_poste_doc37 = models.BooleanField(default=False, verbose_name="Audit de poste Doc 37 réalisé ?")
     ordre = models.PositiveIntegerField(default=1, verbose_name="Ordre")
 
     class Meta:
@@ -661,7 +676,8 @@ class ActionCorrective(models.Model):
         verbose_name_plural = "Actions correctives"
 
     def __str__(self):
-        return f"{self.lap} — {self.description[:60]}"
+        ref = self.lap or self.reclamation or "Action"
+        return f"{ref} — {self.description[:60]}"
 
 
 class ActionCorrectiveImmédiate(models.Model):

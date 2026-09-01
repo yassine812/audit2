@@ -20,6 +20,7 @@ urlpatterns = [
     # ── Modules métier ───────────────────────────────────────────────────────
     path("audit/", include(("audit.urls", "audit"), namespace="audit")),
     path("accidents/", include(("accident_travail.urls", "at"), namespace="at")),
+    path("reclamations/", include(("reclamation_client.urls", "reclamation"), namespace="reclamation")),
     path("achats/", include(("achats.urls", "achats"), namespace="achats")),
     path("gestion-documentaire/", include(("gestion_documentaire.urls", "gestion_documentaire"), namespace="gestion_documentaire")),
     # ── Gestion des Congés ───────────────────────────────────────────────────

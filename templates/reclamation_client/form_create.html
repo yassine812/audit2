@@ -1,0 +1,106 @@
+{% extends "reclamation_client/base.html" %}
+
+{% block title %}Nouveau Signalement Client{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-3 col-md-8">
+    <div class="card card-danger card-outline shadow-sm">
+        <div class="card-header">
+            <h3 class="card-title font-weight-bold"><i class="fas fa-plus-circle mr-2"></i>Nouveau Signalement Client</h3>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Type de Signalement *</label>
+                        {{ form.type_signalement }}
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>Support d'Analyse *</label>
+                        {{ form.mode_traitement }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Société *</label>
+                        {{ form.societe }}
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>Site Concerné</label>
+                        {{ form.site }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Nom du Client *</label>
+                        {{ form.client_nom }}
+                    </div>
+                    <div class="col-md-6 form-group">
+                        <label>Contact chez le Client</label>
+                        {{ form.contact_client }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Description Pièce / Prestation</label>
+                        {{ form.description_piece }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Référence Pièce</label>
+                        {{ form.reference_piece }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label>Quantité Impactée</label>
+                        {{ form.quantite_impactee }}
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 form-group">
+                        <label>Date d'Alerte Client *</label>
+                        {{ form.date_alerte_client }}
+                    </div>
+                    <div class="col-md-6 form-group pt-4">
+                        <div class="form-check">
+                            {{ form.accuse_reception_envoye }}
+                            <label class="form-check-label font-weight-bold">
+                                Accusé de réception écrit envoyé au client
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-right">
+                <a href="{% url 'reclamation:liste' %}" class="btn btn-default mr-2">Annuler</a>
+                <button type="submit" class="btn btn-danger font-weight-bold">
+                    <i class="fas fa-check-circle mr-1"></i> Enregistrer le Signalement
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var typeSel = document.querySelector('select[name="type_signalement"]');
+    var modeSel = document.querySelector('select[name="mode_traitement"]');
+    if (typeSel && modeSel) {
+        function updateSupportFromType() {
+            if (typeSel.value === 'R') {
+                modeSel.value = '8D';
+            } else if (typeSel.value === 'AI') {
+                modeSel.value = 'DOC05_FAI';
+            } else {
+                modeSel.value = 'DOC05';
+            }
+        }
+        typeSel.addEventListener('change', updateSupportFromType);
+        updateSupportFromType();
+    }
+});
+</script>
+{% endblock %}

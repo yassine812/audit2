@@ -1,0 +1,503 @@
+{% extends "reclamation_client/base.html" %}
+
+{% block title %}Fiche Incident {{ reclamation.reference }} — {{ reclamation.client_nom }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid pt-3 pb-5">
+    <form method="post" id="form-doc05">
+        {% csrf_token %}
+
+        <!-- Header Action Bar -->
+        <div class="card card-outline {% if reclamation.type_signalement == 'I' %}card-warning{% else %}card-info{% endif %} shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                <h3 class="card-title font-weight-bold text-dark mb-0">
+                    <i class="fas fa-file-alt mr-2 text-primary"></i>
+                    {% if reclamation.type_signalement == 'I' %}
+                        Fiche d'Incident (I)
+                    {% elif reclamation.type_signalement == 'AI' %}
+                        Fiche d'Amélioration (AI)
+                    {% else %}
+                        Fiche Incident / Amélioration
+                    {% endif %}
+                    <span class="badge badge-primary ml-2">{{ reclamation.reference }}</span>
+                    <span class="badge badge-secondary ml-1">{{ reclamation.get_type_signalement_display }}</span>
+                </h3>
+                <div class="card-tools d-flex align-items-center flex-wrap" style="gap: 8px;">
+                    <a href="{% url 'reclamation:detail' reclamation.pk %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-eye mr-1"></i> Fiche Synthèse
+                    </a>
+                    <a href="{% url 'reclamation:export_pdf_doc05' reclamation.pk %}" class="btn btn-sm btn-dark" target="_blank">
+                        <i class="fas fa-file-pdf mr-1 text-danger"></i> Imprimer PDF
+                    </a>
+                    <button type="submit" class="btn btn-sm btn-success font-weight-bold shadow-xs">
+                        <i class="fas fa-save mr-1"></i> Enregistrer la Fiche
+                    </button>
+                </div>
+            </div>
+            <div class="card-body bg-light">
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="font-weight-bold small text-muted">Client / Origine</label>
+                        <div class="form-control-plaintext font-weight-bold text-dark">{{ reclamation.client_nom }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="font-weight-bold small text-muted">Pièce / Prestation</label>
+                        <div class="form-control-plaintext text-dark">{{ reclamation.description_piece|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="font-weight-bold small text-muted">Référence Pièce</label>
+                        <div class="form-control-plaintext text-dark">{{ reclamation.reference_piece|default:"—" }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="font-weight-bold small text-muted">Support d'Analyse (Locked)</label>
+                        <div class="form-control-plaintext"><span class="badge badge-info px-2 py-1"><i class="fas fa-lock mr-1"></i>{{ reclamation.get_mode_traitement_display }}</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. En-tête de la fiche Doc 05 -->
+        <div class="card card-outline card-primary shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-primary mb-0">
+                    <i class="fas fa-heading mr-2"></i>1. En-tête de la Fiche Doc 05
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 form-group">
+                        <label class="font-weight-bold small">Rédacteur de la fiche</label>
+                        {{ doc05_form.redacteur }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label class="font-weight-bold small">Date de détection de la non-conformité</label>
+                        {{ doc05_form.date_detection }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label class="font-weight-bold small">Date de l'ouverture de la fiche</label>
+                        {{ doc05_form.date_ouverture }}
+                    </div>
+                    <div class="col-md-3 form-group">
+                        <label class="font-weight-bold small">Site concerné</label>
+                        {{ doc05_form.site_concerne }}
+                    </div>
+                </div>
+                <div class="row pt-2 border-top mt-2">
+                    <div class="col-md-12">
+                        <label class="font-weight-bold small mr-3">Événement :</label>
+                        <div class="form-check form-check-inline">
+                            {{ doc05_form.evenement_qualite }}
+                            <label class="form-check-label font-weight-bold text-dark small ml-1">Qualité</label>
+                        </div>
+                        <div class="form-check form-check-inline ml-4">
+                            {{ doc05_form.evenement_securite }}
+                            <label class="form-check-label font-weight-bold text-dark small ml-1">Sécurité</label>
+                        </div>
+                        <div class="form-check form-check-inline ml-4">
+                            {{ doc05_form.evenement_environnement }}
+                            <label class="form-check-label font-weight-bold text-dark small ml-1">Environnement</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Méthode QQOQCC -->
+        <div class="card card-outline card-info shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-info mb-0">
+                    <i class="fas fa-question-circle mr-2"></i>2. Définition de l'anomalie par la méthode QQOQCC
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <p class="p-3 text-muted small border-bottom mb-0 bg-light">
+                    <em>Par la méthode QQOQCC, veuillez définir le plus précisément possible l’anomalie rencontrée :</em>
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-bordered mb-0">
+                        <thead class="bg-dark text-white">
+                            <tr>
+                                <th style="width: 12%;">Questions</th>
+                                <th style="width: 33%;">Aide à la réflexion</th>
+                                <th style="width: 55%;">Réponse pour décrire le problème</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">QUOI ?</td>
+                                <td class="small text-muted align-middle">Quel est la nature du problème ?<br>Quel est le dysfonctionnement ?<br>Que se passe-t-il ?</td>
+                                <td>{{ doc05_form.quoi_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">QUI ?</td>
+                                <td class="small text-muted align-middle">Qui rencontre le problème ?<br>Qui l’a détecté ?<br>Qui le subit ?</td>
+                                <td>{{ doc05_form.qui_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">OÙ ?</td>
+                                <td class="small text-muted align-middle">Où a été détecté le problème ?<br>Quel site ? quel secteur ?<br>Quel poste ?</td>
+                                <td>{{ doc05_form.ou_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">QUAND ?</td>
+                                <td class="small text-muted align-middle">Quand a-t-on détecté le problème ?<br>A quelle étape des opérations ?<br>Au moment de quel processus ?</td>
+                                <td>{{ doc05_form.quand_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">COMMENT ?</td>
+                                <td class="small text-muted align-middle">Comment se manifeste le problème ?<br>Comment a –t-il été détecté ?</td>
+                                <td>{{ doc05_form.comment_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">COMBIEN ?</td>
+                                <td class="small text-muted align-middle">Quelle quantité concernée ?<br>Quelle fréquence d’apparition ?</td>
+                                <td>{{ doc05_form.combien_reponse }}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-weight-bold text-primary align-middle">AUTRE ?</td>
+                                <td class="small text-muted align-middle">Renseigner ici toutes autres informations utiles à la compréhension du problème (Réf, Fournisseur, Alerte...)</td>
+                                <td>{{ doc05_form.autre_reponse }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Analyse 5 Pourquoi -->
+        <div class="card card-outline card-danger shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-danger mb-0">
+                    <i class="fas fa-sitemap mr-2"></i>3. Analyse des causes racines (Méthode 5 Pourquoi)
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small border-bottom pb-2">
+                    <em>La méthode "5 Pourquoi" permet de remonter aux causes racines du problème. A partir du problème, posez-vous 5 fois la question "Pourquoi ?"</em>
+                </p>
+                <div class="form-group mb-4">
+                    <label class="font-weight-bold text-danger">Motif de la non-conformité :</label>
+                    {{ doc05_form.motif_non_conformite }}
+                </div>
+
+                <!-- 5 Pourquoi Dynamic Chains Container -->
+                <input type="hidden" name="pourquoi_chains_json" id="id_pourquoi_chains_json" value="{{ pourquoi_chains_json }}">
+                <div id="chains-container"></div>
+                <button type="button" class="btn btn-sm btn-outline-danger font-weight-bold mt-2" id="btn-add-chain">
+                    <i class="fas fa-plus mr-1"></i> Ajouter une ligne 5 Pourquoi
+                </button>
+            </div>
+        </div>
+
+        <!-- 4. Questions contextuelles / Répétitives -->
+        <div class="card card-outline card-secondary shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-secondary mb-0">
+                    <i class="fas fa-history mr-2"></i>4. Historique & Analyse du contexte
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center mb-3 pb-2 border-bottom">
+                    <div class="col-md-5">
+                        <span class="font-weight-bold text-dark">Ce problème a-t-il déjà été signalé ?</span>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check form-check-inline">
+                            {{ doc05_form.deja_signale }}
+                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        {{ doc05_form.deja_signale_details }}
+                    </div>
+                </div>
+
+                <div class="row align-items-center mb-3 pb-2 border-bottom">
+                    <div class="col-md-5">
+                        <span class="font-weight-bold text-dark">Y a-t-il eu des particularités / changements intervenus dans cette période ?</span>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check form-check-inline">
+                            {{ doc05_form.particularites_changements }}
+                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        {{ doc05_form.particularites_details }}
+                    </div>
+                </div>
+
+                <div class="row align-items-center">
+                    <div class="col-md-5">
+                        <span class="font-weight-bold text-dark">Y-a-t-il un risque similaire sur autre produit/secteur ?</span>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check form-check-inline">
+                            {{ doc05_form.risque_similaire }}
+                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        {{ doc05_form.risque_similaire_details }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Plan d'actions -->
+        <div class="card card-outline card-success shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-success mb-0">
+                    <i class="fas fa-tasks mr-2"></i>5. Plan d'actions & Mesures retenues
+                </h5>
+            </div>
+            <div class="card-body">
+                <input type="hidden" name="mesures_immediates_json" id="id_mesures_immediates_json" value="{{ mesures_immediates_json }}">
+                <input type="hidden" name="actions_correctives_json" id="id_actions_correctives_json" value="{{ actions_correctives_json }}">
+
+                <!-- Mesures Immédiates -->
+                <h6 class="font-weight-bold text-primary mb-3">Mesures immédiates :</h6>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm" id="table-mesures-immediates">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Mesures immédiates</th>
+                                <th style="width: 22%;">Pilote</th>
+                                <th style="width: 18%;">Délais</th>
+                                <th style="width: 18%;">Réalisé le</th>
+                                <th style="width: 50px;" class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-mesures"></tbody>
+                    </table>
+                    <button type="button" class="btn btn-xs btn-outline-primary font-weight-bold" id="btn-add-mesure">
+                        <i class="fas fa-plus mr-1"></i> Ajouter une mesure immédiate
+                    </button>
+                </div>
+
+                <!-- Actions Correctives Retenues -->
+                <h6 class="font-weight-bold text-success mt-4 mb-3">Actions correctives retenues :</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm" id="table-actions-correctives">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Action correctives retenues</th>
+                                <th style="width: 20%;">Pilote</th>
+                                <th style="width: 15%;">Délais</th>
+                                <th style="width: 15%;">Réalisé le</th>
+                                <th style="width: 20%;">Efficacité</th>
+                                <th style="width: 50px;" class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-actions"></tbody>
+                    </table>
+                    <button type="button" class="btn btn-xs btn-outline-success font-weight-bold" id="btn-add-action">
+                        <i class="fas fa-plus mr-1"></i> Ajouter une action corrective
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6. Clôture -->
+        <div class="card card-outline card-dark shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title font-weight-bold text-dark mb-0">
+                    <i class="fas fa-check-circle mr-2"></i>6. Clôture de la Fiche
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4 form-group mb-0">
+                        <label class="font-weight-bold small text-dark">• Date de Clôture :</label>
+                        {{ doc05_form.date_cloture }}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Save Button -->
+        <div class="card-footer bg-white border-top text-right p-3">
+            <a href="{% url 'reclamation:liste' %}" class="btn btn-default mr-2">
+                <i class="fas fa-arrow-left mr-1"></i> Retour à la Liste
+            </a>
+            <button type="submit" class="btn btn-success btn-lg font-weight-bold px-4 shadow-sm">
+                <i class="fas fa-save mr-1"></i> Enregistrer la Fiche
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Dynamic JS for 5 Pourquoi & Action Tables -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Pourquoi Chains Builder
+    var pourquoiJsonInput = document.getElementById('id_pourquoi_chains_json');
+    var chainsContainer = document.getElementById('chains-container');
+    var btnAddChain = document.getElementById('btn-add-chain');
+
+    var pourquoiData = [];
+    try { pourquoiData = JSON.parse(pourquoiJsonInput.value || '[]'); } catch(e) { pourquoiData = []; }
+    if (!Array.isArray(pourquoiData) || pourquoiData.length === 0) {
+        pourquoiData = [
+            { p1: '', p2: '', p3: '', p4: '', p5: '', conclusion: '' }
+        ];
+    }
+
+    function renderChains() {
+        chainsContainer.innerHTML = '';
+        pourquoiData.forEach(function(item, idx) {
+            var card = document.createElement('div');
+            card.className = 'card border mb-3 bg-light';
+            card.innerHTML = `
+                <div class="card-header py-1 px-3 d-flex justify-content-between align-items-center bg-secondary text-white">
+                    <span class="font-weight-bold small">Chaîne 5 Pourquoi #${idx + 1}</span>
+                    ${pourquoiData.length > 1 ? `<button type="button" class="btn btn-xs btn-danger btn-remove-chain" data-idx="${idx}"><i class="fas fa-trash"></i></button>` : ''}
+                </div>
+                <div class="card-body p-2">
+                    <div class="form-row">
+                        <div class="col"><label class="small font-weight-bold">1er pourquoi ?</label><input type="text" class="form-control form-control-sm chain-field" data-idx="${idx}" data-field="p1" value="${item.p1 || ''}"></div>
+                        <div class="col"><label class="small font-weight-bold">2ème pourquoi ?</label><input type="text" class="form-control form-control-sm chain-field" data-idx="${idx}" data-field="p2" value="${item.p2 || ''}"></div>
+                        <div class="col"><label class="small font-weight-bold">3ème pourquoi ?</label><input type="text" class="form-control form-control-sm chain-field" data-idx="${idx}" data-field="p3" value="${item.p3 || ''}"></div>
+                        <div class="col"><label class="small font-weight-bold">4ème pourquoi ?</label><input type="text" class="form-control form-control-sm chain-field" data-idx="${idx}" data-field="p4" value="${item.p4 || ''}"></div>
+                        <div class="col"><label class="small font-weight-bold">5ème pourquoi ?</label><input type="text" class="form-control form-control-sm chain-field" data-idx="${idx}" data-field="p5" value="${item.p5 || ''}"></div>
+                        <div class="col"><label class="small font-weight-bold text-success">Conclusion</label><input type="text" class="form-control form-control-sm chain-field border-success" data-idx="${idx}" data-field="conclusion" value="${item.conclusion || ''}"></div>
+                    </div>
+                </div>
+            `;
+            chainsContainer.appendChild(card);
+        });
+        pourquoiJsonInput.value = JSON.stringify(pourquoiData);
+    }
+
+    chainsContainer.addEventListener('input', function(e) {
+        if (e.target.classList.contains('chain-field')) {
+            var idx = parseInt(e.target.getAttribute('data-idx'));
+            var field = e.target.getAttribute('data-field');
+            pourquoiData[idx][field] = e.target.value;
+            pourquoiJsonInput.value = JSON.stringify(pourquoiData);
+        }
+    });
+
+    chainsContainer.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-remove-chain');
+        if (btn) {
+            var idx = parseInt(btn.getAttribute('data-idx'));
+            pourquoiData.splice(idx, 1);
+            renderChains();
+        }
+    });
+
+    btnAddChain.addEventListener('click', function() {
+        pourquoiData.push({ p1: '', p2: '', p3: '', p4: '', p5: '', conclusion: '' });
+        renderChains();
+    });
+
+    renderChains();
+
+    // 2. Mesures Immédiates Table Builder
+    var mesuresInput = document.getElementById('id_mesures_immediates_json');
+    var tbodyMesures = document.getElementById('tbody-mesures');
+    var btnAddMesure = document.getElementById('btn-add-mesure');
+
+    var mesuresData = [];
+    try { mesuresData = JSON.parse(mesuresInput.value || '[]'); } catch(e) { mesuresData = []; }
+    if (!Array.isArray(mesuresData) || mesuresData.length === 0) {
+        mesuresData = [{ description: '', pilote: '', delai: '', realise_le: '' }];
+    }
+
+    function renderMesures() {
+        tbodyMesures.innerHTML = '';
+        mesuresData.forEach(function(item, idx) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="form-control form-control-sm mesure-field" data-idx="${idx}" data-field="description" value="${item.description || ''}"></td>
+                <td><input type="text" class="form-control form-control-sm mesure-field" data-idx="${idx}" data-field="pilote" value="${item.pilote || ''}"></td>
+                <td><input type="date" class="form-control form-control-sm mesure-field" data-idx="${idx}" data-field="delai" value="${item.delai || ''}"></td>
+                <td><input type="date" class="form-control form-control-sm mesure-field" data-idx="${idx}" data-field="realise_le" value="${item.realise_le || ''}"></td>
+                <td class="text-center align-middle"><button type="button" class="btn btn-xs btn-outline-danger btn-remove-mesure" data-idx="${idx}"><i class="fas fa-trash"></i></button></td>
+            `;
+            tbodyMesures.appendChild(tr);
+        });
+        mesuresInput.value = JSON.stringify(mesuresData);
+    }
+
+    tbodyMesures.addEventListener('input', function(e) {
+        if (e.target.classList.contains('mesure-field')) {
+            var idx = parseInt(e.target.getAttribute('data-idx'));
+            var field = e.target.getAttribute('data-field');
+            mesuresData[idx][field] = e.target.value;
+            mesuresInput.value = JSON.stringify(mesuresData);
+        }
+    });
+
+    tbodyMesures.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-remove-mesure');
+        if (btn) {
+            var idx = parseInt(btn.getAttribute('data-idx'));
+            mesuresData.splice(idx, 1);
+            renderMesures();
+        }
+    });
+
+    btnAddMesure.addEventListener('click', function() {
+        mesuresData.push({ description: '', pilote: '', delai: '', realise_le: '' });
+        renderMesures();
+    });
+
+    renderMesures();
+
+    // 3. Actions Correctives Retenues Table Builder
+    var actionsInput = document.getElementById('id_actions_correctives_json');
+    var tbodyActions = document.getElementById('tbody-actions');
+    var btnAddAction = document.getElementById('btn-add-action');
+
+    var actionsData = [];
+    try { actionsData = JSON.parse(actionsInput.value || '[]'); } catch(e) { actionsData = []; }
+    if (!Array.isArray(actionsData) || actionsData.length === 0) {
+        actionsData = [{ description: '', pilote: '', delai: '', realise_le: '', efficacite: '' }];
+    }
+
+    function renderActions() {
+        tbodyActions.innerHTML = '';
+        actionsData.forEach(function(item, idx) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input type="text" class="form-control form-control-sm action-field" data-idx="${idx}" data-field="description" value="${item.description || ''}"></td>
+                <td><input type="text" class="form-control form-control-sm action-field" data-idx="${idx}" data-field="pilote" value="${item.pilote || ''}"></td>
+                <td><input type="date" class="form-control form-control-sm action-field" data-idx="${idx}" data-field="delai" value="${item.delai || ''}"></td>
+                <td><input type="date" class="form-control form-control-sm action-field" data-idx="${idx}" data-field="realise_le" value="${item.realise_le || ''}"></td>
+                <td><input type="text" class="form-control form-control-sm action-field" data-idx="${idx}" data-field="efficacite" value="${item.efficacite || ''}" placeholder="ex: Oui, 54 pièces"></td>
+                <td class="text-center align-middle"><button type="button" class="btn btn-xs btn-outline-danger btn-remove-action" data-idx="${idx}"><i class="fas fa-trash"></i></button></td>
+            `;
+            tbodyActions.appendChild(tr);
+        });
+        actionsInput.value = JSON.stringify(actionsData);
+    }
+
+    tbodyActions.addEventListener('input', function(e) {
+        if (e.target.classList.contains('action-field')) {
+            var idx = parseInt(e.target.getAttribute('data-idx'));
+            var field = e.target.getAttribute('data-field');
+            actionsData[idx][field] = e.target.value;
+            actionsInput.value = JSON.stringify(actionsData);
+        }
+    });
+
+    tbodyActions.addEventListener('click', function(e) {
+        var btn = e.target.closest('.btn-remove-action');
+        if (btn) {
+            var idx = parseInt(btn.getAttribute('data-idx'));
+            actionsData.splice(idx, 1);
+            renderActions();
+        }
+    });
+
+    btnAddAction.addEventListener('click', function() {
+        actionsData.push({ description: '', pilote: '', delai: '', realise_le: '', efficacite: '' });
+        renderActions();
+    });
+
+    renderActions();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,447 @@
+{% extends "reclamation_client/base.html" %}
+
+{% block title %}Éditeur 8D — Dossier {{ reclamation.reference }}{% endblock %}
+
+{% block content %}
+<style>
+    /* ── GUARANTEED SINGLE-ROW 8D TAB NAV ── */
+    .card-tabs .card-header {
+        background-color: #dc3545 !important;
+        padding: 0 !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        white-space: nowrap !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    .card-tabs .card-header .nav-tabs,
+    .card-tabs .card-header #editor-tabs {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        white-space: nowrap !important;
+        border-bottom: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-width: max-content !important;
+    }
+    .card-tabs .card-header .nav-tabs .nav-item {
+        flex: 1 1 0px !important;
+        min-width: 0 !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        margin-bottom: 0 !important;
+    }
+    .card-tabs .card-header .nav-tabs .nav-link {
+        display: block !important;
+        white-space: nowrap !important;
+        padding: 0.6rem 0.5rem !important;
+        font-size: 0.84rem !important;
+        font-weight: 600 !important;
+        color: rgba(255, 255, 255, 0.9) !important;
+        border: none !important;
+        border-top: 3px solid transparent !important;
+        border-radius: 0 !important;
+    }
+    .card-tabs .card-header .nav-tabs .nav-link.active {
+        background-color: #ffffff !important;
+        color: #212529 !important;
+        border-top: 3px solid #dc3545 !important;
+        font-weight: 700 !important;
+    }
+    .card-tabs .card-header .nav-tabs .nav-link:hover:not(.active) {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        color: #ffffff !important;
+    }
+    @media (max-width: 992px) {
+        .card-tabs .card-header .nav-tabs .nav-item {
+            flex: 0 0 auto !important;
+        }
+        .card-tabs .card-header .nav-tabs .nav-link {
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.8rem !important;
+        }
+    }
+</style>
+
+<div class="container-fluid pt-3">
+    <form method="post" id="form-8d">
+        {% csrf_token %}
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h1 class="m-0"><i class="fas fa-edit text-danger mr-2"></i>Rapport 8D (Doc 83) — {{ reclamation.reference }}</h1>
+                <small class="text-muted">Client: {{ reclamation.client_nom }} | Type: {{ reclamation.get_type_signalement_display }}</small>
+            </div>
+            <div class="col-sm-6 text-right">
+                <a href="{% url 'reclamation:detail' reclamation.pk %}" class="btn btn-default mr-2">Voir Synthèse</a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-save mr-1"></i> Enregistrer le Dossier 8D
+                </button>
+            </div>
+        </div>
+
+        <div class="card card-danger card-tabs">
+            <div class="card-header p-0 pt-1">
+                <ul class="nav nav-tabs" id="editor-tabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active" id="tab-d1-d3-tab" data-toggle="pill" href="#tab-d1-d3" role="tab">D1 - D3 : En-tête & Sécurisation</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-d2-tab" data-toggle="pill" href="#tab-d2" role="tab">D2 : QQOQCCP (EST / N'EST PAS)</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-d4-tab" data-toggle="pill" href="#tab-d4" role="tab">D4 : 5 Pourquoi Double Axe</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-d5-d6-tab" data-toggle="pill" href="#tab-d5-d6" role="tab">D5 - D6 : Actions Tests & Permanentes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" id="tab-d7-d8-tab" data-toggle="pill" href="#tab-d7-d8" role="tab">D7 - D8 : Capitalisation & Recevabilité</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="editor-tabs-content">
+                    
+                    <!-- ── TAB 1 : En-tête, D1, D3 ────────────────────────────── -->
+                    <div class="tab-pane fade show active" id="tab-d1-d3" role="tabpanel">
+                        <h5 class="text-danger border-bottom pb-2">En-tête du Rapport 8D</h5>
+                        <div class="row">
+                            <div class="col-md-3 form-group"><label>N° Réclamation Client</label>{{ header_form.numero_reclamation_client }}</div>
+                            <div class="col-md-3 form-group"><label>N° Interne</label>{{ header_form.numero_interne }}</div>
+                            <div class="col-md-3 form-group"><label>Type P05</label>{{ header_form.type_signalement }}</div>
+                            <div class="col-md-3 form-group"><label>Statut Dossier</label>{{ header_form.statut }}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 form-group"><label>Société *</label>{{ header_form.societe }}</div>
+                            <div class="col-md-4 form-group"><label>Site Concerné</label>{{ header_form.site }}</div>
+                            <div class="col-md-4 form-group"><label>Nom Client *</label>{{ header_form.client_nom }}</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 form-group"><label>Description Pièce</label>{{ header_form.description_piece }}</div>
+                            <div class="col-md-3 form-group"><label>Référence Pièce</label>{{ header_form.reference_piece }}</div>
+                            <div class="col-md-3 form-group"><label>Quantité Impactée</label>{{ header_form.quantite_impactee }}</div>
+                            <div class="col-md-2 form-group pt-4">
+                                <div class="form-check">{{ header_form.est_probleme_repetitif }} <label class="form-check-label font-weight-bold">Problème Répétitif ?</label></div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 form-group"><label>Date Alerte Client</label>{{ header_form.date_alerte_client }}</div>
+                            <div class="col-md-3 form-group"><label>Date Ouverture Fiche</label>{{ header_form.date_ouverture }}</div>
+                            <div class="col-md-3 form-group"><label>Date Incident</label>{{ header_form.date_incident }}</div>
+                            <div class="col-md-3 form-group"><label>Date Envoi D1-D3</label>{{ header_form.date_envoi_d1_d3 }}</div>
+                        </div>
+
+                        <h5 class="text-danger border-bottom pb-2 mt-4">D1 - Groupe 8D (Équipe)</h5>
+                        {{ participants_formset.management_form }}
+                        <table class="table table-sm table-bordered col-md-10" id="table-participants">
+                            <thead class="bg-light"><tr><th>Utilisateur Interne</th><th>Nom Externe (si tiers)</th><th>Fonction *</th><th>Pilote ?</th><th>Effacer</th></tr></thead>
+                            <tbody>
+                                {% for form in participants_formset %}
+                                <tr>
+                                    <td>{{ form.id }}{{ form.user }}</td>
+                                    <td>{{ form.nom_externe }}</td>
+                                    <td>{{ form.fonction }}</td>
+                                    <td class="text-center">{{ form.est_pilote }}</td>
+                                    <td class="text-center">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <h5 class="text-danger border-bottom pb-2 mt-4">D3 - Mesures Conservatoires ou de Sécurisation</h5>
+                        {{ mesures_d3_formset.management_form }}
+                        <table class="table table-sm table-bordered">
+                            <thead class="bg-light"><tr><th>Mesure Conservatoire</th><th>Appliquée ?</th><th>Quantité Triée</th><th>Quantité NOK</th><th>Commentaires</th></tr></thead>
+                            <tbody>
+                                {% for form in mesures_d3_formset %}
+                                <tr>
+                                    <td>{{ form.id }}{{ form.instance.get_type_mesure_display }} {{ form.type_mesure.as_hidden }}</td>
+                                    <td class="text-center">{{ form.selectionne }}</td>
+                                    <td>{{ form.quantite_triee }}</td>
+                                    <td>{{ form.quantite_nok }}</td>
+                                    <td>{{ form.commentaires }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ── TAB 2 : D2 QQOQCCP ────────────────────────────────── -->
+                    <div class="tab-pane fade" id="tab-d2" role="tabpanel">
+                        <h5 class="text-danger border-bottom pb-2">D2 - Description du Problème (Matrice Comparative EST / N'EST PAS)</h5>
+                        <div class="form-group mb-4">
+                            <label>Description synthétique transmise par le client :</label>
+                            {{ qqoqccp_form.description_client }}
+                        </div>
+                        <table class="table table-bordered">
+                            <thead class="bg-dark text-white">
+                                <tr><th style="width: 20%;">Dimension QQOQCCP</th><th style="width: 40%;">Le problème EST...</th><th style="width: 40%;">Le problème N'EST PAS...</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td><strong>QUOI ?</strong> (Objet / Défaillance)</td><td>{{ qqoqccp_form.quoi_est }}</td><td>{{ qqoqccp_form.quoi_nest_pas }}</td></tr>
+                                <tr><td><strong>QUI ?</strong> (Rencontre le problème)</td><td>{{ qqoqccp_form.qui_est }}</td><td>{{ qqoqccp_form.qui_nest_pas }}</td></tr>
+                                <tr><td><strong>OÙ ?</strong> (Secteur / Site)</td><td>{{ qqoqccp_form.ou_est }}</td><td>{{ qqoqccp_form.ou_nest_pas }}</td></tr>
+                                <tr><td><strong>QUAND ?</strong> (Détecté quand / par qui)</td><td>{{ qqoqccp_form.quand_est }}</td><td>{{ qqoqccp_form.quand_nest_pas }}</td></tr>
+                                <tr><td><strong>COMMENT ?</strong> (Se manifeste)</td><td>{{ qqoqccp_form.comment_est }}</td><td>{{ qqoqccp_form.comment_nest_pas }}</td></tr>
+                                <tr><td><strong>COMBIEN ?</strong> (Nombre de pièces)</td><td>{{ qqoqccp_form.combien_est }}</td><td>{{ qqoqccp_form.combien_nest_pas }}</td></tr>
+                                <tr><td><strong>POURQUOI ?</strong> (Est-ce un problème)</td><td>{{ qqoqccp_form.pourquoi_est }}</td><td>{{ qqoqccp_form.pourquoi_nest_pas }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- ── TAB 3 : D4 5 Pourquoi Double Axe (Même format qu'Accident de Travail) ── -->
+                    <div class="tab-pane fade" id="tab-d4" role="tabpanel">
+                        <h5 class="text-danger border-bottom pb-2">D4 - Analyse des Causes (Double Axe 5 Pourquoi Doc.83)</h5>
+                        <p class="text-muted"><i class="fas fa-info-circle mr-1"></i>Déroulez les 5 Pourquoi horizontalement pour chaque axe. La 5ème réponse (Cause racine) alimente automatiquement la synthèse.</p>
+                        
+                        <input type="hidden" name="pourquoi_non_detection_json" id="pourquoi-nd-json-field" value="{{ pourquoi_non_detection_json|default:'[]' }}">
+                        <input type="hidden" name="pourquoi_technique_json" id="pourquoi-tech-json-field" value="{{ pourquoi_technique_json|default:'[]' }}">
+
+                        <!-- D4.1 Axe Non-Détection -->
+                        <div class="card card-info card-outline mb-4">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-search-minus mr-2"></i>D4.1 - Axe Non Détection (Pourquoi le problème n'a-t-il pas été détecté ?)</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-2" style="table-layout:fixed;min-width:800px">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center text-info font-weight-bold" style="width:19%">Pourquoi 1</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-info font-weight-bold" style="width:19%">Pourquoi 2</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-info font-weight-bold" style="width:19%">Pourquoi 3</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-info font-weight-bold" style="width:19%">Pourquoi 4</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%"><i class="fas fa-bullseye mr-1"></i>Cause racine (P5)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-nd-field" data-idx="0" style="border-top:3px solid #17a2b8;background:#fff;" placeholder="Pourquoi 1…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-nd-field" data-idx="1" style="border-top:3px solid #17a2b8;background:#fff;" placeholder="Pourquoi 2…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-nd-field" data-idx="2" style="border-top:3px solid #17a2b8;background:#fff;" placeholder="Pourquoi 3…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-nd-field" data-idx="3" style="border-top:3px solid #17a2b8;background:#fff;" placeholder="Pourquoi 4…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-nd-field" data-idx="4" style="border-top:3px solid #dc3545;background:#fff5f5;" placeholder="Cause racine P5…"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-group mt-3">
+                                    <label>Synthèse Cause Principale de Non-Détection :</label>
+                                    {{ analyse_d4_form.cause_principale_non_detection }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- D4.2 Axe Cause Technique -->
+                        <div class="card card-danger card-outline mb-3">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="fas fa-cogs mr-2"></i>D4.2 - Axe Cause Technique / Occurrence (Pourquoi le problème est-il survenu ?)</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-2" style="table-layout:fixed;min-width:800px">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%">Pourquoi 1</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%">Pourquoi 2</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%">Pourquoi 3</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%">Pourquoi 4</th>
+                                                <th style="width:1%" class="text-center"><i class="fas fa-arrow-right text-muted"></i></th>
+                                                <th class="text-center text-danger font-weight-bold" style="width:19%"><i class="fas fa-bullseye mr-1"></i>Cause racine (P5)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-tech-field" data-idx="0" style="border-top:3px solid #dc3545;background:#fff;" placeholder="Pourquoi 1…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-tech-field" data-idx="1" style="border-top:3px solid #dc3545;background:#fff;" placeholder="Pourquoi 2…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-tech-field" data-idx="2" style="border-top:3px solid #dc3545;background:#fff;" placeholder="Pourquoi 3…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-tech-field" data-idx="3" style="border-top:3px solid #dc3545;background:#fff;" placeholder="Pourquoi 4…"></td>
+                                                <td style="width:1%"></td>
+                                                <td style="padding:4px"><input type="text" class="form-control form-control-sm pq-tech-field" data-idx="4" style="border-top:3px solid #dc3545;background:#fff5f5;" placeholder="Cause racine P5…"></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="form-group mt-3">
+                                    <label>Synthèse Cause Principale Technique / Non-conformité :</label>
+                                    {{ analyse_d4_form.cause_principale_technique }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ── TAB 4 : D5 - D6 Actions (Système partagé ActionCorrective) ────── -->
+                    <div class="tab-pane fade" id="tab-d5-d6" role="tabpanel">
+                        <h5 class="text-danger border-bottom pb-2">D5 - Actions Tests Planifiées</h5>
+                        {{ actions_tests_formset.management_form }}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-4">
+                                <thead class="bg-light"><tr><th>Action Test</th><th>Pilote - Délai</th><th>Conclusion</th><th>Suppr.</th></tr></thead>
+                                <tbody>
+                                    {% for form in actions_tests_formset %}
+                                    <tr>
+                                        <td>{{ form.id }}{{ form.description_action }}</td>
+                                        <td>{{ form.pilote_delai }}</td>
+                                        <td>{{ form.conclusion }}</td>
+                                        <td class="text-center">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <h5 class="text-danger border-bottom pb-2">D6 - Plan d'Action Correctives / Préventives (Modèle partagé ActionCorrective)</h5>
+                        {{ actions_permanentes_formset.management_form }}
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead class="bg-dark text-white">
+                                    <tr>
+                                        <th>Axe</th>
+                                        <th>Action Permanente</th>
+                                        <th>Pilote</th>
+                                        <th>Délai</th>
+                                        <th>Réalisation</th>
+                                        <th>Statut</th>
+                                        <th>Efficace ?</th>
+                                        <th>Audit Doc37</th>
+                                        <th>Suppr.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for form in actions_permanentes_formset %}
+                                    <tr>
+                                        <td>{{ form.id }}{{ form.axe }}</td>
+                                        <td>{{ form.description }}</td>
+                                        <td>{{ form.pilote }}</td>
+                                        <td>{{ form.delai }}</td>
+                                        <td>{{ form.date_realisation }}</td>
+                                        <td>{{ form.statut }}</td>
+                                        <td>{{ form.efficace }}</td>
+                                        <td class="text-center">{{ form.audit_poste_doc37 }}</td>
+                                        <td class="text-center">{% if form.instance.pk %}{{ form.DELETE }}{% endif %}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- ── TAB 5 : D7 - D8 ────────────────────────────────────── -->
+                    <div class="tab-pane fade" id="tab-d7-d8" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="text-danger border-bottom pb-2">D7 - Capitaliser (Mise à jour Documentation SMQS)</h5>
+                                <table class="table table-sm table-bordered">
+                                    <thead class="bg-light"><tr><th>Document SMQS</th><th>Mis à jour ?</th><th>Pilote - Délai</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Doc.01 Instruction de travail</td><td>{{ capitalisation_d7_form.doc01_instruction }}</td><td>{{ capitalisation_d7_form.doc01_pilote_delai }}</td></tr>
+                                        <tr><td>Doc 12 Gamme de travail</td><td>{{ capitalisation_d7_form.doc12_gammes }}</td><td>{{ capitalisation_d7_form.doc12_pilote_delai }}</td></tr>
+                                        <tr><td colspan="3">{{ capitalisation_d7_form.precisez_gammes }}</td></tr>
+                                        <tr><td>Doc.21 Formation Nouvel arrivant</td><td>{{ capitalisation_d7_form.doc21_formation }}</td><td>{{ capitalisation_d7_form.doc21_pilote_delai }}</td></tr>
+                                        <tr><td>Doc 34 Habilitation individuelle</td><td>{{ capitalisation_d7_form.doc34_habilitation_indiv }}</td><td>{{ capitalisation_d7_form.doc34_pilote_delai }}</td></tr>
+                                        <tr><td>Doc 38 Habilitation au poste</td><td>{{ capitalisation_d7_form.doc38_habilitation_poste }}</td><td>{{ capitalisation_d7_form.doc38_habilitation_poste }}</td></tr>
+                                        <tr><td>Doc 5-24 Tableau de compétences</td><td>{{ capitalisation_d7_form.doc5_24_competences }}</td><td>{{ capitalisation_d7_form.doc5_24_pilote_delai }}</td></tr>
+                                        <tr><td>Doc 50 OK Démarrage</td><td>{{ capitalisation_d7_form.doc50_ok_demarrage }}</td><td>{{ capitalisation_d7_form.doc50_pilote_delai }}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5 class="text-danger border-bottom pb-2">D8 - Fermeture du 8D & Recevabilité (P05 §5)</h5>
+                                <div class="card card-outline card-danger">
+                                    <div class="card-body">
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Statut de Recevabilité (P05 §5) :</label>
+                                            {{ cloture_d8_form.statut_recevabilite }}
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="font-weight-bold">Motif de la décision & Défense factuelle (Obligatoire si refus) :</label>
+                                            {{ cloture_d8_form.motif_decision_factuel }}
+                                        </div>
+                                        <div class="row">
+                                            <div class="col-md-6 form-group">
+                                                <div class="form-check pt-2">
+                                                    {{ cloture_d8_form.feliciter_equipe }}
+                                                    <label class="form-check-label font-weight-bold">Féliciter l'équipe</label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6 form-group">
+                                                <label>Date Félicitations</label>
+                                                {{ cloture_d8_form.date_felicitations }}
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Date d'envoi du 8D final au client</label>
+                                            {{ cloture_d8_form.date_envoi_8d_final }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="card-footer text-right">
+                <a href="{% url 'reclamation:detail' reclamation.pk %}" class="btn btn-default mr-2">Annuler</a>
+                <button type="submit" class="btn btn-danger btn-lg">
+                    <i class="fas fa-save mr-1"></i> Enregistrer le Dossier 8D
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 5 Pourquoi Non Détection
+        const savedND = JSON.parse('{{ pourquoi_non_detection_json|escapejs }}') || [];
+        const fieldsND = document.querySelectorAll('.pq-nd-field');
+        const inputNDJson = document.getElementById('pourquoi-nd-json-field');
+        const synthND = document.getElementById('id_cause_principale_non_detection');
+
+        fieldsND.forEach((f, idx) => {
+            if (savedND[idx]) f.value = savedND[idx];
+            f.addEventListener('input', function() {
+                const arr = Array.from(fieldsND).map(el => el.value);
+                inputNDJson.value = JSON.stringify(arr);
+                if (idx === 4 && synthND && f.value.trim()) {
+                    synthND.value = f.value;
+                }
+            });
+        });
+
+        // 5 Pourquoi Technique
+        const savedTech = JSON.parse('{{ pourquoi_technique_json|escapejs }}') || [];
+        const fieldsTech = document.querySelectorAll('.pq-tech-field');
+        const inputTechJson = document.getElementById('pourquoi-tech-json-field');
+        const synthTech = document.getElementById('id_cause_principale_technique');
+
+        fieldsTech.forEach((f, idx) => {
+            if (savedTech[idx]) f.value = savedTech[idx];
+            f.addEventListener('input', function() {
+                const arr = Array.from(fieldsTech).map(el => el.value);
+                inputTechJson.value = JSON.stringify(arr);
+                if (idx === 4 && synthTech && f.value.trim()) {
+                    synthTech.value = f.value;
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

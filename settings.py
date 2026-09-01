@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "achats",
     "gestion_documentaire",
     "audit_logs",
+    "reclamation_client",
     # ── Gestion des Congés ───────────────────────────────────────────────────
     "conge",
     # ── Prospection commerciale ──────────────────────────────────────────────
@@ -73,7 +74,7 @@ ROOT_URLCONF = "urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates", BASE_DIR / "audit" / "templates"],
+        "DIRS": [BASE_DIR / "templates", BASE_DIR / "audit" / "templates", BASE_DIR / "reclamation_client" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

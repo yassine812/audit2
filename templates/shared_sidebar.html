@@ -27,6 +27,9 @@
 {% url 'at:at_dashboard' as url_t_dash %}
 {% url 'at:at_create_quick' as url_t_new %}
 {% url 'at:questionnaire_list' as url_t_quest %}
+{% url 'reclamation:dashboard' as url_r_dash %}
+{% url 'reclamation:liste' as url_r_list %}
+{% url 'reclamation:create' as url_r_new %}
 {% url 'conge:liste' as url_c_liste %}
 {% url 'conge:nouvelle_demande' as url_c_new %}
 {% url 'conge:dashboard' as url_c_dash %}
@@ -437,6 +440,29 @@
           </a>
         </li>
         {% endif %}
+      </ul>
+    </li>
+    {% endif %}
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : RÉCLAMATIONS CLIENTS          -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO or request.user.is_CE %}
+    <li class="nav-item {% if ns == 'reclamation' %}menu-open{% endif %}">
+      <a href="#" class="nav-link">
+        <i class="nav-icon fas fa-exclamation-triangle"></i>
+        <p>Réclamations Client<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_r_dash }}" class="nav-link {% if ns == 'reclamation' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{{ url_r_list }}" class="nav-link {% if ns == 'reclamation' and un == 'liste' %}active{% endif %}">
+            <i class="nav-icon fas fa-list"></i><p>Registre Réclamations</p>
+          </a>
+        </li>
       </ul>
     </li>
     {% endif %}

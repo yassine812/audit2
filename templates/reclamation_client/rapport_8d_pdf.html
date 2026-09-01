@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport 8D — {{ reclamation.reference }}</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 8mm 10mm;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 8pt;
+            line-height: 1.15;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+        }
+
+        .pdf-container {
+            width: 540pt;
+            margin: 0 auto;
+        }
+
+        table.main-doc-table {
+            width: 540pt;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin: 0;
+            padding: 0;
+        }
+
+        table.main-doc-table th, 
+        table.main-doc-table td {
+            border: 0.8pt solid #000000;
+            padding: 2.5pt 3.5pt;
+            font-size: 7.5pt;
+            vertical-align: middle;
+            word-wrap: break-word;
+        }
+        
+        .title-header-table {
+            width: 540pt;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+        .title-header-table td {
+            border: 1pt solid #000000;
+            padding: 2pt 4pt;
+        }
+        .main-title {
+            text-align: center;
+            font-size: 14pt;
+            font-weight: bold;
+        }
+
+        /* Couleur Bleu Clair pour les Libellés de Champs / Sous-titres */
+        .bg-blue {
+            background-color: #d9e1f2;
+            font-weight: bold;
+        }
+        
+        /* Couleur Bleu Moyen / Distinct pour les Titres Principaux de Section D1-D8 */
+        .sec-header-td-center {
+            background-color: #8ea9db;
+            font-weight: bold;
+            font-size: 9.5pt;
+            text-align: center;
+            border: 1pt solid #000000;
+            padding: 2.5pt;
+        }
+        .sec-header-td-left {
+            background-color: #8ea9db;
+            font-weight: bold;
+            font-size: 9.5pt;
+            text-align: left;
+            border: 1pt solid #000000;
+            padding: 2.5pt;
+        }
+
+        .font-bold { font-weight: bold; }
+        .font-italic { font-style: italic; }
+
+        .d2-cell {
+            padding: 2pt 3.5pt;
+            line-height: 1.1;
+            vertical-align: top;
+        }
+        .d2-label {
+            font-weight: bold;
+            margin: 0;
+            padding: 0;
+        }
+        .d2-val {
+            margin: 0;
+            padding: 0;
+            color: #000000;
+        }
+
+        .footer-note {
+            font-size: 7pt;
+            color: #333333;
+            margin-top: 4pt;
+        }
+    </style>
+</head>
+<body>
+
+<div class="pdf-container">
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE 1 : Tableau Continu avec Cases à Cocher Image Unifiées           -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <table class="title-header-table">
+        <colgroup>
+            <col width="160pt">
+            <col width="380pt">
+        </colgroup>
+        <tr>
+            <td width="160pt" align="center" style="vertical-align:middle; padding:3pt 4pt;">
+                {% if logo_base64 %}
+                <img src="{{ logo_base64 }}" style="width:130pt; height:auto;" />
+                {% else %}
+                <strong style="font-size:12pt; color:#333;">AB Serve<br>Tunisie</strong>
+                {% endif %}
+            </td>
+            <td width="380pt" class="main-title" style="vertical-align:middle;">
+                Rapport 8D
+            </td>
+        </tr>
+    </table>
+
+    <table class="main-doc-table">
+        <colgroup>
+            <col width="200pt">
+            <col width="35pt">
+            <col width="35pt">
+            <col width="135pt">
+            <col width="135pt">
+        </colgroup>
+        <tbody>
+            <!-- Metadata Rows -->
+            <tr>
+                <td width="200pt" class="bg-blue">Numéro de rapport AB Serve :</td>
+                <td colspan="2" class="font-bold">{{ reclamation.reference }}</td>
+                <td width="135pt" class="bg-blue">Numéro de réclamation :</td>
+                <td width="135pt">{{ reclamation.numero_reclamation_client|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Date d'alerte client</td>
+                <td colspan="2">{{ reclamation.date_alerte_client|date:"d/m/Y"|default:"—" }}</td>
+                <td class="bg-blue">Client</td>
+                <td>{{ reclamation.client_nom|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Date d'ouverture fiche</td>
+                <td colspan="2">{{ reclamation.date_ouverture|date:"d/m/Y"|default:"—" }}</td>
+                <td class="bg-blue">Contact client :</td>
+                <td>{{ reclamation.contact_client|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Site concerné</td>
+                <td colspan="4">{{ reclamation.site.nom|default:reclamation.societe.nom|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Description pièce :</td>
+                <td colspan="4">{{ reclamation.description_piece|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Référence pièce :</td>
+                <td colspan="4">{{ reclamation.reference_piece|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Est-ce un problème répétitif ?</td>
+                <td colspan="4">
+                    OUI {% if reclamation.est_probleme_repetitif %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% endif %} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    NON {% if not reclamation.est_probleme_repetitif %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="bg-blue font-bold">Date de mise à jour :</td>
+                <td colspan="2">{{ reclamation.date_mise_a_jour|date:"d/m/Y"|default:"—" }}</td>
+            </tr>
+
+            <!-- D1 Section Header -->
+            <tr>
+                <td colspan="5" class="sec-header-td-center">D1 - Groupe 8D</td>
+            </tr>
+            <tr>
+                <td class="bg-blue">Participants :</td>
+                <td colspan="2">
+                    {% for p in participants %}
+                    <div>{{ p.user.get_full_name|default:p.nom_externe }}</div>
+                    {% empty %}<div>—</div>{% endfor %}
+                </td>
+                <td class="bg-blue">Fonction :</td>
+                <td>
+                    {% for p in participants %}
+                    <div>{{ p.fonction }} {% if p.est_pilote %}(PILOTE){% endif %}</div>
+                    {% empty %}<div>—</div>{% endfor %}
+                </td>
+            </tr>
+
+            <!-- D2 Section Header -->
+            <tr>
+                <td colspan="5" class="sec-header-td-center">D2 - Description du problème</td>
+            </tr>
+            <tr>
+                <td colspan="5" class="d2-cell">
+                    <div class="d2-label">Description du problème par le client :</div>
+                    <div class="d2-val">{{ qqoqccp.description_client|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr class="bg-blue">
+                <td colspan="3" class="font-bold" style="text-align:left;">Le problème est :</td>
+                <td colspan="2" class="font-bold" style="text-align:left;">Le problème n'est pas :</td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">QUOI ?</span> L'objet ? / La défaillance?</div>
+                    <div class="d2-val">{{ qqoqccp.quoi_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.quoi_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">QUI</span> rencontre le problème ?</div>
+                    <div class="d2-val">{{ qqoqccp.qui_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.qui_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">OÙ ?</span> secteur, site</div>
+                    <div class="d2-val">{{ qqoqccp.ou_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.ou_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">QUAND</span> a-t-on détecté le problème, par qui ?</div>
+                    <div class="d2-val">{{ qqoqccp.quand_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.quand_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">COMMENT</span> se manifeste le problème?</div>
+                    <div class="d2-val">{{ qqoqccp.comment_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.comment_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">COMBIEN ?</span> Combien de pièces</div>
+                    <div class="d2-val">{{ qqoqccp.combien_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.combien_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="3" class="d2-cell">
+                    <div class="d2-label"><span style="color:#0056b3;">POURQUOI</span> est-ce un problème ?</div>
+                    <div class="d2-val">{{ qqoqccp.pourquoi_est|default:"—" }}</div>
+                </td>
+                <td colspan="2" class="d2-cell">
+                    <div class="d2-val">{{ qqoqccp.pourquoi_nest_pas|default:"—" }}</div>
+                </td>
+            </tr>
+
+            <!-- D3 Section Header avec Cases à Cocher Image -->
+            <tr>
+                <td colspan="5" class="sec-header-td-center">D3 : Mesures conservatoires où de sécurisation</td>
+            </tr>
+            <tr class="bg-blue">
+                <td width="200pt" class="font-bold" style="text-align:left;">Actions</td>
+                <td width="35pt" class="font-bold font-italic" style="text-align:center;">Oui</td>
+                <td width="35pt" class="font-bold font-italic" style="text-align:center;">Non</td>
+                <td width="135pt" class="font-bold" style="text-align:center;">Quantité triée</td>
+                <td width="135pt" class="font-bold" style="text-align:center;">Quantité NOK</td>
+            </tr>
+            {% for m in mesures_d3 %}
+            <tr>
+                <td width="200pt">{{ m.get_type_mesure_display }}</td>
+                <td width="35pt" align="center">{% if m.selectionne %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if m.selectionne == False %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="135pt" align="center">{{ m.quantite_triee|default:"—" }}</td>
+                <td width="135pt" align="center">{{ m.quantite_nok|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td width="200pt">Tri stock interne</td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="135pt" align="center">—</td><td width="135pt" align="center">—</td></tr>
+            <tr><td width="200pt">Tri stock externe</td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="135pt" align="center">—</td><td width="135pt" align="center">—</td></tr>
+            <tr><td width="200pt">Repère unitaire</td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td><td width="135pt" align="center">—</td><td width="135pt" align="center">—</td></tr>
+            {% endfor %}
+            <tr>
+                <td colspan="5" style="padding:3pt 4pt;">
+                    <strong>Autre action :</strong> {{ reclamation.autre_action_d3|default:"" }}
+                </td>
+            </tr>
+            <tr>
+                <td colspan="5" style="padding:3pt 4pt;">
+                    <strong>Commentaires :</strong> {{ reclamation.commentaires_d3|default:"" }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer-note">8D 1 à 3</div>
+
+    <pdf:nextpage/>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE 2 : Cases à Cocher Carrées pour D4 et D7                         -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <table class="main-doc-table">
+        <colgroup>
+            <col width="270pt">
+            <col width="35pt">
+            <col width="35pt">
+            <col width="100pt">
+            <col width="100pt">
+        </colgroup>
+        <tbody>
+            <tr>
+                <td colspan="5" class="sec-header-td-center" style="font-size:11pt;">8D - D4 à D8</td>
+            </tr>
+            <tr>
+                <td colspan="5" class="sec-header-td-left">D4 - Analyse des causes</td>
+            </tr>
+            <tr>
+                <td colspan="5" class="d2-cell">
+                    <div class="d2-label">D4.1 Cause principale de non détection :</div>
+                    <div class="d2-val" style="margin-bottom:3pt;">{{ analyse_d4.cause_principale_non_detection|default:"—" }}</div>
+                    <div class="d2-label">D4.2 Cause principale technique - Non-conformité :</div>
+                    <div class="d2-val">{{ analyse_d4.cause_principale_technique|default:"—" }}</div>
+                </td>
+            </tr>
+            <tr>
+                <td colspan="5" style="padding:3pt 4pt;">
+                    <span style="color:red;">•</span> <strong>La réclamation est-elle recevable ?</strong> &nbsp;&nbsp;&nbsp;&nbsp;
+                    {% if cloture_d8.statut_recevabilite == 'recevable' %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% endif %} OUI &nbsp;&nbsp;&nbsp;&nbsp;
+                    {% if cloture_d8.statut_recevabilite == 'non_recevable' %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" style="vertical-align:middle;" />{% endif %} NON<br>
+                    <span style="color:red;">•</span> <strong>Motif de la décision :</strong><br>
+                    {{ cloture_d8.motif_decision_factuel|default:"—" }}
+                </td>
+            </tr>
+
+            <!-- D5 Section Header & Rows -->
+            <tr>
+                <td colspan="5" class="sec-header-td-left">D5 - Actions tests planifiées</td>
+            </tr>
+            <tr class="bg-blue">
+                <td colspan="3" class="font-bold" style="text-align:left;">Actions test</td>
+                <td class="font-bold" style="text-align:left;">Pilote - Délai</td>
+                <td class="font-bold" style="text-align:left;">Conclusion</td>
+            </tr>
+            {% for at in actions_tests %}
+            <tr>
+                <td colspan="3">{{ at.description_action }}</td>
+                <td>{{ at.pilote_delai }}</td>
+                <td>{{ at.conclusion }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3">1</td><td>—</td><td>—</td></tr>
+            <tr><td colspan="3">2</td><td>—</td><td>—</td></tr>
+            <tr><td colspan="3">3</td><td>—</td><td>—</td></tr>
+            <tr><td colspan="3">4</td><td>—</td><td>—</td></tr>
+            {% endfor %}
+
+            <!-- D6 Section Header & Rows -->
+            <tr>
+                <td colspan="5" class="sec-header-td-left">D6 - Mise place des actions correctives</td>
+            </tr>
+            <tr class="bg-blue">
+                <td class="font-bold" style="text-align:left;">Action</td>
+                <td colspan="2" class="font-bold" style="text-align:left;">Pilote</td>
+                <td class="font-bold" style="text-align:left;">Délai</td>
+                <td class="font-bold" style="text-align:left;">Date de réalisation</td>
+            </tr>
+            {% for ap in actions_permanentes %}
+            <tr>
+                <td><strong>Action {{ forloop.counter }} :</strong> {{ ap.description }}</td>
+                <td colspan="2">{{ ap.pilote }}</td>
+                <td>{{ ap.delai|date:"d/m/Y"|default:"—" }}</td>
+                <td>{{ ap.date_realisation|date:"d/m/Y"|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td><strong>Action 1 :</strong></td><td colspan="2">—</td><td>—</td><td>—</td></tr>
+            <tr><td><strong>Action 2 :</strong></td><td colspan="2">—</td><td>—</td><td>—</td></tr>
+            <tr><td><strong>Action 3 :</strong></td><td colspan="2">—</td><td>—</td><td>—</td></tr>
+            <tr><td><strong>Action 4 :</strong></td><td colspan="2">—</td><td>—</td><td>—</td></tr>
+            {% endfor %}
+            <tr>
+                <td colspan="5" style="font-size:7pt; padding:2.5pt 3pt;">
+                    <strong>Validation des actions permanentes - Contrôle d’efficacité :</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Doc 37 audit de poste
+                </td>
+            </tr>
+
+            <!-- D7 Section Header avec Cases à Cocher Image Unifiées -->
+            <tr>
+                <td colspan="5" class="sec-header-td-left">D7 - Capitaliser</td>
+            </tr>
+            <tr class="bg-blue">
+                <td width="270pt" class="font-bold" style="text-align:left;">Document SMQS</td>
+                <td width="35pt" class="font-bold font-italic" style="text-align:center;">Oui</td>
+                <td width="35pt" class="font-bold font-italic" style="text-align:center;">Non</td>
+                <td width="100pt" class="font-bold" style="text-align:left;">Pilote</td>
+                <td width="100pt" class="font-bold" style="text-align:left;">Délai</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc.01 Instruction de travail</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc01_instruction %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc01_instruction == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc01_pilote_delai|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 5-24 Tableau de compétence</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc5_24_competences %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc5_24_competences == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc5_24_pilote_delai|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc.21 formation Nouvel arrivant</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc21_formation %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc21_formation == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc21_pilote_delai|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 34 Habilitation idividuelle</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc34_habilitation_indiv %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc34_habilitation_indiv == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc34_habilitation_indiv|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 38 Habilitation au poste</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc38_habilitation_poste %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc38_habilitation_poste == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc38_habilitation_poste|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 12 Gamme de travail (Précisez : {{ capitalisation_d7.precisez_gammes|default:"—" }})</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc12_gammes %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc12_gammes == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc12_pilote_delai|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 37 audit de poste</td>
+                <td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td>
+                <td width="35pt" align="center"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" /></td>
+                <td width="100pt">—</td>
+                <td width="100pt">—</td>
+            </tr>
+            <tr>
+                <td width="270pt">Doc 50 OK démarrage</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc50_ok_demarrage %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="35pt" align="center">{% if capitalisation_d7.doc50_ok_demarrage == False or not capitalisation_d7 %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nKWTUQrAIAxDl7L7XzljYMfWRWxtP0TEvDRSQfLo1HkvALYoJGEte+/AKxsHwLO3lEIIywAMcYRY1TnGtI5YAiByzsQ/AELOGWwK4Mtl1boEqMur2TB16KLMYH0mMWYuv8FOofudL35+KCgl5RaFAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% else %}<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAQklEQVR4nGP8//8/AyWABUQwMjKSZcr///8ZmSiyHuYCGCDWO4yMjHA2EwOFgGnUAIbRMGBATYnIKYxuCYmR0uwMAGnoDSK9jTCJAAAAAElFTkSuQmCC" width="8.5pt" height="8.5pt" />{% endif %}</td>
+                <td width="100pt">{{ capitalisation_d7.doc50_pilote_delai|default:"—" }}</td>
+                <td width="100pt">—</td>
+            </tr>
+
+            <!-- D8 Section Header & Rows -->
+            <tr>
+                <td colspan="5" class="sec-header-td-left">D8 - Fermeture du 8 D</td>
+            </tr>
+            <tr>
+                <td colspan="5" class="d2-cell">
+                    Féliciter l'équipe : {% if cloture_d8.feliciter_equipe %}OUI{% else %}NON{% endif %}<br>
+                    Date : {{ cloture_d8.date_felicitations|date:"d/m/Y"|default:"—" }}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer-note">8D 4 à 8</div>
+
+    <pdf:nextpage/>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- PAGE 3 : D 4.1 à D 4.2 (Official High-Fidelity 5-Pourquoi Diagram)     -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div style="width:540pt; text-align:center;">
+        <img src="{{ d4_diagram_png }}" width="540pt" style="width:540pt; height:auto;" />
+    </div>
+
+</div>
+
+</body>
+</html>
