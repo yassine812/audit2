@@ -68,18 +68,22 @@
                     <div class="col-md-3 form-group">
                         <label class="font-weight-bold small">Rédacteur de la fiche</label>
                         {{ doc05_form.redacteur }}
+                        {% if doc05_form.redacteur.errors %}<div class="text-danger small font-weight-bold mt-1">{{ doc05_form.redacteur.errors.0 }}</div>{% endif %}
                     </div>
                     <div class="col-md-3 form-group">
                         <label class="font-weight-bold small">Date de détection de la non-conformité</label>
                         {{ doc05_form.date_detection }}
+                        {% if doc05_form.date_detection.errors %}<div class="text-danger small font-weight-bold mt-1">{{ doc05_form.date_detection.errors.0 }}</div>{% endif %}
                     </div>
                     <div class="col-md-3 form-group">
                         <label class="font-weight-bold small">Date de l'ouverture de la fiche</label>
                         {{ doc05_form.date_ouverture }}
+                        {% if doc05_form.date_ouverture.errors %}<div class="text-danger small font-weight-bold mt-1">{{ doc05_form.date_ouverture.errors.0 }}</div>{% endif %}
                     </div>
                     <div class="col-md-3 form-group">
                         <label class="font-weight-bold small">Site concerné</label>
                         {{ doc05_form.site_concerne }}
+                        {% if doc05_form.site_concerne.errors %}<div class="text-danger small font-weight-bold mt-1">{{ doc05_form.site_concerne.errors.0 }}</div>{% endif %}
                     </div>
                 </div>
                 <div class="row pt-2 border-top mt-2">
@@ -201,13 +205,19 @@
                     <div class="col-md-5">
                         <span class="font-weight-bold text-dark">Ce problème a-t-il déjà été signalé ?</span>
                     </div>
-                    <div class="col-md-2">
-                        <div class="form-check form-check-inline">
-                            {{ doc05_form.deja_signale }}
-                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center" style="gap: 15px;">
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="deja_signale" value="true" id="deja_signale_oui" class="form-check-input" {% if doc05_form.deja_signale.value or fiche_doc05.deja_signale %}checked{% endif %}>
+                                <label for="deja_signale_oui" class="form-check-label font-weight-bold ml-1">Oui</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="deja_signale" value="false" id="deja_signale_non" class="form-check-input" {% if not doc05_form.deja_signale.value and not fiche_doc05.deja_signale %}checked{% endif %}>
+                                <label for="deja_signale_non" class="form-check-label font-weight-bold ml-1">Non</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         {{ doc05_form.deja_signale_details }}
                     </div>
                 </div>
@@ -216,13 +226,19 @@
                     <div class="col-md-5">
                         <span class="font-weight-bold text-dark">Y a-t-il eu des particularités / changements intervenus dans cette période ?</span>
                     </div>
-                    <div class="col-md-2">
-                        <div class="form-check form-check-inline">
-                            {{ doc05_form.particularites_changements }}
-                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center" style="gap: 15px;">
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="particularites_changements" value="true" id="particularites_oui" class="form-check-input" {% if doc05_form.particularites_changements.value or fiche_doc05.particularites_changements %}checked{% endif %}>
+                                <label for="particularites_oui" class="form-check-label font-weight-bold ml-1">Oui</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="particularites_changements" value="false" id="particularites_non" class="form-check-input" {% if not doc05_form.particularites_changements.value and not fiche_doc05.particularites_changements %}checked{% endif %}>
+                                <label for="particularites_non" class="form-check-label font-weight-bold ml-1">Non</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         {{ doc05_form.particularites_details }}
                     </div>
                 </div>
@@ -231,13 +247,19 @@
                     <div class="col-md-5">
                         <span class="font-weight-bold text-dark">Y-a-t-il un risque similaire sur autre produit/secteur ?</span>
                     </div>
-                    <div class="col-md-2">
-                        <div class="form-check form-check-inline">
-                            {{ doc05_form.risque_similaire }}
-                            <label class="form-check-label font-weight-bold ml-1">Oui</label>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center" style="gap: 15px;">
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="risque_similaire" value="true" id="risque_oui" class="form-check-input" {% if doc05_form.risque_similaire.value or fiche_doc05.risque_similaire %}checked{% endif %}>
+                                <label for="risque_oui" class="form-check-label font-weight-bold ml-1">Oui</label>
+                            </div>
+                            <div class="form-check form-check-inline m-0">
+                                <input type="radio" name="risque_similaire" value="false" id="risque_non" class="form-check-input" {% if not doc05_form.risque_similaire.value and not fiche_doc05.risque_similaire %}checked{% endif %}>
+                                <label for="risque_non" class="form-check-label font-weight-bold ml-1">Non</label>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         {{ doc05_form.risque_similaire_details }}
                     </div>
                 </div>

@@ -113,7 +113,7 @@
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td width="45%" style="border: none; border-bottom: 0.75pt solid #00; border-right: 0.75pt solid #00; background-color: #f2f2f2;">Rédacteur de la fiche :</td>
-                        <td width="55%" style="border: none; border-bottom: 0.75pt solid #00; font-weight: bold;">{{ fiche.redacteur|default:reclamation.created_by.get_full_name|default:"—" }}</td>
+                        <td width="55%" style="border: none; border-bottom: 0.75pt solid #00; font-weight: bold;">{% if fiche.redacteur %}{{ fiche.redacteur }}{% elif reclamation.created_by %}{{ reclamation.created_by.get_full_name|default:reclamation.created_by.username }}{% else %}—{% endif %}</td>
                     </tr>
                     <tr>
                         <td width="45%" style="border: none; border-bottom: 0.75pt solid #00; border-right: 0.75pt solid #00; background-color: #f2f2f2;">Date de détection la non-conformité :</td>

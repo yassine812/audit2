@@ -475,7 +475,7 @@ class ReclamationDashboardView(LoginRequiredMixin, TemplateView):
             "chart_data_r_json": json.dumps(counts_r),
             "chart_data_i_json": json.dumps(counts_i),
             "chart_data_ai_json": json.dumps(counts_ai),
-            "create_form": ReclamationQuickCreateForm(),
+            "create_form": ReclamationQuickCreateForm(is_admin=self.request.user.is_superuser or self.request.user.is_staff),
         })
         return context
 
@@ -512,7 +512,7 @@ class ReclamationListView(LoginRequiredMixin, ListView):
             self.object_list = self.get_queryset()
         context = super().get_context_data(**kwargs)
         if "create_form" not in context:
-            context["create_form"] = ReclamationQuickCreateForm()
+            context["create_form"] = ReclamationQuickCreateForm(is_admin=self.request.user.is_superuser or self.request.user.is_staff)
         return context
 
 
@@ -522,6 +522,11 @@ class ReclamationCreateView(LoginRequiredMixin, CreateView):
     model = ReclamationClient
     form_class = ReclamationQuickCreateForm
     template_name = "reclamation_client/form_create.html"
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["is_admin"] = self.request.user.is_superuser or self.request.user.is_staff
+        return kwargs
 
     def form_valid(self, form):
         form.instance.created_by = self.request.user
@@ -584,7 +589,10 @@ class ReclamationDetailView(LoginRequiredMixin, DetailView):
         context["mesures_d3"] = rec.mesures_conservatoires.all()
         context["analyse_d4"] = getattr(rec, "analyse_causes_d4", None)
         context["actions_tests"] = rec.actions_tests.all()
-        context["actions_permanentes"] = rec.actions_correctives.all()
+        actions_permanentes = rec.actions_correctives.all()
+        if not actions_permanentes.exists():
+            actions_permanentes = rec.actions_permanentes.all()
+        context["actions_permanentes"] = actions_permanentes
         context["capitalisation_d7"] = getattr(rec, "capitalisation_d7", None)
         context["cloture_d8"] = getattr(rec, "cloture_d8", None)
         context["fiche_doc05"] = getattr(rec, "fiche_doc05", None)
@@ -610,8 +618,9 @@ def reclamation_update_8d(request, pk):
     for t in ["tri_interne", "tri_externe", "repere_unitaire", "autre"]:
         MesureConservatoireD3.objects.get_or_create(reclamation=reclamation, type_mesure=t)
 
+    is_admin = request.user.is_superuser or request.user.is_staff
     if request.method == "POST":
-        header_form = ReclamationHeaderForm(request.POST, instance=reclamation)
+        header_form = ReclamationHeaderForm(request.POST, instance=reclamation, is_admin=is_admin)
         qqoqccp_form = DescriptionQQOQCCPForm(request.POST, instance=qqoqccp)
         analyse_d4_form = AnalyseCausesDoubleAxeForm(request.POST, instance=analyse_d4)
         capitalisation_d7_form = CapitalisationSMQSD7Form(request.POST, instance=capitalisation_d7)
@@ -641,6 +650,7 @@ def reclamation_update_8d(request, pk):
             header_form.save()
             qqoqccp_form.save()
             analyse_d4_form.save()
+            analyse_d4.save()
             capitalisation_d7_form.save()
             cloture_d8_form.save()
             participants_formset.save()
@@ -649,11 +659,11 @@ def reclamation_update_8d(request, pk):
             actions_permanentes_formset.save()
 
             messages.success(request, f"Dossier 8D {reclamation.reference} enregistré avec succès.")
-            return redirect("reclamation:update_8d", pk=reclamation.pk)
+            return redirect("reclamation:liste")
         else:
             messages.error(request, "Certains champs du formulaire contiennent des erreurs. Veuillez vérifier.")
     else:
-        header_form = ReclamationHeaderForm(instance=reclamation)
+        header_form = ReclamationHeaderForm(instance=reclamation, is_admin=is_admin)
         qqoqccp_form = DescriptionQQOQCCPForm(instance=qqoqccp)
         analyse_d4_form = AnalyseCausesDoubleAxeForm(instance=analyse_d4)
         capitalisation_d7_form = CapitalisationSMQSD7Form(instance=capitalisation_d7)
@@ -702,7 +712,6 @@ def reclamation_update_doc05(request, pk):
     )
 
     if request.method == "POST":
-        header_form = ReclamationHeaderForm(request.POST, instance=reclamation)
         doc05_form = FicheIncidentDoc05Form(request.POST, instance=fiche_doc05)
 
         pourquoi_json = request.POST.get("pourquoi_chains_json", "[]")
@@ -716,21 +725,18 @@ def reclamation_update_doc05(request, pk):
         except Exception:
             pass
 
-        if header_form.is_valid() and doc05_form.is_valid():
-            header_form.save()
+        if doc05_form.is_valid():
             doc05_form.save()
             messages.success(request, f"Fiche Doc.05 {reclamation.reference} enregistrée avec succès.")
-            return redirect("reclamation:update_doc05", pk=reclamation.pk)
+            return redirect("reclamation:liste")
         else:
             messages.error(request, "Certains champs contiennent des erreurs. Veuillez vérifier.")
     else:
-        header_form = ReclamationHeaderForm(instance=reclamation)
         doc05_form = FicheIncidentDoc05Form(instance=fiche_doc05)
 
     context = {
         "reclamation": reclamation,
         "fiche_doc05": fiche_doc05,
-        "header_form": header_form,
         "doc05_form": doc05_form,
         "pourquoi_chains_json": json.dumps(fiche_doc05.pourquoi_chains),
         "mesures_immediates_json": json.dumps(fiche_doc05.mesures_immediates),
@@ -781,6 +787,10 @@ def reclamation_export_pdf_8d(request, pk):
         with open(logo_path, "rb") as img_f:
             logo_base64 = "data:image/png;base64," + base64.b64encode(img_f.read()).decode("utf-8")
 
+    actions_permanentes = reclamation.actions_correctives.all()
+    if not actions_permanentes.exists():
+        actions_permanentes = reclamation.actions_permanentes.all()
+
     context = {
         "reclamation": reclamation,
         "participants": reclamation.participants.all(),
@@ -790,7 +800,7 @@ def reclamation_export_pdf_8d(request, pk):
         "d4_diagram_png": d4_diagram_png,
         "logo_base64": logo_base64,
         "actions_tests": reclamation.actions_tests.all(),
-        "actions_permanentes": reclamation.actions_permanentes.all(),
+        "actions_permanentes": actions_permanentes,
         "capitalisation_d7": getattr(reclamation, "capitalisation_d7", None),
         "cloture_d8": getattr(reclamation, "cloture_d8", None),
     }

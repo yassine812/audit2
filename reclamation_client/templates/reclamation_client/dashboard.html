@@ -1157,18 +1157,43 @@
             });
         }
 
-        // JS Binding for Quick Create Modal: Type -> Support
+        // JS Binding for Quick Create Modal: Type -> Support (Admin Controlled for Type R)
         var typeSigSelect = document.getElementById('id_type_signalement');
         var modeTraitementSelect = document.getElementById('id_mode_traitement');
+        var isAdminUser = {% if request.user.is_superuser or request.user.is_staff %}true{% else %}false{% endif %};
         if (typeSigSelect && modeTraitementSelect) {
             function updateSupportFromType() {
                 var val = typeSigSelect.value;
+                var currentVal = modeTraitementSelect.value;
                 if (val === 'R') {
-                    modeTraitementSelect.value = '8D';
+                    modeTraitementSelect.innerHTML = '<option value="8D">Rapport 8D</option><option value="DOC05">Fiche d\'incident (Doc 05)</option>';
+                    if (currentVal === '8D' || currentVal === 'DOC05') {
+                        modeTraitementSelect.value = currentVal;
+                    } else {
+                        modeTraitementSelect.value = '8D';
+                    }
+                    if (isAdminUser) {
+                        modeTraitementSelect.disabled = false;
+                        modeTraitementSelect.style.backgroundColor = '#ffffff';
+                        modeTraitementSelect.style.cursor = 'default';
+                    } else {
+                        modeTraitementSelect.value = '8D';
+                        modeTraitementSelect.disabled = true;
+                        modeTraitementSelect.style.backgroundColor = '#e9ecef';
+                        modeTraitementSelect.style.cursor = 'not-allowed';
+                    }
                 } else if (val === 'AI') {
+                    modeTraitementSelect.innerHTML = '<option value="DOC05_FAI">Fiche d\'incident / FAI</option>';
                     modeTraitementSelect.value = 'DOC05_FAI';
+                    modeTraitementSelect.disabled = true;
+                    modeTraitementSelect.style.backgroundColor = '#e9ecef';
+                    modeTraitementSelect.style.cursor = 'not-allowed';
                 } else {
+                    modeTraitementSelect.innerHTML = '<option value="DOC05">Fiche d\'incident (Doc 05)</option>';
                     modeTraitementSelect.value = 'DOC05';
+                    modeTraitementSelect.disabled = true;
+                    modeTraitementSelect.style.backgroundColor = '#e9ecef';
+                    modeTraitementSelect.style.cursor = 'not-allowed';
                 }
             }
             typeSigSelect.addEventListener('change', updateSupportFromType);

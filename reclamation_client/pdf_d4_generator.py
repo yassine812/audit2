@@ -8,6 +8,16 @@ def _normalize_chains(raw, cause_principale=""):
     if not raw:
         return []
 
+    if isinstance(raw, list) and len(raw) > 0 and isinstance(raw[0], list):
+        chains = []
+        for branch in raw:
+            chain_nodes = [{"pourquoi": str(s)} for s in branch[:4] if str(s).strip()]
+            p5 = str(branch[4]).strip() if len(branch) >= 5 else ""
+            justif = p5 or cause_principale
+            if chain_nodes or justif:
+                chains.append({"chain": chain_nodes, "justification": justif})
+        return chains
+
     if isinstance(raw, list) and len(raw) > 0 and isinstance(raw[0], dict) and "chain" in raw[0]:
         return raw
 
@@ -213,29 +223,27 @@ def generate_d4_diagram_base64(analyse_d4=None):
         draw_arrow_connector(draw, 1020, 742, 1055, 742, color=color_blue_border)
 
         boxes_d41 = [
-            (25, 460, 230, box_h, "L'opérateur n'a pas\ndétecté le défaut"),
-            (290, 265, 220, box_h, "L'opérateur n'a pas\nprocédé par comp.\n(2 pièces à la fois)"),
-            (290, 460, 220, box_h, "L'opérateur n'a pas\nutilisé la loupe"),
-            (290, 655, 220, box_h, "Le défaut est\ndifficilement dét."),
-            (545, 265, 220, box_h, "Pas demandé dans\nla gamme"),
-            (545, 460, 220, box_h, "Pas demandé dans\nla gamme"),
-            (545, 655, 220, box_h, "Le défaut est trop petit\npour être dét. visuellement"),
-            (800, 265, 220, box_h, "Eviter les détériorations\ndes pièces entre elles"),
-            (800, 460, 220, box_h, "Jugement que le défaut\nest dét. à l'oeil nu"),
-            (800, 655, 220, box_h, "Caractérisation du défaut\nlors de la prestation"),
+            (25, 460, 230, box_h, ""),
+            (290, 265, 220, box_h, ""),
+            (290, 460, 220, box_h, ""),
+            (290, 655, 220, box_h, ""),
+            (545, 265, 220, box_h, ""),
+            (545, 460, 220, box_h, ""),
+            (545, 655, 220, box_h, ""),
+            (800, 265, 220, box_h, ""),
+            (800, 460, 220, box_h, ""),
+            (800, 655, 220, box_h, ""),
         ]
         for x, y, bw, bh, text in boxes_d41:
             draw.rounded_rectangle([(x, y), (x + bw, y + bh)], radius=14, fill=color_blue_bg, outline=color_blue_border, width=3)
-            draw_wrapped_text(draw, x, y, bw, bh, text, font_node_bold, fill=color_blue_text, line_spacing=26)
 
         conclusions_d41 = [
-            (1055, 265, 320, box_h, "Avéré : on augmente le niveau\nde détection (2 pièces à la fois)"),
-            (1055, 460, 320, box_h, "Avéré : la loupe améliore\nle niveau de détection"),
-            (1055, 655, 320, box_h, "Non avéré : l'opérateur a écarté\ndes pièces plus petites"),
+            (1055, 265, 320, box_h, ""),
+            (1055, 460, 320, box_h, ""),
+            (1055, 655, 320, box_h, ""),
         ]
         for x, y, bw, bh, text in conclusions_d41:
             draw.rounded_rectangle([(x, y), (x + bw, y + bh)], radius=14, fill=color_pink_bg, outline=color_pink_border, width=4)
-            draw_wrapped_text(draw, x, y, bw, bh, text, font_node_bold, fill=color_pink_text, line_spacing=26)
 
     # 3. Section D4.2 - Cause Technique
     draw.text((25, 855), "D 4.2 - CAUSE TECHNIQUE", font=font_sec, fill="#000000")
@@ -276,30 +284,26 @@ def generate_d4_diagram_base64(analyse_d4=None):
         draw_arrow_connector(draw, 1020, 1297, 1055, 1297, color=color_blue_border)
 
         boxes_d42_r1 = [
-            (25, 1015, 230, box_h, "Mix des pièces chez\nle Client final"),
-            (290, 1015, 220, box_h, "Pas d'identification\nunitaire sur pièces"),
-            (545, 1015, 220, box_h, "Identification sur\nunité Manutention"),
-            (800, 1015, 220, box_h, "Pas de repère\nvisuel au poste"),
+            (25, 1015, 230, box_h, ""),
+            (290, 1015, 220, box_h, ""),
+            (545, 1015, 220, box_h, ""),
+            (800, 1015, 220, box_h, ""),
         ]
         for x, y, bw, bh, text in boxes_d42_r1:
             draw.rounded_rectangle([(x, y), (x + bw, y + bh)], radius=14, fill=color_blue_bg, outline=color_blue_border, width=3)
-            draw_wrapped_text(draw, x, y, bw, bh, text, font_node_bold, fill=color_blue_text, line_spacing=26)
 
         draw.rounded_rectangle([(1055, 1015), (1375, 1015 + box_h)], radius=14, fill=color_pink_bg, outline=color_pink_border, width=4)
-        draw_wrapped_text(draw, 1055, 1015, 320, box_h, "Avéré : un marquage unitaire\naurait permis de distinguer", font_node_bold, fill=color_pink_text, line_spacing=26)
 
         boxes_d42_r2 = [
-            (25, 1210, 230, box_h, "Client final réclame\nsur faces diff."),
-            (290, 1210, 220, box_h, "Sécurisation concerne\nsurfaces critiques"),
-            (545, 1210, 220, box_h, "Défauts sur surfaces\nn'impactent pas func."),
-            (800, 1210, 220, box_h, "Spécification gamme\nincomplète"),
+            (25, 1210, 230, box_h, ""),
+            (290, 1210, 220, box_h, ""),
+            (545, 1210, 220, box_h, ""),
+            (800, 1210, 220, box_h, ""),
         ]
         for x, y, bw, bh, text in boxes_d42_r2:
             draw.rounded_rectangle([(x, y), (x + bw, y + bh)], radius=14, fill=color_blue_bg, outline=color_blue_border, width=3)
-            draw_wrapped_text(draw, x, y, bw, bh, text, font_node_bold, fill=color_blue_text, line_spacing=26)
 
         draw.rounded_rectangle([(1055, 1210), (1375, 1210 + box_h)], radius=14, fill=color_pink_bg, outline=color_pink_border, width=4)
-        draw_wrapped_text(draw, 1055, 1210, 320, box_h, "Avéré : les deux surfaces sont\nidentifiées sur la gamme", font_node_bold, fill=color_pink_text, line_spacing=26)
 
     # 4. Instruction Box
     draw.rectangle([(25, 1410), (1375, 1485)], fill="#ffffff", outline="#000000", width=3)

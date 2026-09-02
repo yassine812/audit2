@@ -26,8 +26,8 @@ class ReclamationClient(models.Model):
     MODE_DOC05_FAI = "DOC05_FAI"
     MODE_CHOICES = [
         (MODE_8D, "Rapport 8D"),
-        (MODE_DOC05, "Fiche d'incident"),
-        (MODE_DOC05_FAI, "Fiche d'incident"),
+        (MODE_DOC05, "Fiche d'incident (Doc 05)"),
+        (MODE_DOC05_FAI, "Fiche d'incident / FAI"),
     ]
 
     @classmethod
@@ -127,11 +127,9 @@ class ReclamationClient(models.Model):
     class Meta:
         verbose_name = "Réclamation Client"
         verbose_name_plural = "Réclamations Clients"
-        ordering = ["-date_alerte_client", "-id"]
-
     def save(self, *args, **kwargs):
-        # Enforcement: Support d'Analyse MUST strictly match Type de Signalement
-        self.mode_traitement = self.get_mode_for_type(self.type_signalement)
+        if not self.mode_traitement:
+            self.mode_traitement = self.get_mode_for_type(self.type_signalement)
         if not self.reference:
             prefix = (
                 self.date_alerte_client.strftime("REC%y%m")

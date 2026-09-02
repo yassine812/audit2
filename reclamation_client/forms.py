@@ -21,6 +21,10 @@ from .models import (
 class DateInput(forms.DateInput):
     input_type = "date"
 
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("format", "%Y-%m-%d")
+        super().__init__(*args, **kwargs)
+
 
 class ReclamationQuickCreateForm(forms.ModelForm):
     """Formulaire de saisie rapide / accusé de réception initial (P05)."""
@@ -52,14 +56,36 @@ class ReclamationQuickCreateForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.is_admin = kwargs.pop("is_admin", False)
         super().__init__(*args, **kwargs)
         self.fields["mode_traitement"].required = False
+        self.fields["mode_traitement"].disabled = False
+        self.fields["mode_traitement"].choices = [
+            (ReclamationClient.MODE_8D, "Rapport 8D"),
+            (ReclamationClient.MODE_DOC05, "Fiche d'incident (Doc 05)"),
+        ]
+        if self.is_admin:
+            self.fields["mode_traitement"].widget.attrs.pop("disabled", None)
+            self.fields["mode_traitement"].widget.attrs.pop("style", None)
+        else:
+            self.fields["mode_traitement"].widget.attrs["disabled"] = "disabled"
+            self.fields["mode_traitement"].widget.attrs["style"] = "background-color: #e9ecef; cursor: not-allowed;"
 
     def clean(self):
         cleaned_data = super().clean()
         type_sig = cleaned_data.get("type_signalement")
-        if type_sig:
-            cleaned_data["mode_traitement"] = ReclamationClient.get_mode_for_type(type_sig)
+        raw_mode = cleaned_data.get("mode_traitement") or (self.data.get("mode_traitement") if hasattr(self, "data") else None)
+        if type_sig == ReclamationClient.TYPE_INCIDENT:
+            cleaned_data["mode_traitement"] = ReclamationClient.MODE_DOC05
+        elif type_sig == ReclamationClient.TYPE_AMELIORATION:
+            cleaned_data["mode_traitement"] = ReclamationClient.MODE_DOC05_FAI
+        elif type_sig == ReclamationClient.TYPE_RECLAMATION:
+            if self.is_admin and raw_mode in [ReclamationClient.MODE_8D, ReclamationClient.MODE_DOC05]:
+                cleaned_data["mode_traitement"] = raw_mode
+            elif self.instance and self.instance.pk and self.instance.mode_traitement:
+                cleaned_data["mode_traitement"] = self.instance.mode_traitement
+            else:
+                cleaned_data["mode_traitement"] = ReclamationClient.MODE_8D
         return cleaned_data
 
 
@@ -104,14 +130,36 @@ class ReclamationHeaderForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.is_admin = kwargs.pop("is_admin", False)
         super().__init__(*args, **kwargs)
         self.fields["mode_traitement"].required = False
+        self.fields["mode_traitement"].disabled = False
+        self.fields["mode_traitement"].choices = [
+            (ReclamationClient.MODE_8D, "Rapport 8D"),
+            (ReclamationClient.MODE_DOC05, "Fiche d'incident (Doc 05)"),
+        ]
+        if self.is_admin:
+            self.fields["mode_traitement"].widget.attrs.pop("disabled", None)
+            self.fields["mode_traitement"].widget.attrs.pop("style", None)
+        else:
+            self.fields["mode_traitement"].widget.attrs["disabled"] = "disabled"
+            self.fields["mode_traitement"].widget.attrs["style"] = "background-color: #e9ecef; cursor: not-allowed;"
 
     def clean(self):
         cleaned_data = super().clean()
         type_sig = cleaned_data.get("type_signalement")
-        if type_sig:
-            cleaned_data["mode_traitement"] = ReclamationClient.get_mode_for_type(type_sig)
+        raw_mode = cleaned_data.get("mode_traitement") or (self.data.get("mode_traitement") if hasattr(self, "data") else None)
+        if type_sig == ReclamationClient.TYPE_INCIDENT:
+            cleaned_data["mode_traitement"] = ReclamationClient.MODE_DOC05
+        elif type_sig == ReclamationClient.TYPE_AMELIORATION:
+            cleaned_data["mode_traitement"] = ReclamationClient.MODE_DOC05_FAI
+        elif type_sig == ReclamationClient.TYPE_RECLAMATION:
+            if self.is_admin and raw_mode in [ReclamationClient.MODE_8D, ReclamationClient.MODE_DOC05]:
+                cleaned_data["mode_traitement"] = raw_mode
+            elif self.instance and self.instance.pk and self.instance.mode_traitement:
+                cleaned_data["mode_traitement"] = self.instance.mode_traitement
+            else:
+                cleaned_data["mode_traitement"] = ReclamationClient.MODE_8D
         return cleaned_data
 
 
@@ -126,12 +174,34 @@ class Participant8DForm(forms.ModelForm):
             "est_pilote": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["fonction"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        user = cleaned_data.get("user")
+        nom_externe = cleaned_data.get("nom_externe")
+        fonction = cleaned_data.get("fonction")
+        if (user or nom_externe) and not fonction:
+            self.add_error("fonction", "La fonction est obligatoire si un participant est renseigné.")
+        return cleaned_data
+
+    def has_changed(self):
+        if not self.instance.pk:
+            u = str(self.data.get(self.add_prefix("user")) or "").strip()
+            nom = str(self.data.get(self.add_prefix("nom_externe")) or "").strip()
+            fonc = str(self.data.get(self.add_prefix("fonction")) or "").strip()
+            if not u and not nom and not fonc:
+                return False
+        return super().has_changed()
+
 
 Participant8DFormSet = inlineformset_factory(
     ReclamationClient,
     Participant8D,
     form=Participant8DForm,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 
@@ -182,6 +252,19 @@ class MesureConservatoireD3Form(forms.ModelForm):
             "commentaires": forms.TextInput(attrs={"class": "form-control", "placeholder": "Remarques..."}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["quantite_triee"].required = False
+        self.fields["quantite_nok"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("quantite_triee") is None:
+            cleaned_data["quantite_triee"] = 0
+        if cleaned_data.get("quantite_nok") is None:
+            cleaned_data["quantite_nok"] = 0
+        return cleaned_data
+
 
 MesureConservatoireD3FormSet = inlineformset_factory(
     ReclamationClient,
@@ -215,12 +298,37 @@ class ActionTestD5Form(forms.ModelForm):
             "ordre": forms.NumberInput(attrs={"class": "form-control"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["ordre"].required = False
+        self.fields["description_action"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        desc = cleaned_data.get("description_action")
+        pilote = cleaned_data.get("pilote_delai")
+        conclusion = cleaned_data.get("conclusion")
+        if (pilote or conclusion) and not desc:
+            self.add_error("description_action", "La description de l'action test est obligatoire.")
+        if not cleaned_data.get("ordre"):
+            cleaned_data["ordre"] = 1
+        return cleaned_data
+
+    def has_changed(self):
+        if not self.instance.pk:
+            desc = str(self.data.get(self.add_prefix("description_action")) or "").strip()
+            pilote = str(self.data.get(self.add_prefix("pilote_delai")) or "").strip()
+            conclusion = str(self.data.get(self.add_prefix("conclusion")) or "").strip()
+            if not desc and not pilote and not conclusion:
+                return False
+        return super().has_changed()
+
 
 ActionTestD5FormSet = inlineformset_factory(
     ReclamationClient,
     ActionTestD5,
     form=ActionTestD5Form,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 
@@ -247,12 +355,44 @@ class ActionPermanenteD6Form(forms.ModelForm):
             "ordre": forms.NumberInput(attrs={"class": "form-control"}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["ordre"].required = False
+        self.fields["description"].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        desc = cleaned_data.get("description")
+        pilote = cleaned_data.get("pilote")
+        cause = cleaned_data.get("cause_racine")
+        delai = cleaned_data.get("delai")
+        date_realisation = cleaned_data.get("date_realisation")
+        date_verification = cleaned_data.get("date_verification")
+        has_any = any([desc, pilote, cause, delai, date_realisation, date_verification])
+        if has_any and not desc:
+            self.add_error("description", "La description de l'action permanente est obligatoire.")
+        if not cleaned_data.get("ordre"):
+            cleaned_data["ordre"] = 1
+        return cleaned_data
+
+    def has_changed(self):
+        if not self.instance.pk:
+            desc = str(self.data.get(self.add_prefix("description")) or "").strip()
+            pilote = str(self.data.get(self.add_prefix("pilote")) or "").strip()
+            cause = str(self.data.get(self.add_prefix("cause_racine")) or "").strip()
+            delai = str(self.data.get(self.add_prefix("delai")) or "").strip()
+            date_real = str(self.data.get(self.add_prefix("date_realisation")) or "").strip()
+            date_verif = str(self.data.get(self.add_prefix("date_verification")) or "").strip()
+            if not any([desc, pilote, cause, delai, date_real, date_verif]):
+                return False
+        return super().has_changed()
+
 
 ActionPermanenteD6FormSet = inlineformset_factory(
     ReclamationClient,
     ActionCorrective,
     form=ActionPermanenteD6Form,
-    extra=1,
+    extra=0,
     can_delete=True,
 )
 
