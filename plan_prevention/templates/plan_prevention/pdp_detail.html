@@ -1,0 +1,277 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}PDP {{ pdp.reference }} - {{ pdp.eu_nom }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .detail-doc-card {
+    background-color: #fff;
+    border: 1px solid #dcdcdc;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    padding: 2.5rem;
+    font-size: 0.95rem;
+  }
+  .doc-section-header {
+    background-color: #17a2b8;
+    color: #fff;
+    font-weight: 700;
+    padding: 6px 12px;
+    font-size: 1rem;
+    border-radius: 3px;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .table-doc-border th, .table-doc-border td {
+    border: 1px solid #333 !important;
+    font-size: 0.85rem;
+    vertical-align: middle !important;
+  }
+  .sig-img {
+    max-height: 80px;
+    max-width: 220px;
+    display: block;
+    margin: 5px auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Content Header -->
+<div class="row mb-3">
+  <div class="col-sm-6">
+    <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.5rem;">
+      <i class="fas fa-file-alt text-info mr-2"></i>Plan de Prévention Simplifié : {{ pdp.reference }}
+    </h1>
+  </div>
+  <div class="col-sm-6">
+    <ol class="breadcrumb float-sm-right bg-transparent p-0 m-0">
+      <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'plan_prevention:liste' %}">PDP</a></li>
+      <li class="breadcrumb-item active">{{ pdp.reference }}</li>
+    </ol>
+  </div>
+</div>
+
+      <!-- Action Bar -->
+      <div class="card card-outline card-info mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+          <div>
+            <span class="badge badge-lg {% if pdp.statut == 'valide' %}badge-success{% elif pdp.statut == 'cloture' %}badge-dark{% else %}badge-warning{% endif %}">
+              Statut : {{ pdp.get_statut_display }}
+            </span>
+            <span class="ml-2 text-muted">Créé le {{ pdp.created_at|date:"d/m/Y H:i" }} par {{ pdp.created_by|default:"Inconnu" }}</span>
+          </div>
+          <div>
+            <a href="{% url 'plan_prevention:export_pdf' pdp.pk %}" class="btn btn-danger font-weight-bold mr-2">
+              <i class="fas fa-file-pdf mr-1"></i> Imprimer / Exporter PDF
+            </a>
+            {% if can_edit %}
+            <a href="{% url 'plan_prevention:update' pdp.pk %}" class="btn btn-warning mr-2">
+              <i class="fas fa-edit mr-1"></i> Modifier
+            </a>
+            {% endif %}
+            {% if can_delete %}
+            <a href="{% url 'plan_prevention:delete' pdp.pk %}" class="btn btn-outline-danger mr-2">
+              <i class="fas fa-trash mr-1"></i> Supprimer
+            </a>
+            {% endif %}
+            <a href="{% url 'plan_prevention:liste' %}" class="btn btn-secondary">
+              <i class="fas fa-arrow-left mr-1"></i> Retour liste
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Content -->
+      <div class="detail-doc-card mb-5">
+        
+        <!-- En-tête -->
+        <div class="row align-items-center mb-4">
+          <div class="col-md-3">
+            <img src="{% static 'dist/img/abserveLogo.png' %}" alt="AB Serve" style="max-height: 60px;" onerror="this.style.display='none'">
+          </div>
+          <div class="col-md-6 text-center">
+            <h3 class="font-weight-bold text-dark mb-1">PLAN DE PRÉVENTION SIMPLIFIÉ</h3>
+            <div class="text-muted font-weight-bold">AB Serve & Clients</div>
+          </div>
+          <div class="col-md-3 text-right">
+            <div class="font-weight-bold text-primary" style="font-size: 1.2rem;">{{ pdp.reference }}</div>
+            <div class="small text-muted">Type : {{ pdp.get_type_operation_display }}</div>
+          </div>
+        </div>
+
+        <div class="p-2 mb-3 bg-light border rounded">
+          <strong>NATURE DE L'OPÉRATION :</strong> {{ pdp.nature_operation }}
+        </div>
+
+        <!-- 1. Identification -->
+        <div class="doc-section-header">1. IDENTIFICATION DES ENTREPRISES</div>
+        <div class="row">
+          <div class="col-md-6 border-right">
+            <h6 class="font-weight-bold text-primary">ENTREPRISE UTILISATRICE (E.U.)</h6>
+            <table class="table table-sm table-borderless">
+              <tr><td style="width: 35%;"><strong>Nom :</strong></td><td>{{ pdp.eu_nom }}</td></tr>
+              <tr><td><strong>Adresse :</strong></td><td>{{ pdp.eu_adresse|linebreaksbr }}</td></tr>
+              <tr><td><strong>Téléphone :</strong></td><td>{{ pdp.eu_telephone|default:"-" }}</td></tr>
+              <tr><td><strong>Représentant :</strong></td><td>M. {{ pdp.eu_representant_nom|default:"-" }}</td></tr>
+              <tr><td><strong>Fonction :</strong></td><td>{{ pdp.eu_representant_fonction|default:"-" }}</td></tr>
+              <tr><td><strong>Tél. Représentant :</strong></td><td>{{ pdp.eu_representant_telephone|default:"-" }}</td></tr>
+            </table>
+          </div>
+          <div class="col-md-6">
+            <h6 class="font-weight-bold text-success">ENTREPRISE EXTÉRIEURE (E.E.)</h6>
+            <table class="table table-sm table-borderless">
+              <tr><td style="width: 35%;"><strong>Nom :</strong></td><td>{{ pdp.ee_nom }}</td></tr>
+              <tr><td><strong>Adresse :</strong></td><td>{{ pdp.ee_adresse|linebreaksbr }}</td></tr>
+              <tr><td><strong>Téléphone :</strong></td><td>{{ pdp.ee_telephone|default:"-" }}</td></tr>
+              <tr><td><strong>Représentant :</strong></td><td>M. {{ pdp.ee_representant_nom|default:"-" }}</td></tr>
+              <tr><td><strong>Fonction :</strong></td><td>{{ pdp.ee_representant_fonction|default:"-" }}</td></tr>
+              <tr><td><strong>Tél. Représentant :</strong></td><td>{{ pdp.ee_representant_telephone|default:"-" }}</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- Intervention -->
+        <div class="doc-section-header">2. MODALITÉS DE L'INTERVENTION</div>
+        <table class="table table-sm table-bordered table-doc-border">
+          <tr>
+            <td><strong>Lieu d'intervention :</strong> {{ pdp.lieu_intervention|default:"-" }}</td>
+            <td><strong>Effectif E.E. prévu :</strong> {{ pdp.effectif_prevu|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td><strong>Dates prévues :</strong> Du {{ pdp.date_debut|date:"d/m/Y"|default:"-" }} au {{ pdp.date_fin|date:"d/m/Y"|default:"-" }}</td>
+            <td><strong>Durée approximative :</strong> {{ pdp.duree_approximative|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td><strong>Horaires de travail E.E. :</strong> {{ pdp.horaire_travail|default:"-" }}</td>
+            <td><strong>Sous-traitants éventuels :</strong> {{ pdp.sous_traitants|default:"Aucun" }}</td>
+          </tr>
+        </table>
+
+        <!-- Visite préalable -->
+        <div class="doc-section-header">3. CONSIGNES DE LA VISITE PRÉALABLE</div>
+        <table class="table table-sm table-bordered table-doc-border">
+          <tr>
+            <td><strong>Date visite préalable :</strong> {{ pdp.date_visite_prealable|date:"d/m/Y"|default:"-" }}</td>
+            <td><strong>Secteur d'intervention :</strong> {{ pdp.secteur_intervention|default:"-" }}</td>
+          </tr>
+          <tr>
+            <td colspan="2"><strong>Itinéraire à suivre :</strong> {{ pdp.itineraire }}</td>
+          </tr>
+          <tr>
+            <td colspan="2"><strong>Zone présentant un danger particulier :</strong> {{ pdp.zone_danger_particulier|default:"Aucune zone spécifique" }}</td>
+          </tr>
+          <tr>
+            <td><strong>Locaux mis à disposition :</strong> {{ pdp.locaux_mis_disposition|default:"Non spécifiés" }}</td>
+            <td><strong>Appareils mis à disposition :</strong> {{ pdp.appareils_mis_disposition }}</td>
+          </tr>
+        </table>
+
+        <!-- Secours & SIR -->
+        <div class="doc-section-header">4. SECOURS & SUIVI MÉDICAL RENFORCÉ</div>
+        <table class="table table-sm table-bordered table-doc-border mb-3">
+          <tr>
+            <td><strong>Numéros d'urgence site :</strong> {{ pdp.numeros_urgence }}</td>
+          </tr>
+          <tr>
+            <td><strong>Emplacement infirmerie / trousse / SST :</strong> {{ pdp.infirmerie_trousse_sst_location|default:"Infirmerie du site" }}</td>
+          </tr>
+          <tr>
+            <td><strong>Consignes d'évacuation générale :</strong> {{ pdp.consigne_evacuation|default:"Se conformer aux consignes du site." }}</td>
+          </tr>
+          <tr>
+            <td class="{% if pdp.suivi_medical_renforce %}table-warning{% endif %}">
+              <strong>Suivi Individuel Renforcé (SIR) :</strong>
+              {% if pdp.suivi_medical_renforce %}
+                <span class="badge badge-danger">OUI</span> — {{ pdp.postes_concernes }}
+              {% else %}
+                <span class="badge badge-secondary">NON</span>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+
+        <!-- Tableau des Risques -->
+        <div class="doc-section-header">5. RISQUES ET INTERFÉRENCES POSSIBLES (ÉVALUATION & PRÉVENTION)</div>
+        <table class="table table-sm table-bordered table-doc-border">
+          <thead>
+            <tr class="text-center bg-light">
+              <th style="width: 28%; text-align: left;">Domaine / Risque PDP</th>
+              <th style="width: 22%; text-align: left;">Description & Dangers</th>
+              <th style="width: 5%;">E.U.</th>
+              <th style="width: 5%;">E.E.</th>
+              <th style="width: 30%; text-align: left;">Mesures de prévention retenues</th>
+              <th style="width: 5%;">M.E. E.U.</th>
+              <th style="width: 5%;">M.E. E.E.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in risques %}
+            <tr>
+              <td>
+                <div class="font-weight-bold text-dark">{{ r.risque.titre }}</div>
+                <div class="small text-muted font-monospace">{{ r.risque.code }}</div>
+              </td>
+              <td>
+                <div class="small text-muted" style="line-height: 1.3;">{{ r.risque.description|default:"-" }}</div>
+                {% if r.risque.mesures_prevention_recommandees %}
+                  <div class="small text-info mt-1"><em>Recommandation : {{ r.risque.mesures_prevention_recommandees }}</em></div>
+                {% endif %}
+              </td>
+              <td class="text-center align-middle">{% if r.concerne_eu %}☑{% else %}☐{% endif %}</td>
+              <td class="text-center align-middle">{% if r.concerne_ee %}☑{% else %}☐{% endif %}</td>
+              <td class="align-middle">{{ r.mesures_prevention|default:"-"|linebreaksbr }}</td>
+              <td class="text-center align-middle">{% if r.mise_en_oeuvre_eu %}☑{% else %}☐{% endif %}</td>
+              <td class="text-center align-middle">{% if r.mise_en_oeuvre_ee %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center py-3 text-muted">
+                Aucun risque associé à ce Plan de Prévention.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+
+        <!-- Remarques & Signatures -->
+        <div class="doc-section-header">6. REMARQUES & SIGNATURES</div>
+        {% if pdp.remarques_cssct %}
+          <div class="p-2 mb-3 border rounded bg-light">
+            <strong>Remarques et avis du CSSCT :</strong><br>{{ pdp.remarques_cssct|linebreaksbr }}
+          </div>
+        {% endif %}
+
+        <div class="alert alert-secondary text-center font-weight-bold my-3">
+          L'E.U. et l'E.E. s'engagent au respect de toutes les obligations et mesures de prévention que le document contient.
+        </div>
+
+        <div class="row text-center mt-4">
+          <div class="col-md-6 border-right">
+            <h6 class="font-weight-bold text-primary">ENTREPRISE UTILISATRICE (E.U.)</h6>
+            <div><strong>Nom :</strong> {{ pdp.signature_eu_nom|default:pdp.eu_representant_nom|default:"-" }}</div>
+            <div><strong>Date :</strong> {{ pdp.date_signature_eu|date:"d/m/Y"|default:"-" }}</div>
+            {% if pdp.signature_eu_image %}
+              <img src="{{ pdp.signature_eu_image }}" alt="Signature EU" class="sig-img">
+            {% else %}
+              <div class="text-muted italic py-3">Mention "lu et approuvé" - Non signée</div>
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <h6 class="font-weight-bold text-success">ENTREPRISE EXTÉRIEURE (E.E.)</h6>
+            <div><strong>Nom :</strong> {{ pdp.signature_ee_nom|default:pdp.ee_representant_nom|default:"-" }}</div>
+            <div><strong>Date :</strong> {{ pdp.date_signature_ee|date:"d/m/Y"|default:"-" }}</div>
+            {% if pdp.signature_ee_image %}
+              <img src="{{ pdp.signature_ee_image }}" alt="Signature EE" class="sig-img">
+            {% else %}
+              <div class="text-muted italic py-3">Mention "lu et approuvé" - Non signée</div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Plan de Prévention Simplifié — {{ pdp.reference }}</title>
+  <style>
+    @page {
+      size: a4 portrait;
+      margin: 8mm 10mm;
+    }
+
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 8.5pt;
+      line-height: 1.15;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    .page {
+      page-break-after: always;
+      margin-bottom: 0;
+    }
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0;
+      margin-bottom: 0;
+      page-break-inside: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    table + table {
+      margin-top: -0.8pt;
+    }
+
+    th, td {
+      border: 0.8pt solid #000;
+      padding: 2pt 3pt;
+      vertical-align: top;
+      word-wrap: break-word;
+    }
+
+    .header-table td {
+      border: 1pt solid #000;
+    }
+
+    .bg-header {
+      background-color: #d9e1f2;
+      font-weight: bold;
+      text-align: center;
+      font-size: 9.5pt;
+      text-transform: uppercase;
+    }
+
+    .bg-sub {
+      background-color: #f2f2f2;
+      font-weight: bold;
+      font-size: 8.5pt;
+    }
+
+    .title-doc {
+      font-size: 12pt;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .text-center { text-align: center; }
+    .text-right { text-align: right; }
+    .font-bold { font-weight: bold; }
+
+    /* Clean Information Grid Table */
+    table.info-tbl {
+      width: 100%;
+      border-collapse: collapse;
+      border: none;
+      margin: 0;
+    }
+
+    table.info-tbl td {
+      border: none !important;
+      padding: 1.5pt 2pt;
+      vertical-align: top;
+      font-size: 8.5pt;
+      line-height: 1.25;
+    }
+
+    .lbl {
+      font-weight: bold;
+      color: #000;
+      white-space: nowrap;
+    }
+
+    .val {
+      font-weight: normal;
+      color: #000;
+    }
+
+    /* Checkbox indicators */
+    .chk-on {
+      font-family: monospace;
+      font-weight: bold;
+      font-size: 8pt;
+      color: #000;
+      white-space: nowrap;
+    }
+
+    .chk-off {
+      font-family: monospace;
+      font-weight: normal;
+      font-size: 8pt;
+      color: #777;
+      white-space: nowrap;
+    }
+
+    /* Signature Table PDF-specific CSS */
+    .signature-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin: 0;
+    }
+
+    .signature-table th {
+      font-size: 11pt;
+      font-weight: bold;
+      text-align: center;
+      vertical-align: middle;
+      padding: 7pt;
+      background-color: #d9e1f2;
+      border: 1pt solid #000;
+    }
+
+    .signature-table td {
+      font-size: 9.5pt;
+      vertical-align: top;
+      padding: 8pt 10pt;
+      border: 1pt solid #000;
+    }
+
+    .sig-subtext {
+      font-size: 8pt;
+      color: #333;
+      font-style: italic;
+    }
+
+    .signature-image {
+      display: inline-block;
+      max-width: 220px;
+      max-height: 90px;
+      width: auto;
+      height: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== PAGE 1 : IDENTIFICATION & CONSIGNES ==================== -->
+  <div class="page">
+     <!-- En-tête -->
+    <table class="header-table">
+      <tr>
+        <td width="25%" style="text-align: center; vertical-align: middle;">
+          {% if logo_b64 %}
+            <img src="{{ logo_b64 }}" style="max-height: 45px; max-width: 130px;" alt="Logo">
+          {% else %}
+            <strong style="font-size: 12pt;">AB SERVE</strong>
+          {% endif %}
+        </td>
+        <td width="50%" style="text-align: center; vertical-align: middle;">
+          <div class="title-doc">PLAN DE PRÉVENTION SIMPLIFIÉ</div>
+          <div style="font-size: 8pt; font-style: italic;">Réf : {{ pdp.reference }}</div>
+        </td>
+        <td width="25%" style="font-size: 8pt; vertical-align: middle;">
+          <div><strong>Date :</strong> {{ pdp.created_at|date:"d/m/Y" }}</div>
+          <div><strong>Statut :</strong> {{ pdp.get_statut_display }}</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Nature Opération -->
+    <table>
+      <tr>
+        <td class="bg-sub" width="28%">NATURE DE L'OPÉRATION :</td>
+        <td width="42%" style="font-weight: normal; vertical-align: middle; font-size: 8.5pt;">{{ pdp.nature_operation }}</td>
+        <td width="30%" style="text-align: center; vertical-align: middle; font-size: 8.5pt;">
+          {% if pdp.type_operation == 'ponctuelle' %}<span class="chk-on">[X]</span> <strong>Ponctuelle</strong>{% else %}<span class="chk-off">[&nbsp;]</span> Ponctuelle{% endif %}
+          &nbsp;&nbsp;&nbsp;
+          {% if pdp.type_operation == 'annuelle' %}<span class="chk-on">[X]</span> <strong>Annuelle</strong>{% else %}<span class="chk-off">[&nbsp;]</span> Annuelle{% endif %}
+        </td>
+      </tr>
+    </table>
+
+    <!-- 1. Identification E.U. / E.E. -->
+    <table>
+      <tr>
+        <td class="bg-header" width="50%">ENTREPRISE UTILISATRICE (E.U.)</td>
+        <td class="bg-header" width="50%">ENTREPRISE EXTÉRIEURE (E.E.)</td>
+      </tr>
+      <tr>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 105pt;">Nom :</td><td class="val">{{ pdp.eu_nom }}</td></tr>
+            <tr><td class="lbl">Adresse :</td><td class="val">{{ pdp.eu_adresse|linebreaksbr }}</td></tr>
+            <tr><td class="lbl">Téléphone :</td><td class="val">{{ pdp.eu_telephone|default:"-" }}</td></tr>
+            <tr><td colspan="2" style="height: 3pt; border: none;"></td></tr>
+            <tr><td class="lbl">Représentant de l'E.U. :</td><td class="val">M. {{ pdp.eu_representant_nom|default:"-" }}</td></tr>
+            <tr><td class="lbl">Fonction :</td><td class="val">{{ pdp.eu_representant_fonction|default:"-" }}</td></tr>
+            <tr><td class="lbl">Tél. :</td><td class="val">{{ pdp.eu_representant_telephone|default:"-" }}</td></tr>
+          </table>
+        </td>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 105pt;">Nom :</td><td class="val">{{ pdp.ee_nom }}</td></tr>
+            <tr><td class="lbl">Adresse :</td><td class="val">{{ pdp.ee_adresse|linebreaksbr }}</td></tr>
+            <tr><td class="lbl">Téléphone :</td><td class="val">{{ pdp.ee_telephone|default:"-" }}</td></tr>
+            <tr><td colspan="2" style="height: 3pt; border: none;"></td></tr>
+            <tr><td class="lbl">Représentant de l'E.E. :</td><td class="val">M. {{ pdp.ee_representant_nom|default:"-" }}</td></tr>
+            <tr><td class="lbl">Fonction :</td><td class="val">{{ pdp.ee_representant_fonction|default:"-" }}</td></tr>
+            <tr><td class="lbl">Tél. :</td><td class="val">{{ pdp.ee_representant_telephone|default:"-" }}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- 2. Intervention -->
+    <table>
+      <tr>
+        <td class="bg-sub" colspan="2">MODALITÉS DE L'INTERVENTION</td>
+      </tr>
+      <tr>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 135pt;">Lieu de l'intervention :</td><td class="val">{{ pdp.lieu_intervention|default:"-" }}</td></tr>
+            <tr><td class="lbl">Date début & fin :</td><td class="val">Du {{ pdp.date_debut|date:"d/m/Y"|default:"-" }} au {{ pdp.date_fin|date:"d/m/Y"|default:"-" }}</td></tr>
+            <tr><td class="lbl">Horaire prévu par l'E.E. :</td><td class="val">{{ pdp.horaire_travail|default:"-" }}</td></tr>
+          </table>
+        </td>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 135pt;">Effectif E.E. prévu sur site :</td><td class="val">{{ pdp.effectif_prevu|default:"-" }}</td></tr>
+            <tr><td class="lbl">Durée approx. de l'opération :</td><td class="val">{{ pdp.duree_approximative|default:"-" }}</td></tr>
+            <tr><td class="lbl">Sous-traitants éventuels :</td><td class="val">{{ pdp.sous_traitants|default:"Aucun" }}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- 3. Visite préalable -->
+    <table>
+      <tr>
+        <td class="bg-sub" colspan="2">CONSIGNES PARTICULIÈRES DONNÉES PENDANT LA VISITE PRÉALABLE</td>
+      </tr>
+      <tr>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 125pt;">Date de la visite préalable :</td><td class="val">{{ pdp.date_visite_prealable|date:"d/m/Y"|default:"-" }}</td></tr>
+            <tr><td class="lbl">Secteur d'intervention :</td><td class="val">{{ pdp.secteur_intervention|default:"-" }}</td></tr>
+            <tr><td class="lbl">Itinéraire à suivre :</td><td class="val">{{ pdp.itineraire }}</td></tr>
+          </table>
+        </td>
+        <td width="50%" style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 155pt;">Zone présentant un danger particulier :</td><td class="val">{{ pdp.zone_danger_particulier|default:"Aucune" }}</td></tr>
+            <tr><td class="lbl">Locaux mis à disposition :</td><td class="val">{{ pdp.locaux_mis_disposition|default:"Non spécifiés" }}</td></tr>
+            <tr><td class="lbl">Appareils mis à disposition E.U. :</td><td class="val">{{ pdp.appareils_mis_disposition }}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- 4. Secours -->
+    <table>
+      <tr>
+        <td class="bg-sub">ORGANISATION DES SECOURS</td>
+      </tr>
+      <tr>
+        <td style="padding: 3pt 5pt;">
+          <div style="text-align: center; font-weight: bold; margin-bottom: 2pt; font-size: 8.5pt;">
+            Donner l'alerte en utilisant le téléphone le plus proche
+          </div>
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 160pt;">Numéros d'urgence du site :</td><td class="val">{{ pdp.numeros_urgence }}</td></tr>
+            <tr><td class="lbl">Emplacement infirmerie, trousse secours, liste SST :</td><td class="val">{{ pdp.infirmerie_trousse_sst_location|default:"Infirmerie du site" }}</td></tr>
+            <tr><td class="lbl">Consigne en cas d'évacuation générale :</td><td class="val">{{ pdp.consigne_evacuation|default:"Se conformer au plan d'évacuation du site." }}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- 5. Suivi Médical Renforcé -->
+    <table>
+      <tr>
+        <td class="bg-sub">TRAVAUX SOUMIS À UN SUIVI MÉDICAL RENFORCÉ (SIR)</td>
+      </tr>
+      <tr>
+        <td style="padding: 3pt 5pt;">
+          <table class="info-tbl">
+            <tr>
+              <td class="lbl" style="width: 325pt;">Y a-t-il des postes occupés par l'E.E. relevant d'un Suivi Individuel Renforcé ?</td>
+              <td class="val">
+                {% if pdp.suivi_medical_renforce %}
+                  <span class="chk-on">[X]</span> <strong>OUI</strong> &nbsp;&nbsp;&nbsp; <span class="chk-off">[&nbsp;]</span> NON
+                {% else %}
+                  <span class="chk-off">[&nbsp;]</span> OUI &nbsp;&nbsp;&nbsp; <span class="chk-on">[X]</span> <strong>NON</strong>
+                {% endif %}
+              </td>
+            </tr>
+            <tr>
+              <td class="lbl">Si OUI, lesquels (+ copie obligatoire à la Médecine du Travail de l'E.E.) :</td>
+              <td class="val">{{ pdp.postes_concernes|default:"N/A" }}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+  </div>
+
+  <!-- ==================== PAGE 2 : TABLEAU DES RISQUES ==================== -->
+  <div class="page">
+    
+    <table width="100%" class="risk-table" style="border-collapse: collapse; table-layout: fixed; margin: 0;">
+      <thead>
+        <!-- Title Row -->
+        <tr>
+          <th colspan="6" class="bg-header" style="border: 0.8pt solid #000; padding: 2.5pt 4pt; font-size: 8.5pt; text-align: center; text-transform: uppercase; background-color: #d9e1f2;">
+            RISQUES ET INTERFÉRENCES POSSIBLES
+          </th>
+        </tr>
+        <!-- Subtitle Row -->
+        <tr>
+          <td colspan="6" style="border: 0.8pt solid #000; padding: 2pt 4pt; font-size: 6.8pt; font-style: italic; background-color: #ffffff;">
+            Il s'agit ici d'analyser les différentes phases de l'opération pour mettre en évidence les risques occasionnés par l'activité de l'Entreprise Extérieure et les risques d'interférences identifiés, avec l'activité de l'Entreprise Utilisatrice.
+          </td>
+        </tr>
+        <!-- Table Column Headers -->
+        <tr class="bg-sub text-center">
+          <th width="40%" align="left" rowspan="2" style="border: 0.8pt solid #000; padding: 2pt 3pt; font-size: 6.8pt; background-color: #f2f2f2;">DOMAINE ET NATURE DES RISQUES</th>
+          <th width="12%" align="center" colspan="2" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.8pt; background-color: #f2f2f2;">CONCERNE</th>
+          <th width="36%" align="left" rowspan="2" style="border: 0.8pt solid #000; padding: 2pt 3pt; font-size: 6.8pt; background-color: #f2f2f2;">MESURES DE PRÉVENTION RETENUES</th>
+          <th width="12%" align="center" colspan="2" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.8pt; background-color: #f2f2f2;">MISE EN OEUVRE</th>
+        </tr>
+        <tr class="bg-sub text-center">
+          <th width="6%" align="center" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.5pt; background-color: #f2f2f2;">E.U.</th>
+          <th width="6%" align="center" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.5pt; background-color: #f2f2f2;">E.E.</th>
+          <th width="6%" align="center" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.5pt; background-color: #f2f2f2;">E.U.</th>
+          <th width="6%" align="center" style="border: 0.8pt solid #000; padding: 1.5pt 1pt; font-size: 6.5pt; background-color: #f2f2f2;">E.E.</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for r in risques %}
+        <tr>
+          <td width="40%" style="border: 0.8pt solid #000; padding: 1.5pt 3pt; font-size: 6.8pt; line-height: 1.1;">
+            <strong>{{ r.risque.titre }}</strong>
+            {% if r.risque.description and r.risque.description != r.risque.titre %}
+              <div style="color: #444; font-size: 6.2pt; line-height: 1.05;">{{ r.risque.description }}</div>
+            {% endif %}
+          </td>
+          <td width="6%" class="text-center" style="border: 0.8pt solid #000; padding: 1.5pt 0.5pt; vertical-align: middle;">
+            {% if r.concerne_eu %}<span class="chk-on">[X]</span>{% endif %}
+          </td>
+          <td width="6%" class="text-center" style="border: 0.8pt solid #000; padding: 1.5pt 0.5pt; vertical-align: middle;">
+            {% if r.concerne_ee %}<span class="chk-on">[X]</span>{% endif %}
+          </td>
+          <td width="36%" style="border: 0.8pt solid #000; padding: 1.5pt 3pt; font-size: 6.8pt; line-height: 1.1;">
+            {{ r.mesures_prevention|linebreaksbr|default:"&nbsp;" }}
+          </td>
+          <td width="6%" class="text-center" style="border: 0.8pt solid #000; padding: 1.5pt 0.5pt; vertical-align: middle;">
+            {% if r.mise_en_oeuvre_eu %}<span class="chk-on">[X]</span>{% endif %}
+          </td>
+          <td width="6%" class="text-center" style="border: 0.8pt solid #000; padding: 1.5pt 0.5pt; vertical-align: middle;">
+            {% if r.mise_en_oeuvre_ee %}<span class="chk-on">[X]</span>{% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" style="border: 0.8pt solid #000; padding: 6pt; text-align: center; font-size: 7.5pt; font-style: italic;">
+            Aucun risque spécifique retenu pour ce plan de prévention.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+
+  <!-- ==================== PAGE 3 : REMARQUES & SIGNATURES ==================== -->
+  <div class="page">
+    
+    <table class="signature-table">
+      <!-- Row 1: CSSCT Header -->
+      <tr>
+        <td colspan="2" class="bg-sub" style="font-weight: bold; background-color: #e6e6e6; font-size: 8.5pt; padding: 4pt 6pt;">
+          REMARQUES ET AVIS DU CSSCT DE L'E.E. SI NÉCESSAIRE
+        </td>
+      </tr>
+      <!-- Row 2: CSSCT Content -->
+      <tr>
+        <td colspan="2" style="min-height: 35px; vertical-align: top; font-size: 8.5pt; padding: 5pt 7pt;">
+          {{ pdp.remarques_cssct|linebreaksbr|default:"Aucune remarque particulière." }}
+        </td>
+      </tr>
+      <!-- Row 3: Commitment Statement (Full Width) -->
+      <tr>
+        <td colspan="2" style="text-align: center; font-weight: bold; font-size: 8.5pt; background-color: #ffffff; padding: 5pt 7pt;">
+          L'E.U. et l'E.E. s'engagent au respect de toutes les obligations et mesures de prévention que le document contient.
+        </td>
+      </tr>
+      <!-- Row 4: Signature Headers -->
+      <tr>
+        <th style="width: 50%;">
+          ENTREPRISE UTILISATRICE (E.U.)
+        </th>
+        <th style="width: 50%;">
+          ENTREPRISE EXTÉRIEURE (E.E.)
+        </th>
+      </tr>
+      <!-- Row 5: Signature Contents -->
+      <tr>
+        <td style="width: 50%;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 80pt; font-size: 9.5pt;">Date :</td><td class="val" style="font-size: 9.5pt;">{{ pdp.date_signature_eu|date:"d/m/Y"|default:"" }}</td></tr>
+            <tr><td class="lbl" style="font-size: 9.5pt;">Nom :</td><td class="val" style="font-size: 9.5pt;">{{ pdp.signature_eu_nom|default:pdp.eu_representant_nom|default:"" }}</td></tr>
+            <tr><td class="lbl" style="font-size: 9.5pt;">Signature :</td><td class="val" style="font-size: 9.5pt;"><span class="sig-subtext">(précédée de "Lu et approuvé")</span></td></tr>
+          </table>
+          
+          <div style="text-align: center; margin-top: 8px;">
+            {% if pdp.signature_eu_image %}
+              <img src="{{ pdp.signature_eu_image }}" class="signature-image" alt="Signature EU">
+            {% endif %}
+          </div>
+        </td>
+        <td style="width: 50%;">
+          <table class="info-tbl">
+            <tr><td class="lbl" style="width: 80pt; font-size: 9.5pt;">Date :</td><td class="val" style="font-size: 9.5pt;">{{ pdp.date_signature_ee|date:"d/m/Y"|default:"" }}</td></tr>
+            <tr><td class="lbl" style="font-size: 9.5pt;">Nom :</td><td class="val" style="font-size: 9.5pt;">{{ pdp.signature_ee_nom|default:pdp.ee_representant_nom|default:"" }}</td></tr>
+            <tr><td class="lbl" style="font-size: 9.5pt;">Signature :</td><td class="val" style="font-size: 9.5pt;"><span class="sig-subtext">(précédée de "Lu et approuvé")</span></td></tr>
+          </table>
+          
+          <div style="text-align: center; margin-top: 8px;">
+            {% if pdp.signature_ee_image %}
+              <img src="{{ pdp.signature_ee_image }}" class="signature-image" alt="Signature EE">
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+    </table>
+
+  </div>
+
+</body>
+</html>

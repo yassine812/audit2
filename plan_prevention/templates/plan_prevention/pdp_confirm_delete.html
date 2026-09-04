@@ -1,0 +1,47 @@
+{% extends 'base_global.html' %}
+
+{% block title %}Supprimer PDP {{ object.reference }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1><i class="fas fa-exclamation-triangle text-danger mr-2"></i>Suppression du Plan de Prévention</h1>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card card-danger">
+            <div class="card-header">
+              <h3 class="card-title">Confirmer la suppression</h3>
+            </div>
+            <div class="card-body">
+              <p class="lead">Êtes-vous sûr de vouloir supprimer définitivement le Plan de Prévention <strong>{{ object.reference }}</strong> ?</p>
+              <ul>
+                <li><strong>E.U. :</strong> {{ object.eu_nom }}</li>
+                <li><strong>E.E. :</strong> {{ object.ee_nom }}</li>
+                <li><strong>Opération :</strong> {{ object.nature_operation }}</li>
+              </ul>
+              <p class="text-danger"><i class="fas fa-exclamation-circle mr-1"></i> Cette action est irréversible.</p>
+            </div>
+            <div class="card-footer text-right">
+              <form method="post">
+                {% csrf_token %}
+                <a href="{% url 'plan_prevention:detail' object.pk %}" class="btn btn-secondary mr-2">Annuler</a>
+                <button type="submit" class="btn btn-danger font-weight-bold">Supprimer définitivement</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

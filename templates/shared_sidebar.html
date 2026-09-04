@@ -44,6 +44,9 @@
 {% url 'gestion_documentaire:document_list' as url_gd_documents %}
 {% url 'gestion_documentaire:dashboard_qse' as url_gd_dashboard %}
 {% url 'gestion_documentaire:tdb_dashboard' as url_gd_tdb_indicateurs %}
+{% url 'plan_prevention:dashboard' as url_pdp_dash %}
+{% url 'plan_prevention:liste' as url_pdp_liste %}
+{% url 'plan_prevention:create' as url_pdp_new %}
 {% url 'administration:dashboard' as url_adm_dash %}
 {% url 'administration:utilisateurs' as url_adm_users %}
 {% url 'administration:societes' as url_adm_societes %}
@@ -461,6 +464,30 @@
         <li class="nav-item">
           <a href="{{ url_r_list }}" class="nav-link {% if ns == 'reclamation' and un == 'liste' %}active{% endif %}">
             <i class="nav-icon fas fa-list"></i><p>Registre Réclamations</p>
+          </a>
+        </li>
+      </ul>
+    </li>
+    {% endif %}
+
+    <!-- ══════════════════════════════════════ -->
+    <!-- MODULE : PLAN DE PRÉVENTION (PDP)      -->
+    <!-- ══════════════════════════════════════ -->
+    {% if request.user.is_superuser or request.user.is_RS or request.user.is_RO or request.user.is_assistante or request.user.is_auditeur or request.user.is_CE %}
+    <li class="nav-item {% if ns == 'plan_prevention' %}menu-open{% endif %}">
+      <a href="{{ url_pdp_dash }}" class="nav-link {% if ns == 'plan_prevention' and un == 'dashboard' %}active{% endif %}">
+        <i class="nav-icon fas fa-file-signature"></i>
+        <p>Plan de Prévention<i class="right fas fa-angle-left"></i></p>
+      </a>
+      <ul class="nav nav-treeview">
+        <li class="nav-item">
+          <a href="{{ url_pdp_dash }}" class="nav-link {% if ns == 'plan_prevention' and un == 'dashboard' %}active{% endif %}">
+            <i class="nav-icon fas fa-tachometer-alt"></i><p>Tableau de bord</p>
+          </a>
+        </li>
+        <li class="nav-item">
+          <a href="{% url 'plan_prevention:risque_list' %}" class="nav-link {% if ns == 'plan_prevention' and un == 'risque_list' %}active{% endif %}">
+            <i class="nav-icon fas fa-shield-alt"></i><p>Liste des risques</p>
           </a>
         </li>
       </ul>

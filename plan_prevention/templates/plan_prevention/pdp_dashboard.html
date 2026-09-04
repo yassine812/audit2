@@ -1,0 +1,773 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}Tableau de bord — Plans de Prévention{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Header Dashboard & Alignment ── */
+  .pdp-dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.5rem 0 1.25rem 0;
+  }
+  .pdp-dash-title {
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  .pdp-dash-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin: 0;
+  }
+
+  /* ── Small-Box KPI Cards ── */
+  .small-box {
+    border-radius: 8px !important;
+    position: relative;
+    display: block;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+    overflow: hidden;
+  }
+  .small-box .inner {
+    padding: 1.1rem 1.15rem;
+  }
+  .small-box h3 {
+    font-size: 2rem !important;
+    font-weight: 800 !important;
+    margin: 0 0 0.2rem 0 !important;
+    white-space: nowrap;
+  }
+  .small-box p {
+    font-size: 0.925rem;
+    font-weight: 700;
+  }
+  .small-box small {
+    font-size: 0.78rem;
+    display: block;
+  }
+  .small-box .icon {
+    color: rgba(255, 255, 255, 0.25);
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    z-index: 0;
+    font-size: 60px;
+    transition: transform 0.2s ease;
+  }
+  .small-box:hover .icon {
+    transform: scale(1.08);
+  }
+  .small-box.bg-warning .icon {
+    color: rgba(0, 0, 0, 0.18);
+  }
+
+  /* ── Floating Action Filter Button ── */
+  .pdp-filter-btn-fixed {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1040;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #007bff;
+    color: #ffffff;
+    box-shadow: 0 4px 18px rgba(0, 123, 255, 0.45);
+    border: none;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+  .pdp-filter-btn-fixed:hover {
+    transform: scale(1.08);
+    background: #0056b3;
+    color: #ffffff;
+  }
+  .pdp-filter-badge {
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffc107;
+    border: 2px solid #ffffff;
+  }
+
+  /* ── Off-Canvas Sidebar Filter Drawer ── */
+  .filter-drawer-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1050;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  .filter-drawer-backdrop.show {
+    display: block;
+    opacity: 1;
+  }
+
+  .filter-drawer-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: min(400px, 92vw);
+    height: 100vh;
+    background: #ffffff;
+    z-index: 1055;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+    box-shadow: -8px 0 25px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+  }
+  .filter-drawer-panel.show {
+    right: 0;
+  }
+
+  .filter-drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.25rem;
+    background: #343a40;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .filter-drawer-header .close-btn {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.85;
+  }
+
+  .filter-drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+  }
+
+  .filter-drawer-footer {
+    padding: 1rem 1.25rem;
+    background: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    gap: 10px;
+  }
+
+  /* ── Tableau Structuré Registre ── */
+  .pdp-table-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    width: 100%;
+    margin-bottom: 1.5rem;
+  }
+  .pdp-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.25rem;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .pdp-table-header-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #334155;
+    margin: 0;
+  }
+  
+  .pdp-table {
+    margin-bottom: 0;
+    width: 100%;
+  }
+  .pdp-table thead th {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid #cbd5e1;
+    border-top: none;
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+  }
+  .pdp-table tbody td {
+    font-size: 0.875rem;
+    color: #1e293b;
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    border-top: 1px solid #f1f5f9;
+  }
+  .pdp-table tbody tr:hover {
+    background-color: #f8fafc;
+  }
+  
+  .pdp-ref-link {
+    font-weight: 700;
+    color: #2563eb;
+    text-decoration: none;
+  }
+
+  .badge-pdp-type {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .badge-pdp-status {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+    border-radius: 4px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .btn-action-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.78rem;
+    border-radius: 5px;
+  }
+
+  /* ── STRICT MODAL WIZARD ARCHITECTURE ── */
+  #modal-create-pdp .modal-dialog {
+    max-width: 1140px;
+    width: 95vw;
+    margin: 1.75rem auto;
+  }
+
+  #modal-create-pdp .modal-content {
+    border-radius: 8px;
+    border: none;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  }
+
+  #modal-create-pdp .modal-header {
+    padding: 0.85rem 1.25rem;
+    background-color: #1e293b !important;
+  }
+
+  #modal-create-pdp .pdp-stepper-wrapper {
+    background-color: #0284c7 !important;
+    padding: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+  }
+
+  #modal-create-pdp .pdp-stepper-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    border-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  #modal-create-pdp .pdp-stepper-tabs .nav-item {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    min-width: auto !important;
+    text-align: center !important;
+    margin-bottom: 0 !important;
+  }
+
+  #modal-create-pdp .pdp-stepper-tabs .nav-link {
+    display: block !important;
+    white-space: nowrap !important;
+    padding: 0.65rem 0.35rem !important;
+    font-size: 0.81rem !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    transition: all 0.15s ease;
+  }
+
+  #modal-create-pdp .pdp-stepper-tabs .nav-link.active {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-bottom: 3px solid #0284c7 !important;
+    font-weight: 700 !important;
+  }
+
+  #modal-create-pdp .pdp-stepper-tabs .nav-link:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+  }
+
+  #modal-create-pdp .modal-body {
+    padding: 1.25rem 1.5rem;
+    background-color: #ffffff;
+  }
+
+  /* Bootstrap Tab Pane Display Rules */
+  #modal-create-pdp .tab-content > .tab-pane {
+    display: none;
+  }
+  #modal-create-pdp .tab-content > .tab-pane.active {
+    display: block;
+  }
+
+  #modal-create-pdp .modal-footer {
+    padding: 0.75rem 1.25rem;
+    background-color: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  /* Compact Table for Step 6 Risks */
+  .risk-compact-table {
+    margin-bottom: 0;
+    font-size: 0.8rem;
+  }
+  .risk-compact-table th {
+    padding: 0.45rem 0.5rem !important;
+    background-color: #f1f5f9;
+    font-size: 0.75rem;
+  }
+  .risk-compact-table td {
+    padding: 0.4rem 0.5rem !important;
+    vertical-align: middle !important;
+  }
+
+  /* Signature Pads */
+  .signature-pad-container {
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background-color: #f8fafc;
+  }
+  .signature-pad {
+    width: 100%;
+    height: 110px;
+    cursor: crosshair;
+  }
+
+  /* Empty State */
+  .pdp-empty-state {
+    padding: 3.5rem 1.5rem;
+    text-align: center;
+    background: #ffffff;
+  }
+  .pdp-empty-icon {
+    width: 64px;
+    height: 64px;
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+  .pdp-empty-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: 0.35rem;
+  }
+  .pdp-empty-desc {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 1.25rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 1. HEADER -->
+<div class="pdp-dash-header">
+  <div>
+    <h1 class="pdp-dash-title">Tableau de bord — Plans de Prévention</h1>
+    <p class="pdp-dash-subtitle">Suivi global et indicateurs clés des plans de prévention simplifiés</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <button type="button" class="btn btn-primary btn-sm font-weight-bold px-3 shadow-sm" data-toggle="modal" data-target="#modal-create-pdp">
+      <i class="fas fa-plus mr-1.5"></i> Nouveau Plan
+    </button>
+  </div>
+</div>
+
+<!-- 2. LES 5 KPI CARDS -->
+<div class="row mb-2">
+  <div class="col-xl col-md-6 col-12 mb-3">
+    <div class="small-box bg-info shadow-xs rounded">
+      <div class="inner">
+        <h3>{{ total_count }}</h3>
+        <p class="font-weight-bold mb-0">Total PDP</p>
+        <small class="opacity-75">Plans enregistrés</small>
+      </div>
+      <div class="icon"><i class="fas fa-file-contract"></i></div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6 col-12 mb-3">
+    <div class="small-box bg-teal shadow-xs rounded" style="background-color: #20c997; color: white;">
+      <div class="inner">
+        <h3>{{ upcoming_count }}</h3>
+        <p class="font-weight-bold mb-0">À venir</p>
+        <small class="opacity-75">Interventions planifiées</small>
+      </div>
+      <div class="icon"><i class="fas fa-calendar-alt"></i></div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6 col-12 mb-3">
+    <div class="small-box bg-success shadow-xs rounded">
+      <div class="inner">
+        <h3>{{ valide_count }}</h3>
+        <p class="font-weight-bold mb-0">Validés</p>
+        <small class="opacity-75">{{ pct_valide }}% du total</small>
+      </div>
+      <div class="icon"><i class="fas fa-check-circle"></i></div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6 col-12 mb-3">
+    <div class="small-box bg-warning shadow-xs rounded">
+      <div class="inner text-dark">
+        <h3 class="text-dark">{{ brouillon_count }}</h3>
+        <p class="font-weight-bold mb-0 text-dark">Brouillons</p>
+        <small class="text-dark opacity-75">En cours de rédaction</small>
+      </div>
+      <div class="icon"><i class="fas fa-pencil-alt"></i></div>
+    </div>
+  </div>
+
+  <div class="col-xl col-md-6 col-12 mb-3">
+    <div class="small-box bg-secondary shadow-xs rounded">
+      <div class="inner">
+        <h3>{{ cloture_count }}</h3>
+        <p class="font-weight-bold mb-0">Clôturés</p>
+        <small class="opacity-75">Plans archivés</small>
+      </div>
+      <div class="icon"><i class="fas fa-archive"></i></div>
+    </div>
+  </div>
+</div>
+
+<!-- 3. FLOATING FILTER BUTTON & OFF-CANVAS SIDEBAR DRAWER -->
+<button type="button" class="pdp-filter-btn-fixed" title="Filtres des Plans de Prévention" id="pdp-filter-btn">
+  <i class="fas fa-filter"></i>
+  {% if search_q or selected_statut or selected_type or annee_selected %}
+    <span class="pdp-filter-badge" title="Filtres actifs"></span>
+  {% endif %}
+</button>
+
+<div class="filter-drawer-backdrop" id="pdp-filter-backdrop"></div>
+
+<div class="filter-drawer-panel" id="pdp-filter-drawer">
+  <div class="filter-drawer-header">
+    <span><i class="fas fa-filter mr-2 text-warning"></i>FILTRES DES PLANS DE PRÉVENTION</span>
+    <button type="button" class="close-btn js-pdp-filter-close" aria-label="Fermer">&times;</button>
+  </div>
+  <form method="get" action="." class="d-flex flex-column h-100 mb-0">
+    <div class="filter-drawer-body">
+      <div class="form-group mb-3">
+        <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-search text-muted mr-1"></i>Recherche :</label>
+        <input type="text" name="q" class="form-control" placeholder="Référence, client, opération..." value="{{ search_q }}">
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-tags text-muted mr-1"></i>Type d'Opération :</label>
+        <select name="type_operation" class="form-control custom-select">
+          <option value="">Tous les types</option>
+          <option value="ponctuelle" {% if selected_type == 'ponctuelle' %}selected{% endif %}>Ponctuelle</option>
+          <option value="annuelle" {% if selected_type == 'annuelle' %}selected{% endif %}>Annuelle</option>
+        </select>
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-tasks text-muted mr-1"></i>Statut du PDP :</label>
+        <select name="statut" class="form-control custom-select">
+          <option value="">Tous les statuts</option>
+          <option value="brouillon" {% if selected_statut == 'brouillon' %}selected{% endif %}>Brouillon</option>
+          <option value="valide" {% if selected_statut == 'valide' %}selected{% endif %}>Validé / En cours</option>
+          <option value="cloture" {% if selected_statut == 'cloture' %}selected{% endif %}>Clôturé</option>
+        </select>
+      </div>
+
+      {% if years_list %}
+      <div class="form-group mb-3">
+        <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-calendar-alt text-muted mr-1"></i>Année :</label>
+        <select name="annee" class="form-control custom-select">
+          <option value="">Toutes les années</option>
+          {% for yr in years_list %}
+            <option value="{{ yr }}" {% if annee_selected == yr|stringformat:"i" %}selected{% endif %}>{{ yr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="filter-drawer-footer">
+      <button type="submit" class="btn btn-primary font-weight-bold flex-fill shadow-xs">
+        <i class="fas fa-filter mr-1"></i> Appliquer les filtres
+      </button>
+      <a href="{% url 'plan_prevention:dashboard' %}" class="btn btn-outline-secondary font-weight-bold px-3" title="Réinitialiser">
+        <i class="fas fa-undo"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- 4. REGISTRE PDP COMPLET -->
+<div class="pdp-table-card">
+  <div class="pdp-table-header">
+    <div class="d-flex align-items-center">
+      <h2 class="pdp-table-header-title">
+        <i class="fas fa-file-alt text-primary mr-2"></i>Plans de prévention
+      </h2>
+      {% if search_q or selected_statut or selected_type or annee_selected %}
+        <span class="badge badge-warning ml-2 font-weight-bold" style="font-size:0.75rem;">Filtres actifs</span>
+      {% endif %}
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge badge-light border text-muted px-2.5 py-1" style="font-size:0.8rem; font-weight:600;">
+        {{ paginator.count|default:plans_prevention.count }} plan{{ paginator.count|default:plans_prevention.count|pluralize }}
+      </span>
+    </div>
+  </div>
+
+  {% if plans_prevention %}
+  <!-- Table Desktop (Hidden on Mobile) -->
+  <div class="table-responsive d-none d-md-block">
+    <table class="table pdp-table">
+      <thead>
+        <tr>
+          <th style="width: 11%;">RÉFÉRENCE</th>
+          <th style="width: 19%;">CLIENT / E.U.</th>
+          <th style="width: 17%;">ENTREPRISE / E.E.</th>
+          <th style="width: 25%;">OPÉRATION</th>
+          <th style="width: 9%;">TYPE</th>
+          <th style="width: 10%;">DATES</th>
+          <th style="width: 9%;">STATUT</th>
+          <th style="width: 10%;" class="text-right">ACTIONS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pdp in plans_prevention %}
+        <tr>
+          <td>
+            <a href="{% url 'plan_prevention:detail' pdp.pk %}" class="pdp-ref-link">
+              {{ pdp.reference }}
+            </a>
+          </td>
+          <td class="font-weight-bold text-dark">{{ pdp.eu_nom }}</td>
+          <td class="text-secondary">{{ pdp.ee_nom }}</td>
+          <td>
+            <span class="d-inline-block text-truncate" style="max-width: 320px;" title="{{ pdp.nature_operation }}">
+              {{ pdp.nature_operation }}
+            </span>
+          </td>
+          <td>
+            {% if pdp.type_operation == 'annuelle' %}
+              <span class="badge badge-info badge-pdp-type"><i class="fas fa-calendar-alt mr-1"></i>Annuelle</span>
+            {% else %}
+              <span class="badge badge-secondary badge-pdp-type"><i class="fas fa-clock mr-1"></i>Ponctuelle</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">
+            {% if pdp.date_debut %}
+              {{ pdp.date_debut|date:"d/m/Y" }} {% if pdp.date_fin %}<br>au {{ pdp.date_fin|date:"d/m/Y" }}{% endif %}
+            {% else %}
+              <span class="text-muted italic">Non définie</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pdp.statut == 'cloture' %}
+              <span class="badge badge-secondary badge-pdp-status"><i class="fas fa-archive"></i> Clôturé</span>
+            {% elif pdp.statut == 'valide' %}
+              <span class="badge badge-success badge-pdp-status"><i class="fas fa-check-circle"></i> Validé</span>
+            {% else %}
+              <span class="badge badge-warning badge-pdp-status text-dark"><i class="fas fa-pencil-alt"></i> Brouillon</span>
+            {% endif %}
+          </td>
+          <td class="text-right">
+            <div class="btn-group">
+              <a href="{% url 'plan_prevention:detail' pdp.pk %}" class="btn btn-sm btn-outline-primary btn-action-sm" title="Consulter">
+                <i class="fas fa-eye"></i>
+              </a>
+              <a href="{% url 'plan_prevention:update' pdp.pk %}" class="btn btn-sm btn-outline-warning btn-action-sm" title="Modifier">
+                <i class="fas fa-pen"></i>
+              </a>
+              <a href="{% url 'plan_prevention:export_pdf' pdp.pk %}" class="btn btn-sm btn-outline-danger btn-action-sm" title="PDF">
+                <i class="fas fa-file-pdf"></i>
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cards Mobile (Displayed on Mobile < 768px) -->
+  <div class="d-block d-md-none p-3 bg-light">
+    {% for pdp in plans_prevention %}
+    <div class="card mb-3 border-0 shadow-sm rounded-lg">
+      <div class="card-body p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <a href="{% url 'plan_prevention:detail' pdp.pk %}" class="font-weight-bold text-primary" style="font-size: 0.95rem;">
+            <i class="fas fa-file-alt mr-1"></i>{{ pdp.reference }}
+          </a>
+          {% if pdp.statut == 'cloture' %}
+            <span class="badge badge-secondary"><i class="fas fa-archive"></i> Clôturé</span>
+          {% elif pdp.statut == 'valide' %}
+            <span class="badge badge-success"><i class="fas fa-check-circle"></i> Validé</span>
+          {% else %}
+            <span class="badge badge-warning text-dark"><i class="fas fa-pencil-alt"></i> Brouillon</span>
+          {% endif %}
+        </div>
+        <div class="font-weight-bold text-dark mb-2" style="font-size: 0.9rem;">
+          {{ pdp.nature_operation }}
+        </div>
+        <div class="small text-muted mb-2">
+          <div><i class="fas fa-building text-secondary mr-1"></i><strong>Client / E.U. :</strong> {{ pdp.eu_nom }}</div>
+          <div><i class="fas fa-user-tie text-secondary mr-1"></i><strong>Entreprise / E.E. :</strong> {{ pdp.ee_nom }}</div>
+          <div><i class="fas fa-calendar text-secondary mr-1"></i><strong>Dates :</strong>
+            {% if pdp.date_debut %}{{ pdp.date_debut|date:"d/m/Y" }} {% if pdp.date_fin %}au {{ pdp.date_fin|date:"d/m/Y" }}{% endif %}{% else %}Non définie{% endif %}
+          </div>
+        </div>
+        <div class="d-flex justify-content-between align-items-center border-top pt-2 mt-2">
+          {% if pdp.type_operation == 'annuelle' %}
+            <span class="badge badge-info"><i class="fas fa-calendar-alt mr-1"></i>Annuelle</span>
+          {% else %}
+            <span class="badge badge-secondary"><i class="fas fa-clock mr-1"></i>Ponctuelle</span>
+          {% endif %}
+          <div class="btn-group">
+            <a href="{% url 'plan_prevention:detail' pdp.pk %}" class="btn btn-sm btn-outline-primary" title="Consulter">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'plan_prevention:update' pdp.pk %}" class="btn btn-sm btn-outline-warning" title="Modifier">
+              <i class="fas fa-pen"></i>
+            </a>
+            <a href="{% url 'plan_prevention:export_pdf' pdp.pk %}" class="btn btn-sm btn-outline-danger" title="PDF">
+              <i class="fas fa-file-pdf"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_paginated %}
+  <div class="pdp-table-header bg-white border-top">
+    <span class="small text-muted">Affichage page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+    <ul class="pagination pagination-sm m-0">
+      {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_type %}&type_operation={{ selected_type }}{% endif %}{% if selected_statut %}&statut={{ selected_statut }}{% endif %}{% if annee_selected %}&annee={{ annee_selected }}{% endif %}">&laquo;</a></li>
+      {% endif %}
+
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+      {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_type %}&type_operation={{ selected_type }}{% endif %}{% if selected_statut %}&statut={{ selected_statut }}{% endif %}{% if annee_selected %}&annee={{ annee_selected }}{% endif %}">&raquo;</a></li>
+      {% endif %}
+    </ul>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="pdp-empty-state">
+    <div class="pdp-empty-icon">
+      <i class="fas fa-file-signature"></i>
+    </div>
+    <h3 class="pdp-empty-title">Aucun plan de prévention</h3>
+    <p class="pdp-empty-desc">Commencez par créer votre premier plan de prévention simplifiée.</p>
+    <button type="button" class="btn btn-primary btn-sm px-3 font-weight-bold" data-toggle="modal" data-target="#modal-create-pdp">
+      <i class="fas fa-plus mr-1"></i> Nouveau Plan
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- 5. MODAL DE CRÉATION PDP MULTI-ÉTAPES FIXE -->
+{% include 'plan_prevention/modal_create_pdp.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Drawer Filter Toggle
+    const btnOpenFloat = document.getElementById("pdp-filter-btn");
+    const drawer = document.getElementById("pdp-filter-drawer");
+    const backdrop = document.getElementById("pdp-filter-backdrop");
+    const closeBtns = document.querySelectorAll(".js-pdp-filter-close");
+
+    function openFilter() {
+      if (drawer) drawer.classList.add("show");
+      if (backdrop) backdrop.classList.add("show");
+    }
+
+    function closeFilter() {
+      if (drawer) drawer.classList.remove("show");
+      if (backdrop) backdrop.classList.remove("show");
+    }
+
+    if (btnOpenFloat) btnOpenFloat.addEventListener("click", openFilter);
+    if (backdrop) backdrop.addEventListener("click", closeFilter);
+    closeBtns.forEach(btn => btn.addEventListener("click", closeFilter));
+
+    // Auto-completion Customer (E.U.) in modal
+    const customerSelectModal = document.querySelector("#modal-create-pdp select[name='customer']");
+    if (customerSelectModal) {
+      customerSelectModal.addEventListener("change", function() {
+        const custId = this.value;
+        if (!custId) return;
+        fetch(`/plan-prevention/api/customer/${custId}/`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.nom) {
+              const el = document.querySelector("#modal-create-pdp input[name='eu_nom']");
+              if (el) el.value = data.nom;
+            }
+            if (data.adresse) {
+              const el = document.querySelector("#modal-create-pdp textarea[name='eu_adresse']");
+              if (el) el.value = data.adresse;
+            }
+            if (data.telephone) {
+              const el = document.querySelector("#modal-create-pdp input[name='eu_telephone']");
+              if (el) el.value = data.telephone;
+            }
+          })
+          .catch(err => console.error("Erreur auto-complete customer:", err));
+      });
+    }
+  });
+</script>
+{% endblock %}

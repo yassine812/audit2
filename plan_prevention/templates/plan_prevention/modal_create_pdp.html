@@ -1,0 +1,1118 @@
+{% load static %}
+
+<!-- Styles spécifiques Modal PDP -->
+<style>
+  /* Base Desktop Modal Dialog Sizing */
+  #modal-create-pdp .modal-dialog {
+    max-width: 1450px;
+    width: 90vw;
+    height: 90vh;
+    max-height: 90vh;
+    margin: 1.5rem auto;
+  }
+  #modal-create-pdp .modal-content {
+    height: 90vh;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.35);
+    border: none;
+  }
+  #modal-create-pdp .modal-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    flex-shrink: 0;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid #334155;
+  }
+  #modal-create-pdp .pdp-stepper-wrapper {
+    flex-shrink: 0 !important;
+    background-color: #0284c7 !important;
+    padding: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+  }
+  #modal-create-pdp .pdp-stepper-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: max-content !important;
+    min-width: 100% !important;
+    border-bottom: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #modal-create-pdp .pdp-stepper-tabs .nav-item {
+    flex: 0 0 auto !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    min-width: auto !important;
+    text-align: center !important;
+    margin-bottom: 0 !important;
+  }
+  #modal-create-pdp .pdp-stepper-tabs .nav-link {
+    display: block !important;
+    white-space: nowrap !important;
+    padding: 0.65rem 0.85rem !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    border: none !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 0 !important;
+    transition: all 0.15s ease;
+  }
+  #modal-create-pdp .pdp-stepper-tabs .nav-link:hover:not(.active) {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+  }
+  #modal-create-pdp .pdp-stepper-tabs .nav-link.active {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    border-bottom: 3px solid #0284c7 !important;
+    font-weight: 700 !important;
+  }
+  #pdp-modal-form {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+  }
+  #modal-create-pdp .modal-body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    padding: 0.85rem 1.25rem;
+    background: #ffffff;
+    -webkit-overflow-scrolling: touch;
+  }
+  #modal-create-pdp .modal-footer {
+    flex-shrink: 0 !important;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    padding: 0.55rem 1.25rem;
+  }
+  #modal-create-pdp .form-group {
+    margin-bottom: 0.35rem !important;
+  }
+  #modal-create-pdp label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem !important;
+    color: #1e293b;
+  }
+  #modal-create-pdp .form-control,
+  #modal-create-pdp .custom-select {
+    font-size: 0.81rem;
+    padding: 0.25rem 0.5rem;
+    height: 32px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #modal-create-pdp textarea {
+    height: 38px !important;
+    min-height: 38px !important;
+    resize: none;
+    font-size: 0.81rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .signature-pad-modal {
+    width: 100% !important;
+    height: 140px !important;
+    border: 1px dashed #94a3b8;
+    border-radius: 6px;
+    background: #ffffff !important;
+    cursor: crosshair;
+    touch-action: none !important;
+  }
+
+  /* Breakpoint Tablet (768px to 1199px) */
+  @media (min-width: 768px) and (max-width: 1199.98px) {
+    #modal-create-pdp .modal-dialog {
+      max-width: 96vw !important;
+      width: 96vw !important;
+      height: 92vh !important;
+      max-height: 92vh !important;
+      margin: 0.75rem auto !important;
+    }
+    #modal-create-pdp .modal-content {
+      height: 92vh !important;
+      max-height: 92vh !important;
+    }
+    #modal-create-pdp .pdp-stepper-tabs .nav-link {
+      font-size: 0.75rem !important;
+      padding: 0.45rem 0.65rem !important;
+    }
+    .pdp-risk-grid {
+      grid-template-columns: 1fr 1fr !important;
+      gap: 8px !important;
+    }
+  }
+
+  /* Breakpoint Mobile (< 768px) */
+  @media (max-width: 767.98px) {
+    #modal-create-pdp .modal-dialog {
+      max-width: 100vw !important;
+      width: 100vw !important;
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      margin: 0 !important;
+    }
+    #modal-create-pdp .modal-content {
+      height: 100dvh !important;
+      max-height: 100dvh !important;
+      border-radius: 0 !important;
+      border: none !important;
+    }
+    #modal-create-pdp .modal-header {
+      padding: 0.6rem 0.85rem !important;
+      flex-shrink: 0 !important;
+    }
+    #modal-create-pdp .modal-title {
+      font-size: 0.92rem !important;
+      line-height: 1.2 !important;
+    }
+    #modal-create-pdp .pdp-stepper-wrapper {
+      padding: 0.25rem 0.5rem 0 0.5rem !important;
+      flex-shrink: 0 !important;
+      overflow-x: auto !important;
+    }
+    #modal-create-pdp .pdp-stepper-tabs .nav-link {
+      font-size: 0.72rem !important;
+      padding: 0.4rem 0.55rem !important;
+    }
+    #modal-create-pdp .modal-body {
+      padding: 0.65rem 0.75rem !important;
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pdp-risk-grid {
+      grid-template-columns: 1fr !important;
+      gap: 10px !important;
+    }
+    #modal-create-pdp .modal-footer {
+      padding: 0.5rem 0.75rem !important;
+      flex-shrink: 0 !important;
+    }
+    #modal-create-pdp .modal-footer button {
+      min-height: 44px !important;
+      font-size: 0.85rem !important;
+    }
+  }
+</style>
+
+<!-- MODAL DE CRÉATION PDP MULTI-ÉTAPES FIXE -->
+<div class="modal fade" id="modal-create-pdp" tabindex="-1" role="dialog" aria-labelledby="modalCreatePDPTitle" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      
+      <!-- Header Fixe -->
+      <div class="modal-header text-white">
+        <h5 class="modal-title font-weight-bold" id="modalCreatePDPTitle">
+          <i class="fas fa-plus-circle text-primary mr-2"></i>Nouveau Plan de Prévention Simplifié
+        </h5>
+        <button type="button" class="close text-white opacity-75" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      
+      <!-- Stepper Nav Fixe -->
+      <div class="pdp-stepper-wrapper">
+        <!-- Indicatuer Étape Mobile -->
+        <div class="d-block d-md-none text-center py-1 bg-white border-bottom mb-1">
+          <span class="badge badge-primary font-weight-bold px-2 py-1" id="mobile-step-counter">Étape 1 / 8</span>
+          <span class="font-weight-bold ml-2 text-dark small" id="mobile-step-title">Identification</span>
+        </div>
+
+        <ul class="nav nav-tabs pdp-stepper-tabs" id="pdp-stepper-tabs" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" id="tab-step-1-tab" data-toggle="pill" href="#tab-step-1" role="tab" onclick="window.showPdpStep(0)">1. Identification</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-2-tab" data-toggle="pill" href="#tab-step-2" role="tab" onclick="window.showPdpStep(1)">2. Intervention</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-3-tab" data-toggle="pill" href="#tab-step-3" role="tab" onclick="window.showPdpStep(2)">3. Visite & Consignes</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-4-tab" data-toggle="pill" href="#tab-step-4" role="tab" onclick="window.showPdpStep(3)">4. Secours</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-5-tab" data-toggle="pill" href="#tab-step-5" role="tab" onclick="window.showPdpStep(4)">5. Suivi Médical</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-6-tab" data-toggle="pill" href="#tab-step-6" role="tab" onclick="window.showPdpStep(5)">6. Risques</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-7-tab" data-toggle="pill" href="#tab-step-7" role="tab" onclick="window.showPdpStep(6)">7. Remarques & CSSCT</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tab-step-8-tab" data-toggle="pill" href="#tab-step-8" role="tab" onclick="window.showPdpStep(7)">8. Signatures</a>
+          </li>
+        </ul>
+      </div>
+
+      <form method="post" action="{% url 'plan_prevention:create' %}" id="pdp-modal-form" novalidate>
+        {% csrf_token %}
+        
+        <!-- Modal Body -->
+        <div class="modal-body">
+          {% if create_form.non_field_errors %}
+            <div class="alert alert-danger mb-2 py-1 px-2 small">
+              {% for err in create_form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+            </div>
+          {% endif %}
+
+          <div class="tab-content" id="pdp-stepper-content">
+            
+            <!-- ÉTAPE 1 : IDENTIFICATION -->
+            <div class="tab-pane fade show active" id="tab-step-1" role="tabpanel">
+              <h6 class="text-primary font-weight-bold border-bottom pb-1.5 mb-3">
+                <i class="fas fa-building mr-1.5"></i>1. Identification des entreprises & opération
+              </h6>
+              
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Nature / Intitulé de l'Opération * :</label>
+                    {{ create_form.nature_operation }}
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small d-block mb-1">Type d'opération :</label>
+                    <div class="d-flex align-items-center mt-2">
+                      {% for radio in create_form.type_operation %}
+                        <div class="form-check form-check-inline mr-3">
+                          {{ radio.tag }}
+                          <label class="form-check-label small font-weight-bold" for="{{ radio.id_for_label }}" style="cursor:pointer;">{{ radio.choice_label }}</label>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Statut :</label>
+                    {{ create_form.statut }}
+                  </div>
+                </div>
+              </div>
+
+              <hr class="my-2">
+
+              <div class="row">
+                <!-- E.U. -->
+                <div class="col-md-6 border-right">
+                  <h6 class="text-primary font-weight-bold mb-2 small"><i class="fas fa-landmark mr-1"></i> ENTREPRISE UTILISATRICE (E.U.)</h6>
+                  <div class="form-group mb-2">
+                    <label class="small mb-1">Sélectionner un Client (Sage) :</label>
+                    {{ create_form.customer }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Nom E.U. * :</label>
+                    {{ create_form.eu_nom }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="small mb-1">Adresse E.U. :</label>
+                    {{ create_form.eu_adresse }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="small mb-1">Téléphone E.U. :</label>
+                    {{ create_form.eu_telephone }}
+                  </div>
+                  <div class="row">
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Représentant M. :</label>{{ create_form.eu_representant_nom }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Fonction :</label>{{ create_form.eu_representant_fonction }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Tél. Représentant :</label>{{ create_form.eu_representant_telephone }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- E.E. -->
+                <div class="col-md-6">
+                  <h6 class="text-success font-weight-bold mb-2 small"><i class="fas fa-hard-hat mr-1"></i> ENTREPRISE EXTÉRIEURE (E.E.)</h6>
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Société E.E. :</label>
+                    {{ create_form.societe }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Nom E.E. * :</label>
+                    {{ create_form.ee_nom }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="small mb-1">Adresse E.E. :</label>
+                    {{ create_form.ee_adresse }}
+                  </div>
+                  <div class="form-group mb-2">
+                    <label class="small mb-1">Téléphone E.E. :</label>
+                    {{ create_form.ee_telephone }}
+                  </div>
+                  <div class="row">
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Représentant M. :</label>{{ create_form.ee_representant_nom }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Fonction :</label>{{ create_form.ee_representant_fonction }}</div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group mb-0"><label class="small mb-1">Tél. Représentant :</label>{{ create_form.ee_representant_telephone }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ÉTAPE 2 : INTERVENTION -->
+            <div class="tab-pane fade" id="tab-step-2" role="tabpanel">
+              <h6 class="text-info font-weight-bold border-bottom pb-1.5 mb-3">
+                <i class="fas fa-map-marked-alt mr-1.5"></i>2. Modalités d'intervention
+              </h6>
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Lieu de l'intervention :</label>{{ create_form.lieu_intervention }}</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Section :</label>{{ create_form.section }}</div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Site :</label>{{ create_form.site }}</div>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-3">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Date prévue début :</label>{{ create_form.date_debut }}</div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Date prévue fin :</label>{{ create_form.date_fin }}</div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Horaire de travail :</label>{{ create_form.horaire_travail }}</div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Effectif E.E. prévu :</label>{{ create_form.effectif_prevu }}</div>
+                </div>
+                <div class="col-md-2">
+                  <div class="form-group mb-2"><label class="font-weight-bold small mb-1">Durée approx. :</label>{{ create_form.duree_approximative }}</div>
+                </div>
+              </div>
+              <div class="form-group mb-0">
+                <label class="font-weight-bold small mb-1">Nom des sous-traitants éventuels qui interviennent :</label>
+                {{ create_form.sous_traitants }}
+              </div>
+            </div>
+
+            <!-- ÉTAPE 3 : VISITE PRÉALABLE & CONSIGNES -->
+            <div class="tab-pane fade" id="tab-step-3" role="tabpanel">
+              <h6 class="text-secondary font-weight-bold border-bottom pb-1.5 mb-3">
+                <i class="fas fa-clipboard-check mr-1.5"></i>3. Visite préalable & consignes de sécurité
+              </h6>
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Date de la visite préalable :</label>
+                    {{ create_form.date_visite_prealable }}
+                  </div>
+                </div>
+                <div class="col-md-8">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Secteur concerné :</label>
+                    {{ create_form.secteur_intervention }}
+                  </div>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-6">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Itinéraire à suivre :</label>
+                    {{ create_form.itineraire }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group mb-2">
+                    <label class="font-weight-bold small mb-1">Zones présentant des dangers particuliers :</label>
+                    {{ create_form.zone_danger_particulier }}
+                  </div>
+                </div>
+              </div>
+              <div class="row mb-0">
+                <div class="col-md-6">
+                  <div class="form-group mb-0">
+                    <label class="font-weight-bold small mb-1">Locaux mis à disposition (sanitaires, vestiaires...) :</label>
+                    {{ create_form.locaux_mis_disposition }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group mb-0">
+                    <label class="font-weight-bold small mb-1">Équipements / Appareils mis à disposition par l'E.U. :</label>
+                    {{ create_form.appareils_mis_disposition }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ÉTAPE 4 : SECOURS -->
+            <div class="tab-pane fade" id="tab-step-4" role="tabpanel">
+              <h6 class="text-warning font-weight-bold border-bottom pb-1.5 mb-3 text-dark">
+                <i class="fas fa-phone-alt mr-1.5"></i>4. Organisation des secours & numéros d'urgence
+              </h6>
+              <div class="form-group mb-3">
+                <label class="font-weight-bold small mb-1">Numéros d'urgence du site :</label>
+                {{ create_form.numeros_urgence }}
+              </div>
+              <div class="row mb-0">
+                <div class="col-md-6">
+                  <div class="form-group mb-0">
+                    <label class="font-weight-bold small mb-1">Emplacement infirmerie, trousse de secours, liste SST :</label>
+                    {{ create_form.infirmerie_trousse_sst_location }}
+                  </div>
+                </div>
+                <div class="col-md-6">
+                  <div class="form-group mb-0">
+                    <label class="font-weight-bold small mb-1">Consignes en cas d'évacuation générale :</label>
+                    {{ create_form.consigne_evacuation }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ÉTAPE 5 : SUIVI MÉDICAL -->
+            <div class="tab-pane fade" id="tab-step-5" role="tabpanel">
+              <h6 class="text-teal font-weight-bold border-bottom pb-1.5 mb-3" style="color: #20c997;">
+                <i class="fas fa-user-md mr-1.5"></i>5. Suivi médical renforcé (SIR)
+              </h6>
+              <div class="card card-light border mb-0">
+                <div class="card-body py-3">
+                  <div class="form-check mb-3">
+                    {{ create_form.suivi_medical_renforce }}
+                    <label class="form-check-label font-weight-bold text-dark ml-2" for="{{ create_form.suivi_medical_renforce.id_for_label }}">
+                      Postes relevant d'un Suivi Individuel Renforcé (SIR) ?
+                    </label>
+                  </div>
+                  <div class="form-group mb-0">
+                    <label class="font-weight-bold small mb-1">Postes concernés (+ copie transmise à la Médecine du Travail) :</label>
+                    {{ create_form.postes_concernes }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ÉTAPE 6 : RISQUES -->
+            <div class="tab-pane fade" id="tab-step-6" role="tabpanel">
+              <div class="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
+                <h6 class="text-danger font-weight-bold m-0 small">
+                  <i class="fas fa-exclamation-triangle mr-1.5"></i>6. Analyse des risques & mesures de prévention (14 risques prédéfinis)
+                </h6>
+                {% if can_add_risk %}
+                  <button type="button" class="btn btn-xs btn-outline-success font-weight-bold" data-toggle="modal" data-target="#modal-add-risque">
+                    <i class="fas fa-plus mr-1"></i> Créer un nouveau risque
+                  </button>
+                {% endif %}
+              </div>
+              
+              <style>
+                .pdp-risk-grid {
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 12px;
+                }
+                .pdp-risk-compact-table {
+                  font-size: 0.81rem;
+                  margin-bottom: 0;
+                  border-collapse: collapse;
+                  width: 100%;
+                }
+                .pdp-risk-compact-table th {
+                  background-color: #f1f5f9;
+                  padding: 5px 6px !important;
+                  font-size: 0.78rem;
+                  font-weight: 700;
+                  vertical-align: middle !important;
+                  text-align: center;
+                  border: 1px solid #cbd5e1;
+                }
+                .pdp-risk-compact-table td {
+                  padding: 4px 6px !important;
+                  vertical-align: middle !important;
+                  border: 1px solid #cbd5e1;
+                }
+                .pdp-risk-compact-table .risk-desc {
+                  font-weight: 600;
+                  font-size: 0.81rem;
+                  color: #0f172a;
+                  line-height: 1.25;
+                  display: block;
+                }
+                .pdp-risk-compact-table .form-control-xs {
+                  height: 30px !important;
+                  padding: 2px 6px !important;
+                  font-size: 0.8rem !important;
+                  border-radius: 4px;
+                }
+                .pdp-risk-compact-table input[type="checkbox"] {
+                  width: 16px;
+                  height: 16px;
+                  cursor: pointer;
+                  margin: 0;
+                  vertical-align: middle;
+                }
+              </style>
+
+              <div class="pdp-risk-grid">
+                <!-- COLONNE GAUCHE : RISQUES 1 À 7 -->
+                <div>
+                  <table class="table table-bordered pdp-risk-compact-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 48%; text-align: left;">Domaine & Description (1–7)</th>
+                        <th style="width: 7%;">X</th>
+                        <th style="width: 28%;">Mesures retenues</th>
+                        <th style="width: 6%;">EU</th>
+                        <th style="width: 6%;">EE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for r in catalogue_risques|slice:":7" %}
+                      <tr>
+                        <td class="text-center font-weight-bold">{{ forloop.counter }}</td>
+                        <td>
+                          <span class="risk-desc" title="{{ r.description|default:r.titre }}">{{ r.titre }}</span>
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_selected_{{ r.id }}" value="{{ r.id }}">
+                        </td>
+                        <td>
+                          <input type="text" name="risk_mesures_{{ r.id }}" class="form-control form-control-xs" placeholder="Mesures...">
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_me_eu_{{ r.id }}">
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_me_ee_{{ r.id }}">
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- COLONNE DROITE : RISQUES 8 À 14 -->
+                <div>
+                  <table class="table table-bordered pdp-risk-compact-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 48%; text-align: left;">Domaine & Description (8–14)</th>
+                        <th style="width: 7%;">X</th>
+                        <th style="width: 28%;">Mesures retenues</th>
+                        <th style="width: 6%;">EU</th>
+                        <th style="width: 6%;">EE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for r in catalogue_risques|slice:"7:14" %}
+                      <tr>
+                        <td class="text-center font-weight-bold">{{ forloop.counter|add:7 }}</td>
+                        <td>
+                          <span class="risk-desc" title="{{ r.description|default:r.titre }}">{{ r.titre }}</span>
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_selected_{{ r.id }}" value="{{ r.id }}">
+                        </td>
+                        <td>
+                          <input type="text" name="risk_mesures_{{ r.id }}" class="form-control form-control-xs" placeholder="Mesures...">
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_me_eu_{{ r.id }}">
+                        </td>
+                        <td class="text-center">
+                          <input type="checkbox" name="risk_me_ee_{{ r.id }}">
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- ÉTAPE 7 : REMARQUES & AVIS CSSCT -->
+            <div class="tab-pane fade" id="tab-step-7" role="tabpanel">
+              <h6 class="text-dark font-weight-bold border-bottom pb-1.5 mb-3">
+                <i class="fas fa-comments mr-1.5"></i>7. Remarques & avis du CSSCT
+              </h6>
+              <div class="form-group mb-0">
+                <label class="font-weight-bold small mb-1">Remarques et avis du CSSCT de l'E.E. si nécessaire :</label>
+                {{ create_form.remarques_cssct }}
+              </div>
+            </div>
+
+            <!-- ÉTAPE 8 : ENGAGEMENT & SIGNATURES -->
+            <div class="tab-pane fade" id="tab-step-8" role="tabpanel">
+              <h6 class="text-success font-weight-bold border-bottom pb-1.5 mb-2">
+                <i class="fas fa-signature mr-1.5"></i>8. Engagement & signatures des parties
+              </h6>
+              <div class="alert alert-info text-center font-weight-bold py-1.5 mb-2 small">
+                "L'E.U. et l'E.E. s'engagent au respect de toutes les obligations et mesures de prévention que le document contient."
+              </div>
+              <div class="row">
+                <!-- Signature E.U. -->
+                <div class="col-md-6 border-right">
+                  <h6 class="text-primary font-weight-bold text-center mb-1.5 small">ENTREPRISE UTILISATRICE (E.U.)</h6>
+                  <div class="form-group mb-1.5"><label class="small mb-1">Signataire E.U. :</label>{{ create_form.signature_eu_nom }}</div>
+                  <div class="form-group mb-1.5"><label class="small mb-1">Date signature :</label>{{ create_form.date_signature_eu }}</div>
+                  {{ create_form.signature_eu_image }}
+                  <label class="small mb-1">Signature tactile / souris :</label>
+                  <div class="signature-pad-container mb-1">
+                    <canvas id="canvas-eu-modal" class="signature-pad-modal"></canvas>
+                  </div>
+                  <button type="button" class="btn btn-xs btn-outline-secondary" onclick="clearSignatureModal('eu')">
+                    <i class="fas fa-eraser mr-1"></i> Effacer
+                  </button>
+                </div>
+                <!-- Signature E.E. -->
+                <div class="col-md-6">
+                  <h6 class="text-success font-weight-bold text-center mb-1.5 small">ENTREPRISE EXTERIEURE (E.E.)</h6>
+                  <div class="form-group mb-1.5"><label class="small mb-1">Signataire E.E. :</label>{{ create_form.signature_ee_nom }}</div>
+                  <div class="form-group mb-1.5"><label class="small mb-1">Date signature :</label>{{ create_form.date_signature_ee }}</div>
+                  {{ create_form.signature_ee_image }}
+                  <label class="small mb-1">Signature tactile / souris :</label>
+                  <div class="signature-pad-container mb-1">
+                    <canvas id="canvas-ee-modal" class="signature-pad-modal"></canvas>
+                  </div>
+                  <button type="button" class="btn btn-xs btn-outline-secondary" onclick="clearSignatureModal('ee')">
+                    <i class="fas fa-eraser mr-1"></i> Effacer
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Footer Fixe avec Boutons Nav -->
+        <div class="modal-footer d-flex justify-content-between align-items-center">
+          <button type="button" class="btn btn-secondary btn-sm font-weight-bold px-3" id="btn-pdp-annuler" data-dismiss="modal">
+            <i class="fas fa-times mr-1"></i> Annuler
+          </button>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm font-weight-bold px-3 mr-2" id="btn-pdp-prev" onclick="window.pdpPrevStep()" style="display: none;">
+              <i class="fas fa-arrow-left mr-1"></i> Précédent
+            </button>
+            <button type="button" class="btn btn-primary btn-sm font-weight-bold px-4" id="btn-pdp-next" onclick="window.pdpNextStep()">
+              Suivant <i class="fas fa-arrow-right ml-1"></i>
+            </button>
+            <button type="submit" class="btn btn-success btn-sm font-weight-bold px-4 shadow-sm" id="btn-pdp-submit" style="display: none;">
+              <i class="fas fa-check-circle mr-1.5"></i> Enregistrer le PDP
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if can_add_risk %}
+<!-- Modal Compact Création de Risque Générique (Admin / RO / Auditeur) -->
+<style>
+  #modal-add-risque {
+    z-index: 1060 !important;
+  }
+  #modal-add-risque .modal-dialog {
+    max-width: 680px;
+    margin: 1.5rem auto;
+  }
+  #modal-add-risque .modal-content {
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    border: none;
+    overflow: hidden;
+  }
+  #modal-add-risque .modal-header {
+    padding: 0.55rem 1rem;
+    background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+    border-bottom: 1px solid #14532d;
+  }
+  #modal-add-risque .modal-body {
+    padding: 0.75rem 1rem;
+    overflow-y: visible !important;
+    background: #ffffff;
+  }
+  #modal-add-risque .modal-footer {
+    padding: 0.45rem 1rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+  }
+  #modal-add-risque .form-group {
+    margin-bottom: 0.45rem !important;
+  }
+  #modal-add-risque label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem !important;
+    color: #1e293b;
+  }
+  #modal-add-risque .form-control,
+  #modal-add-risque .custom-select {
+    font-size: 0.82rem;
+    padding: 0.3rem 0.55rem;
+    height: auto;
+  }
+  #modal-add-risque textarea[name="identification"] {
+    height: 65px !important;
+    min-height: 65px !important;
+    resize: none;
+  }
+  #modal-add-risque textarea[name="moyens_maitrise"],
+  #modal-add-risque textarea[name="commentaires"] {
+    height: 48px !important;
+    min-height: 48px !important;
+    resize: none;
+  }
+</style>
+
+<div class="modal fade" id="modal-add-risque" tabindex="-1" role="dialog" aria-labelledby="modalAddRisqueLabel" aria-hidden="true" data-backdrop="static">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-white">
+        <h6 class="modal-title font-weight-bold" id="modalAddRisqueLabel">
+          <i class="fas fa-shield-alt mr-1.5"></i>Créer un Risque PDP
+        </h6>
+        <button type="button" class="close text-white opacity-75" data-dismiss="modal" aria-label="Fermer">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="form-create-risque-ajax" method="post" action="{% url 'plan_prevention:api_create_risque' %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          
+          <!-- Row 1: Code & Titre -->
+          <div class="row">
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>Code * :</label>
+                {{ risque_form.code }}
+              </div>
+            </div>
+            <div class="col-md-8">
+              <div class="form-group">
+                <label>Titre / Risque * :</label>
+                {{ risque_form.titre }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: Description détaillée -->
+          <div class="form-group">
+            <label>Description du risque & dangers :</label>
+            {{ risque_form.description }}
+          </div>
+
+          <!-- Row 3: Catégorie & Ordre -->
+          <div class="row">
+            <div class="col-md-8">
+              <div class="form-group">
+                <label>Catégorie :</label>
+                {{ risque_form.categorie }}
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-group">
+                <label>Ordre d'affichage :</label>
+                {{ risque_form.ordre }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 4: Mesures recommandées -->
+          <div class="form-group">
+            <label>Mesures de prévention recommandées :</label>
+            {{ risque_form.mesures_prevention_recommandees }}
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="modal-footer d-flex justify-content-between align-items-center">
+          <button type="button" class="btn btn-secondary btn-sm font-weight-bold px-3" data-dismiss="modal">
+            <i class="fas fa-times mr-1"></i> Annuler
+          </button>
+          <button type="submit" class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm">
+            <i class="fas fa-save mr-1"></i> Enregistrer le risque PDP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Script auto-contenu Navigation Wizard & Signature Pads -->
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+  (function() {
+    let padEUModal = null;
+    let padEEModal = null;
+    const pdpSteps = ['tab-step-1', 'tab-step-2', 'tab-step-3', 'tab-step-4', 'tab-step-5', 'tab-step-6', 'tab-step-7', 'tab-step-8'];
+    const stepTitles = [
+      "Identification",
+      "Intervention",
+      "Visite & Consignes",
+      "Secours",
+      "Suivi Médical",
+      "Risques",
+      "Remarques & CSSCT",
+      "Signatures"
+    ];
+    let currentStepIdx = 0;
+
+    window.clearSignatureModal = function(type) {
+      if (type === 'eu') {
+        if (padEUModal) padEUModal.clear();
+        const hiddenEU = document.querySelector('#modal-create-pdp input[name="signature_eu_image"]');
+        if (hiddenEU) hiddenEU.value = '';
+      }
+      if (type === 'ee') {
+        if (padEEModal) padEEModal.clear();
+        const hiddenEE = document.querySelector('#modal-create-pdp input[name="signature_ee_image"]');
+        if (hiddenEE) hiddenEE.value = '';
+      }
+    };
+
+    window.updatePdpStepButtons = function(idx) {
+      currentStepIdx = idx;
+
+      const btnAnnuler = document.getElementById('btn-pdp-annuler');
+      const btnPrev = document.getElementById('btn-pdp-prev');
+      const btnNext = document.getElementById('btn-pdp-next');
+      const btnSubmit = document.getElementById('btn-pdp-submit');
+
+      if (currentStepIdx === 0) {
+        // Étape 1 : Identification
+        if (btnAnnuler) btnAnnuler.style.display = 'inline-block';
+        if (btnPrev) btnPrev.style.display = 'none';
+        if (btnNext) btnNext.style.display = 'inline-block';
+        if (btnSubmit) btnSubmit.style.display = 'none';
+      } else if (currentStepIdx === pdpSteps.length - 1) {
+        // Étape 8 : Signatures (ÉTAPE FINALE)
+        if (btnAnnuler) btnAnnuler.style.display = 'none';
+        if (btnPrev) btnPrev.style.display = 'inline-block';
+        if (btnNext) btnNext.style.display = 'none';
+        if (btnSubmit) btnSubmit.style.display = 'inline-block';
+      } else {
+        // Étapes 2 à 7
+        if (btnAnnuler) btnAnnuler.style.display = 'inline-block';
+        if (btnPrev) btnPrev.style.display = 'inline-block';
+        if (btnNext) btnNext.style.display = 'inline-block';
+        if (btnSubmit) btnSubmit.style.display = 'none';
+      }
+
+      // Update Mobile Step Counter & Title
+      const mobileCounter = document.getElementById('mobile-step-counter');
+      const mobileTitle = document.getElementById('mobile-step-title');
+      if (mobileCounter) mobileCounter.textContent = `Étape ${currentStepIdx + 1} / ${pdpSteps.length}`;
+      if (mobileTitle) mobileTitle.textContent = `${currentStepIdx + 1}. ${stepTitles[currentStepIdx] || ''}`;
+
+      // Smooth horizontal scroll of active tab link inside pdp-stepper-wrapper
+      const activeTabId = `${pdpSteps[currentStepIdx]}-tab`;
+      const activeTabEl = document.getElementById(activeTabId);
+      if (activeTabEl && typeof activeTabEl.scrollIntoView === 'function') {
+        activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+
+      // Scroll modal body to top on step switch
+      const modalBody = document.querySelector('#modal-create-pdp .modal-body');
+      if (modalBody) modalBody.scrollTop = 0;
+
+      // Initialiser canvas signature si Étape 8
+      if (currentStepIdx === pdpSteps.length - 1) {
+        setTimeout(initSignaturePadsModal, 100);
+      }
+    };
+
+    window.showPdpStep = function(idx) {
+      if (idx < 0 || idx >= pdpSteps.length) return;
+      const targetTabId = pdpSteps[idx] + '-tab';
+      const tabLink = document.getElementById(targetTabId);
+      if (tabLink && typeof $ !== 'undefined' && typeof $(tabLink).tab === 'function') {
+        $(tabLink).tab('show');
+      } else if (tabLink) {
+        const tabPanes = document.querySelectorAll('#pdpTabContent .tab-pane');
+        tabPanes.forEach(pane => pane.classList.remove('show', 'active'));
+        const targetPane = document.getElementById(pdpSteps[idx]);
+        if (targetPane) targetPane.classList.add('show', 'active');
+
+        const navLinks = document.querySelectorAll('#pdp-stepper-tabs .nav-link');
+        navLinks.forEach(link => link.classList.remove('active'));
+        tabLink.classList.add('active');
+      }
+      window.updatePdpStepButtons(idx);
+    };
+
+    window.pdpNextStep = function() {
+      if (currentStepIdx < pdpSteps.length - 1) {
+        window.showPdpStep(currentStepIdx + 1);
+      }
+    };
+
+    window.pdpPrevStep = function() {
+      if (currentStepIdx > 0) {
+        window.showPdpStep(currentStepIdx - 1);
+      }
+    };
+
+    function resizeCanvas(canvas) {
+      if (!canvas) return;
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const container = canvas.parentElement;
+      const width = Math.floor(container.clientWidth || 300);
+      const height = 140;
+
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      const ctx = canvas.getContext("2d");
+      ctx.scale(ratio, ratio);
+    }
+
+    function initSignaturePadsModal() {
+      const canvasEU = document.getElementById("canvas-eu-modal");
+      if (canvasEU && typeof SignaturePad !== 'undefined') {
+        resizeCanvas(canvasEU);
+        if (!padEUModal) {
+          padEUModal = new SignaturePad(canvasEU, {
+            minWidth: 1.5,
+            maxWidth: 3.5,
+            penColor: "rgb(15, 23, 42)"
+          });
+        }
+      }
+      const canvasEE = document.getElementById("canvas-ee-modal");
+      if (canvasEE && typeof SignaturePad !== 'undefined') {
+        resizeCanvas(canvasEE);
+        if (!padEEModal) {
+          padEEModal = new SignaturePad(canvasEE, {
+            minWidth: 1.5,
+            maxWidth: 3.5,
+            penColor: "rgb(15, 23, 42)"
+          });
+        }
+      }
+    }
+
+    function setupListeners() {
+      // Direct click handlers for Next / Prev buttons
+      const btnNext = document.getElementById('btn-pdp-next');
+      if (btnNext) {
+        btnNext.onclick = function(e) {
+          e.preventDefault();
+          window.pdpNextStep();
+        };
+      }
+
+      const btnPrev = document.getElementById('btn-pdp-prev');
+      if (btnPrev) {
+        btnPrev.onclick = function(e) {
+          e.preventDefault();
+          window.pdpPrevStep();
+        };
+      }
+
+      // Stepper Tab click handlers using jQuery / Bootstrap events
+      if (typeof $ !== 'undefined') {
+        $('#pdp-stepper-tabs a[data-toggle="pill"]').on('shown.bs.tab', function(e) {
+          const href = $(e.target).attr('href');
+          if (href) {
+            const stepId = href.replace('#', '');
+            const idx = pdpSteps.indexOf(stepId);
+            if (idx !== -1) {
+              window.updatePdpStepButtons(idx);
+            }
+          }
+        });
+      }
+
+      // Export signatures on form submit
+      const pdpForm = document.getElementById('pdp-modal-form');
+      if (pdpForm) {
+        pdpForm.onsubmit = function() {
+          const hiddenEU = document.querySelector('#modal-create-pdp input[name="signature_eu_image"]');
+          if (hiddenEU && padEUModal && !padEUModal.isEmpty()) {
+            hiddenEU.value = padEUModal.toDataURL();
+          }
+          const hiddenEE = document.querySelector('#modal-create-pdp input[name="signature_ee_image"]');
+          if (hiddenEE && padEEModal && !padEEModal.isEmpty()) {
+            hiddenEE.value = padEEModal.toDataURL();
+          }
+        };
+      }
+
+      // Reset modal on open
+      if (typeof $ !== 'undefined') {
+        $('#modal-create-pdp').on('shown.bs.modal', function () {
+          window.showPdpStep(0);
+        });
+      }
+
+      // AJAX creation de Risque PDP
+      const formRisqueModal = document.getElementById('form-create-risque-ajax');
+      if (formRisqueModal) {
+        formRisqueModal.addEventListener('submit', function(e) {
+          e.preventDefault();
+          const formData = new FormData(this);
+          fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(res => {
+            if (res.status === 403) {
+              throw new Error("Accès non autorisé. Seuls Admin, RO et Auditeur peuvent créer des risques.");
+            }
+            return res.json();
+          })
+          .then(data => {
+            if (data.success) {
+              if (typeof $ !== 'undefined' && $('#modal-add-risque').length) {
+                $('#modal-add-risque').modal('hide');
+              }
+              formRisqueModal.reset();
+              alert("Nouveau risque PDP créé avec succès !");
+              if (window.location.pathname.indexOf('/risques') !== -1) {
+                window.location.reload();
+              }
+            } else {
+              alert("Erreur lors de la création : " + JSON.stringify(data.errors || data.error));
+            }
+          })
+          .catch(err => {
+            alert(err.message || "Erreur lors de la création du risque");
+          });
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupListeners);
+    } else {
+      setupListeners();
+    }
+  })();
+</script>

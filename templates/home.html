@@ -106,6 +106,7 @@
     .icon-teal   { background: linear-gradient(135deg, #43b89c, #1abc9c); }
     .icon-orange { background: linear-gradient(135deg, #f59e0b, #ef4444); }
     .icon-rose   { background: linear-gradient(135deg, #f43f5e, #be123c); }
+    .icon-indigo { background: linear-gradient(135deg, #4f46e5, #06b6d4); }
     .icon-dark   { background: linear-gradient(135deg, #434343, #000); }
 
     .module-card h3 { font-size: 1.15rem; font-weight: 700; margin: 0; }
@@ -189,6 +190,15 @@
       <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
     </a>
     {% endif %}
+
+    <a href="{% url 'plan_prevention:pdp_dashboard' %}" class="module-card">
+      <div class="module-icon icon-indigo">
+        <i class="fas fa-shield-alt"></i>
+      </div>
+      <h3>Plan de Prévention</h3>
+      <p>Plans de prévention simplifiés, analyse des risques et signatures électroniques.</p>
+      <div class="module-arrow"><i class="fas fa-arrow-right"></i></div>
+    </a>
 
     <a href="{% url 'reclamation:dashboard' %}" class="module-card">
       <div class="module-icon icon-rose">

@@ -1,40 +1,34 @@
-import os, sys, django
-from io import BytesIO
-from xhtml2pdf import pisa
-from django.template.loader import render_to_string
-import fitz
+import os
+import sys
+sys.path.insert(0, r'c:\Users\Yassine\audit2-main')
+import django
 
-sys.path.insert(0, '.')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
 django.setup()
 
-from reclamation_client.models import ReclamationClient
+import fitz
+from django.template.loader import render_to_string
+from io import BytesIO
+from xhtml2pdf import pisa
+from plan_prevention.models import PlanPrevention
 
-rec = ReclamationClient.objects.filter(reference='REC2608010').first() or ReclamationClient.objects.first()
+pdp = PlanPrevention.objects.get(pk=6)
+risques = pdp.pdp_risques.select_related('risque').order_by('ordre', 'pk')
 
-context = {
-    'reclamation': rec,
-    'participants': rec.participants.all(),
-    'qqoqccp': getattr(rec, 'qqoqccp', None),
-    'mesures_d3': rec.mesures_conservatoires.all(),
-    'analyse_d4': getattr(rec, 'analyse_causes_d4', None),
-    'actions_tests': rec.actions_tests.all(),
-    'actions_permanentes': rec.actions_correctives.all(),
-    'capitalisation_d7': getattr(rec, 'capitalisation_d7', None),
-    'cloture_d8': getattr(rec, 'cloture_d8', None),
-}
+html = render_to_string('plan_prevention/pdf_plan_prevention.html', {'pdp': pdp, 'risques': risques})
+buf = BytesIO()
+pisa.pisaDocument(BytesIO(html.encode('utf-8')), buf)
+doc = fitz.open(stream=buf.getvalue(), filetype='pdf')
+print(f'Current total pages: {len(doc)}')
 
-html = render_to_string('reclamation_client/rapport_8d_pdf.html', context)
-result = BytesIO()
-pdf = pisa.pisaDocument(BytesIO(html.encode('utf-8')), result)
+# In pdf_plan_prevention.html, Page 2 closes at line 400 and Page 3 opens at 403.
+# Let's remove the closing </div> of page 2 and opening <div class="page"> of page 3 so they are in the same page div.
+html_2pages = html.replace('  </div>\n\n  <!-- ==================== PAGE 3 : REMARQUES & SIGNATURES ==================== -->\n  <div class="page">', '  <div style="margin-top: 6pt;">')
 
-if not pdf.err:
-    pdf_bytes = result.getvalue()
-    doc = fitz.open(stream=pdf_bytes, filetype='pdf')
-    print(f'SUCCESS! Generated PDF size: {len(pdf_bytes)} bytes | Total Pages: {len(doc)}')
-    for i, page in enumerate(doc):
-        print(f'Page {i+1} text length: {len(page.get_text())} chars')
-    with open('REC2608010_Rapport_8D.pdf', 'wb') as f:
-        f.write(pdf_bytes)
-else:
-    print('PDF Generation Error:', pdf.err)
+buf2 = BytesIO()
+pisa.pisaDocument(BytesIO(html_2pages.encode('utf-8')), buf2)
+doc2 = fitz.open(stream=buf2.getvalue(), filetype='pdf')
+print(f'2-page combined total pages: {len(doc2)}')
+for i in range(len(doc2)):
+    doc2[i].get_pixmap().save(f'scratch/combined_page_{i}.png')
+print("Saved combined pages!")

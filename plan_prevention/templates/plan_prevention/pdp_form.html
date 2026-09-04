@@ -1,0 +1,725 @@
+{% extends 'base_global.html' %}
+{% load static %}
+
+{% block title %}{% if object %}Modifier{% else %}Nouveau{% endif %} Plan de Prévention Simplifié{% endblock %}
+
+{% block extra_css %}
+<style>
+  .signature-pad-container {
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    position: relative;
+  }
+  .signature-pad {
+    width: 100%;
+    height: 140px;
+    cursor: crosshair;
+  }
+  .risk-table th {
+    background-color: #f4f6f9;
+    font-size: 0.85rem;
+  }
+  .risk-table td {
+    vertical-align: middle !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Content Header -->
+<div class="row mb-3">
+  <div class="col-sm-6">
+    <h1 class="m-0 font-weight-bold text-dark" style="font-size: 1.5rem;">
+      <i class="fas fa-file-signature text-primary mr-2"></i>
+      {% if object %}Modifier PDP : {{ object.reference }}{% else %}Nouveau Plan de Prévention Simplifié{% endif %}
+    </h1>
+  </div>
+  <div class="col-sm-6">
+    <ol class="breadcrumb float-sm-right bg-transparent p-0 m-0">
+      <li class="breadcrumb-item"><a href="/">Accueil</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'plan_prevention:liste' %}">PDP</a></li>
+      <li class="breadcrumb-item active">{% if object %}Édition{% else %}Création{% endif %}</li>
+    </ol>
+  </div>
+</div>
+
+      <form method="post" id="pdp-form" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">
+            {% for err in form.non_field_errors %}<div>{{ err }}</div>{% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Carte 1 : Entête & Identification -->
+        <div class="card card-primary card-outline">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-building mr-2"></i>1. Identification des Entreprises & Opération</h3>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group">
+                  <label class="font-weight-bold">Nature / Intitulé de l'Opération :</label>
+                  {{ form.nature_operation }}
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label class="font-weight-bold d-block">Type d'opération :</label>
+                  <div class="d-flex align-items-center mt-2">
+                    {% for radio in form.type_operation %}
+                      <div class="form-check form-check-inline mr-3">
+                        {{ radio.tag }}
+                        <label class="form-check-label font-weight-bold" for="{{ radio.id_for_label }}" style="cursor:pointer;">{{ radio.choice_label }}</label>
+                      </div>
+                    {% endfor %}
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label class="font-weight-bold">Statut :</label>
+                  {{ form.statut }}
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="row">
+              <!-- Entreprise Utilisatrice (E.U.) -->
+              <div class="col-md-6 border-right">
+                <h5 class="text-primary font-weight-bold mb-3"><i class="fas fa-landmark mr-1"></i> Entreprise Utilisatrice (E.U.)</h5>
+                <div class="form-group">
+                  <label>Sélectionner un Client (Sage) :</label>
+                  {{ form.customer }}
+                  <small class="form-text text-muted">Sélectionnez un client pour préremplir automatiquement le nom et les coordonnées.</small>
+                </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Nom E.U. :</label>
+                  {{ form.eu_nom }}
+                </div>
+                <div class="form-group">
+                  <label>Adresse E.U. :</label>
+                  {{ form.eu_adresse }}
+                </div>
+                <div class="form-group">
+                  <label>Téléphone E.U. :</label>
+                  {{ form.eu_telephone }}
+                </div>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Représentant M. :</label>
+                      {{ form.eu_representant_nom }}
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Fonction :</label>
+                      {{ form.eu_representant_fonction }}
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Tél. Représentant :</label>
+                      {{ form.eu_representant_telephone }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Entreprise Extérieure (E.E.) -->
+              <div class="col-md-6">
+                <h5 class="text-success font-weight-bold mb-3"><i class="fas fa-hard-hat mr-1"></i> Entreprise Extérieure (E.E.)</h5>
+                <div class="form-group">
+                  <label class="font-weight-bold">Société E.E. :</label>
+                  {{ form.societe }}
+                </div>
+                <div class="form-group">
+                  <label class="font-weight-bold">Nom E.E. :</label>
+                  {{ form.ee_nom }}
+                </div>
+                <div class="form-group">
+                  <label>Adresse E.E. :</label>
+                  {{ form.ee_adresse }}
+                </div>
+                <div class="form-group">
+                  <label>Téléphone E.E. :</label>
+                  {{ form.ee_telephone }}
+                </div>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Représentant M. :</label>
+                      {{ form.ee_representant_nom }}
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Fonction :</label>
+                      {{ form.ee_representant_fonction }}
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Tél. Représentant :</label>
+                      {{ form.ee_representant_telephone }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte 2 : Intervention & Visite préalable -->
+        <div class="card card-info card-outline">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-map-marked-alt mr-2"></i>2. Modalités d'Intervention & Visite Préalable</h3>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Lieu de l'intervention :</label>
+                  {{ form.lieu_intervention }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Section :</label>
+                  {{ form.section }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Site :</label>
+                  {{ form.site }}
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label>Date prévue début :</label>
+                  {{ form.date_debut }}
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label>Date prévue fin :</label>
+                  {{ form.date_fin }}
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label>Horaire de travail :</label>
+                  {{ form.horaire_travail }}
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label>Effectif E.E. prévu :</label>
+                  {{ form.effectif_prevu }}
+                </div>
+              </div>
+              <div class="col-md-2">
+                <div class="form-group">
+                  <label>Durée approx. :</label>
+                  {{ form.duree_approximative }}
+                </div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Nom des sous-traitants éventuels qui interviennent :</label>
+              {{ form.sous_traitants }}
+            </div>
+
+            <hr>
+
+            <h5 class="text-secondary font-weight-bold mb-3"><i class="fas fa-clipboard-check mr-1"></i> Consignes particulières issues de la visite préalable</h5>
+
+            <div class="row">
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label>Date visite préalable :</label>
+                  {{ form.date_visite_prealable }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Secteur d'intervention :</label>
+                  {{ form.secteur_intervention }}
+                </div>
+              </div>
+              <div class="col-md-5">
+                <div class="form-group">
+                  <label>Itinéraire à suivre :</label>
+                  {{ form.itineraire }}
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Zone présentant un danger particulier :</label>
+                  {{ form.zone_danger_particulier }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Locaux mis à disposition (bureaux, vestiaires, sanitaires...) :</label>
+                  {{ form.locaux_mis_disposition }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Appareils mis à disposition par l'E.U. :</label>
+                  {{ form.appareils_mis_disposition }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte 3 : Secours & SIR -->
+        <div class="card card-warning card-outline">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-ambulance mr-2"></i>3. Organisation des Secours & Suivi Médical Renforcé</h3>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Numéros de téléphone d'urgence du site :</label>
+                  {{ form.numeros_urgence }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Emplacement infirmerie, trousse secours, liste SST :</label>
+                  {{ form.infirmerie_trousse_sst_location }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label>Consigne en cas d'évacuation générale :</label>
+                  {{ form.consigne_evacuation }}
+                </div>
+              </div>
+            </div>
+
+            <hr>
+
+            <div class="card bg-light">
+              <div class="card-body">
+                <div class="custom-control custom-checkbox mb-2">
+                  {{ form.suivi_medical_renforce }}
+                  <label class="custom-control-label font-weight-bold text-danger" for="{{ form.suivi_medical_renforce.id_for_label }}">
+                    Y a-t-il des postes occupés par l'E.E. relevant d'un Suivi Individuel Renforcé (SIR) ?
+                  </label>
+                </div>
+                <div class="form-group mb-0">
+                  <label>Si OUI, lesquels (+ copie obligatoire à la Médecine du Travail de l'E.E.) :</label>
+                  {{ form.postes_concernes }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carte 4 : Tableau des Risques & Interférences -->
+        <div class="card card-danger card-outline">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title m-0"><i class="fas fa-exclamation-triangle mr-2"></i>4. Risques et Interférences Possibles (Analyse & Évaluation)</h3>
+            {% if can_add_risk %}
+              <button type="button" class="btn btn-sm btn-outline-success font-weight-bold ml-auto" data-toggle="modal" data-target="#modal-add-risque">
+                <i class="fas fa-plus-circle mr-1"></i> Créer un nouveau risque
+              </button>
+            {% endif %}
+          </div>
+          <div class="card-body p-0">
+            {{ risques_formset.management_form }}
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped risk-table m-0">
+                <thead>
+                  <tr class="text-center">
+                    <th style="width: 35%;">Risque (Activité & Evaluation R/RR)</th>
+                    <th style="width: 6%;">E.U.</th>
+                    <th style="width: 6%;">E.E.</th>
+                    <th style="width: 38%;">Mesures de prévention retenues</th>
+                    <th style="width: 6%;">M.E. E.U.</th>
+                    <th style="width: 6%;">M.E. E.E.</th>
+                    <th style="width: 3%;">Suppr.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r_form in risques_formset %}
+                  <tr>
+                    {{ r_form.id }}
+                    {{ r_form.ordre }}
+                    <td>
+                      {{ r_form.risque }}
+                      {% if r_form.instance.pk and r_form.instance.risque %}
+                        <div class="small text-muted mt-1">
+                          <span class="badge badge-light border">{{ r_form.instance.risque.code }}</span>
+                          {% if r_form.instance.risque.categorie %}<span class="badge badge-light border">{{ r_form.instance.risque.categorie }}</span>{% endif %}
+                        </div>
+                      {% endif %}
+                      {% if r_form.errors %}
+                        <div class="text-danger small">{{ r_form.errors }}</div>
+                      {% endif %}
+                    </td>
+                    <td class="text-center align-middle">
+                      {{ r_form.concerne_eu }}
+                    </td>
+                    <td class="text-center align-middle">
+                      {{ r_form.concerne_ee }}
+                    </td>
+                    <td>
+                      {{ r_form.mesures_prevention }}
+                    </td>
+                    <td class="text-center align-middle">
+                      {{ r_form.mise_en_oeuvre_eu }}
+                    </td>
+                    <td class="text-center align-middle">
+                      {{ r_form.mise_en_oeuvre_ee }}
+                    </td>
+                    <td class="text-center align-middle">
+                      {% if r_form.instance.pk %}
+                        {{ r_form.DELETE }}
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+
+
+
+        <!-- Carte 5 : Remarques & Signatures -->
+        <div class="card card-success card-outline">
+          <div class="card-header">
+            <h3 class="card-title"><i class="fas fa-signature mr-2"></i>5. Remarques, Engagement & Signatures</h3>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="font-weight-bold">Remarques et avis du CSSCT de l'E.E. si nécessaire :</label>
+              {{ form.remarques_cssct }}
+            </div>
+
+            <div class="alert alert-info text-center font-weight-bold my-3">
+              "L'E.U. et l'E.E. s'engagent au respect de toutes les obligations et mesures de prévention que le document contient."
+            </div>
+
+            <div class="row">
+              <!-- Signature E.U. -->
+              <div class="col-md-6 border-right">
+                <h5 class="text-primary font-weight-bold text-center mb-3">ENTREPRISE UTILISATRICE (E.U.)</h5>
+                <div class="form-group">
+                  <label>Nom et Prénom du signataire :</label>
+                  {{ form.signature_eu_nom }}
+                </div>
+                <div class="form-group">
+                  <label>Date de signature :</label>
+                  {{ form.date_signature_eu }}
+                </div>
+                {{ form.signature_eu_image }}
+                <label>Signature tactile / souris E.U. (Mention "lu et approuvé") :</label>
+                <div class="signature-pad-container mb-2">
+                  <canvas id="canvas-eu" class="signature-pad"></canvas>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSignature('eu')">
+                    <i class="fas fa-eraser mr-1"></i> Effacer
+                  </button>
+                  <small class="text-muted">Dessinez la signature ci-dessus</small>
+                </div>
+              </div>
+
+              <!-- Signature E.E. -->
+              <div class="col-md-6">
+                <h5 class="text-success font-weight-bold text-center mb-3">ENTREPRISE EXTERIEURE (E.E.)</h5>
+                <div class="form-group">
+                  <label>Nom et Prénom du signataire :</label>
+                  {{ form.signature_ee_nom }}
+                </div>
+                <div class="form-group">
+                  <label>Date de signature :</label>
+                  {{ form.date_signature_ee }}
+                </div>
+                {{ form.signature_ee_image }}
+                <label>Signature tactile / souris E.E. (Mention "lu et approuvé") :</label>
+                <div class="signature-pad-container mb-2">
+                  <canvas id="canvas-ee" class="signature-pad"></canvas>
+                </div>
+                <div class="d-flex justify-content-between">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSignature('ee')">
+                    <i class="fas fa-eraser mr-1"></i> Effacer
+                  </button>
+                  <small class="text-muted">Dessinez la signature ci-dessus</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-footer text-right">
+            <a href="{% url 'plan_prevention:liste' %}" class="btn btn-secondary mr-2">
+              <i class="fas fa-times mr-1"></i> Annuler
+            </a>
+            <button type="submit" class="btn btn-success font-weight-bold">
+              <i class="fas fa-save mr-1"></i> Enregistrer le Plan de Prévention
+            </button>
+          </div>
+        </div>
+
+      </form>
+
+      {% if can_add_risk %}
+      <!-- Modal Compact Création de Risque Générique (Admin / RO / Auditeur) -->
+      <style>
+        #modal-add-risque {
+          z-index: 1060 !important;
+        }
+        #modal-add-risque .modal-dialog {
+          max-width: 680px;
+          margin: 1.5rem auto;
+        }
+        #modal-add-risque .modal-content {
+          border-radius: 8px;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+          border: none;
+          overflow: hidden;
+        }
+        #modal-add-risque .modal-header {
+          padding: 0.55rem 1rem;
+          background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+          border-bottom: 1px solid #14532d;
+        }
+        #modal-add-risque .modal-body {
+          padding: 0.75rem 1rem;
+          overflow-y: visible !important;
+          background: #ffffff;
+        }
+        #modal-add-risque .modal-footer {
+          padding: 0.45rem 1rem;
+          background: #f8fafc;
+          border-top: 1px solid #e2e8f0;
+        }
+        #modal-add-risque .form-group {
+          margin-bottom: 0.45rem !important;
+        }
+        #modal-add-risque label {
+          font-size: 0.78rem;
+          font-weight: 700;
+          margin-bottom: 0.2rem !important;
+          color: #1e293b;
+        }
+        #modal-add-risque .form-control,
+        #modal-add-risque .custom-select {
+          font-size: 0.82rem;
+          padding: 0.3rem 0.55rem;
+          height: auto;
+        }
+        #modal-add-risque textarea[name="identification"] {
+          height: 65px !important;
+          min-height: 65px !important;
+          resize: none;
+        }
+        #modal-add-risque textarea[name="moyens_maitrise"],
+        #modal-add-risque textarea[name="commentaires"] {
+          height: 48px !important;
+          min-height: 48px !important;
+          resize: none;
+        }
+      </style>
+
+      <div class="modal fade" id="modal-add-risque" tabindex="-1" role="dialog" aria-labelledby="modalAddRisqueLabel" aria-hidden="true" data-backdrop="static">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header text-white">
+              <h6 class="modal-title font-weight-bold" id="modalAddRisqueLabel">
+                <i class="fas fa-shield-alt mr-1.5"></i>Créer un Risque PDP
+              </h6>
+              <button type="button" class="close text-white opacity-75" data-dismiss="modal" aria-label="Fermer">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <form id="form-create-risque-ajax" method="post" action="{% url 'plan_prevention:api_create_risque' %}">
+              <div class="modal-body">
+                {% csrf_token %}
+                
+                <!-- Row 1: Code & Titre -->
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Code * :</label>
+                      {{ risque_form.code }}
+                    </div>
+                  </div>
+                  <div class="col-md-8">
+                    <div class="form-group">
+                      <label>Titre / Risque * :</label>
+                      {{ risque_form.titre }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 2: Description détaillée -->
+                <div class="form-group">
+                  <label>Description du risque & dangers associés :</label>
+                  {{ risque_form.description }}
+                </div>
+
+                <!-- Row 3: Catégorie & Ordre -->
+                <div class="row">
+                  <div class="col-md-8">
+                    <div class="form-group">
+                      <label>Catégorie :</label>
+                      {{ risque_form.categorie }}
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Ordre d'affichage :</label>
+                      {{ risque_form.ordre }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 4: Mesures recommandées -->
+                <div class="form-group">
+                  <label>Mesures de prévention recommandées :</label>
+                  {{ risque_form.mesures_prevention_recommandees }}
+                </div>
+              </div>
+
+              <!-- Footer -->
+              <div class="modal-footer d-flex justify-content-between align-items-center">
+                <button type="button" class="btn btn-secondary btn-sm font-weight-bold px-3" data-dismiss="modal">
+                  <i class="fas fa-times mr-1"></i> Annuler
+                </button>
+                <button type="submit" class="btn btn-success btn-sm font-weight-bold px-3 shadow-sm">
+                  <i class="fas fa-save mr-1"></i> Enregistrer le risque PDP
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+  let padEU, padEE;
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // Initialisation Signature Pad EU
+    const canvasEU = document.getElementById("canvas-eu");
+    if (canvasEU) {
+      padEU = new SignaturePad(canvasEU);
+      const imgEU = document.getElementById("id_signature_eu_image").value;
+      if (imgEU) {
+        padEU.fromDataURL(imgEU);
+      }
+    }
+
+    // Initialisation Signature Pad EE
+    const canvasEE = document.getElementById("canvas-ee");
+    if (canvasEE) {
+      padEE = new SignaturePad(canvasEE);
+      const imgEE = document.getElementById("id_signature_ee_image").value;
+      if (imgEE) {
+        padEE.fromDataURL(imgEE);
+      }
+    }
+
+    // Capture des signatures lors de la soumission
+    document.getElementById("pdp-form").addEventListener("submit", function() {
+      if (padEU && !padEU.isEmpty()) {
+        document.getElementById("id_signature_eu_image").value = padEU.toDataURL("image/png");
+      }
+      if (padEE && !padEE.isEmpty()) {
+        document.getElementById("id_signature_ee_image").value = padEE.toDataURL("image/png");
+      }
+    });
+
+    // Auto-complétion Customer (E.U.)
+    const customerSelect = document.getElementById("id_customer_select");
+    if (customerSelect) {
+      customerSelect.addEventListener("change", function() {
+        const custId = this.value;
+        if (!custId) return;
+        fetch(`/plan-prevention/api/customer/${custId}/`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.nom) document.getElementById("id_eu_nom").value = data.nom;
+            if (data.adresse) document.getElementById("id_eu_adresse").value = data.adresse;
+            if (data.telephone) document.getElementById("id_eu_telephone").value = data.telephone;
+          })
+          .catch(err => console.error("Erreur auto-complete customer:", err));
+      });
+    }
+
+    // AJAX creation de Risque (Admin / RO / Auditeur)
+    const formRisqueAjax = document.getElementById("form-create-risque-ajax");
+    if (formRisqueAjax) {
+      formRisqueAjax.addEventListener("submit", function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        fetch(this.action, {
+          method: "POST",
+          body: formData,
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const selects = document.querySelectorAll(".risk-select");
+            selects.forEach(select => {
+              const opt = document.createElement("option");
+              opt.value = data.id;
+              opt.textContent = data.text;
+              select.appendChild(opt);
+            });
+            if (typeof $ !== 'undefined' && $('#modal-add-risque').length) {
+              $('#modal-add-risque').modal('hide');
+            }
+            formRisqueAjax.reset();
+            alert("Nouveau risque créé avec succès et disponible dans la liste !");
+          } else {
+            alert("Erreur lors de la création du risque : " + JSON.stringify(data.errors || data.error));
+          }
+        })
+        .catch(err => console.error("Erreur AJAX création risque:", err));
+      });
+    }
+  });
+
+  function clearSignature(type) {
+    if (type === 'eu' && padEU) {
+      padEU.clear();
+      document.getElementById("id_signature_eu_image").value = "";
+    } else if (type === 'ee' && padEE) {
+      padEE.clear();
+      document.getElementById("id_signature_ee_image").value = "";
+    }
+  }
+</script>
+
+{% endblock %}

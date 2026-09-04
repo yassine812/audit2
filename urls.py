@@ -1,4 +1,4 @@
-"""URL configuration principale du projet audit2."""
+"""URL configuration principale du projet audit2 (reloaded)."""
 
 from django.contrib import admin
 from django.urls import include, path
@@ -25,6 +25,8 @@ urlpatterns = [
     path("gestion-documentaire/", include(("gestion_documentaire.urls", "gestion_documentaire"), namespace="gestion_documentaire")),
     # ── Gestion des Congés ───────────────────────────────────────────────────
     path("conges/", include(("conge.urls", "conge"), namespace="conge")),
+    # ── Plan de Prévention Simplifié ─────────────────────────────────────────
+    path("plan-prevention/", include(("plan_prevention.urls", "plan_prevention"), namespace="plan_prevention")),
     # ── Administration (comptes, utilisateurs, sections…) ────────────────────
     path("administration/", include(("accounts.urls", "administration"), namespace="administration")),
     # ── Prospection Commerciale ──────────────────────────────────────────────

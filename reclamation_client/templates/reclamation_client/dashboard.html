@@ -153,7 +153,7 @@
             <div class="filter-drawer-body">
                 <!-- Période -->
                 <div class="form-group mb-3">
-                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-calendar-alt text-muted mr-1"></i>Période globale :</label>
+                    <label class="font-weight-bold text-dark small mb-1"><i class="fas fa-calendar-alt text-muted mr-1"></i>Période :</label>
                     <select name="periode" class="form-control custom-select">
                         <option value="all" {% if selected_periode == "all" %}selected{% endif %}>Toutes les dates</option>
                         <option value="30d" {% if selected_periode == "30d" %}selected{% endif %}>Derniers 30 jours</option>
@@ -1204,6 +1204,7 @@
         var drawer = document.getElementById('rec-filter-drawer');
         var backdrop = document.getElementById('rec-filter-backdrop');
         var triggerBtn = document.getElementById('rec-filter-btn');
+        var triggerBtnHeader = document.getElementById('rec-filter-btn-header');
         var closeBtn = drawer ? drawer.querySelector('.js-filter-close') : null;
 
         function openDrawer() {
@@ -1217,6 +1218,7 @@
         }
 
         if (triggerBtn) triggerBtn.addEventListener('click', openDrawer);
+        if (triggerBtnHeader) triggerBtnHeader.addEventListener('click', openDrawer);
         if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
         if (backdrop) backdrop.addEventListener('click', closeDrawer);
 
